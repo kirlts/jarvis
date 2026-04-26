@@ -1,0 +1,37 @@
+04-25 Estrategia de Producto: De Soluciones Freelance Aisladas a una Plataforma SaaS Modular y Escalable
+
+[image]
+
+## Sinopsis Central
+
+Un ingeniero de software se enfrenta a una oportunidad estratégica: en lugar de construir dos soluciones personalizadas y aisladas para dos clientes emprendedores —un contratista y una médico—, ha identificado una necesidad de negocio subyacente y compartida. Ambos clientes requieren un sistema para gestionar personal, operaciones y entidades humanas a medida que sus negocios escalan. Esta convergencia lo ha llevado a la hipótesis de que puede construir una única plataforma centralizada y modular (un núcleo de software) y vender instancias personalizadas a cada cliente como un Software como Servicio (SaaS). El objetivo es pasar de un modelo de "tiempo por dinero" como freelance a un modelo de producto escalable, donde el esfuerzo de desarrollo del núcleo se amortiza entre múltiples clientes que perciben la solución como hecha a medida.
+
+---
+
+## El Giro: De Freelance a Fundador de Producto
+
+### El Problema de Negocio Subyacente
+El ingeniero ha identificado un patrón común entre dos clientes aparentemente dispares que buscan escalar sus operaciones:
+- **Cliente 1 (El Contratista)**: Gestiona equipos de limpieza y mantenimiento. Necesita una herramienta para coordinar al personal en terreno, monitorear el progreso de los trabajos y gestionar contratos crecientes, similar a la funcionalidad de la app de Sodimac para contratistas.
+- **Cliente 2 (La Médico)**: Lanza una terapia integral que involucra a múltiples especialistas de la salud (terapeutas, enfermeras, psicólogos) para dar seguimiento a pacientes. Requiere un sistema para gestionar a este equipo multidisciplinario y a los pacientes de forma más formal que por correo o WhatsApp.
+
+Ambos necesitan un sistema para la **gestión y trazabilidad de su personal y operaciones**. La diferencia no está en la necesidad fundamental (gestionar gente y tareas), sino en el contexto específico de su negocio.
+
+### La Hipótesis: Plataforma Multitenant de Núcleo Modular
+La idea estratégica no es construir dos aplicaciones, sino una sola que sirva a ambas.
+- **La Solución Propuesta**: Desarrollar un sistema con una **arquitectura de núcleo** que maneje las funcionalidades abstractas y comunes (gestión de usuarios/personal, trazabilidad, monitoreo). Sobre este núcleo, se construirían **módulos de personalización** específicos para cada cliente y su industria.
+- **El Modelo de Negocio**: Vender este sistema como un **Software como Servicio (SaaS)**. Cada cliente recibiría una instancia de la aplicación, creyendo que es una solución a medida, mientras que el esfuerzo de ingeniería se concentra en un único producto subyacente. Esto reduce drásticamente el costo de adquisición de nuevos clientes en el futuro.
+
+### La Pregunta Estratégica: Validación Conceptual y Arquitectónica
+Antes de comprometerse con el stack tecnológico (NestJS, PostgreSQL, arquitectura hexagonal), el ingeniero necesita validar el concepto mismo. Su investigación se centra en dos áreas clave:
+1. **Definición Conceptual**: ¿Tiene esta idea un nombre establecido en la industria del software? Se busca identificar el término correcto para este modelo (ej. plataforma multitenant, white-label SaaS, etc.) para acceder a literatura y estudios de caso consolidados.
+2. **Patrones Arquitectónicos**: Una vez definido el concepto, se necesita determinar el patrón de arquitectura más adecuado. Aunque se inclina por la **arquitectura hexagonal** por su separación de núcleo y adaptadores, está abierto a explorar otras como la arquitectura de cebolla (Onion) o circular, si se ajustan mejor al problema de crear un sistema modular y personalizable.
+
+---
+
+## Próximos Movimientos
+
+**@Martín**
+- [ ] Investigar y definir el término conceptual preciso para el modelo de negocio y producto propuesto (ej. plataforma multitenant, white-label SaaS, etc.) - [TBD]
+- [ ] Analizar patrones arquitectónicos (Hexagonal, Cebolla, etc.) a la luz del concepto definido para determinar el más adecuado para un sistema de núcleo modular - [TBD]
+- [ ] Explorar la literatura y estudios de caso asociados al patrón arquitectónico y modelo de negocio seleccionados antes de definir el stack tecnológico final - [TBD]

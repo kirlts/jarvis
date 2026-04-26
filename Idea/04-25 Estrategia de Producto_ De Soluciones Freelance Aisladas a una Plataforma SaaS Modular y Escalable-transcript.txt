@@ -1,0 +1,54 @@
+00:00:00 Martín
+tengo una idea, tengo una idea bien interesante.
+00:00:07 Martín
+El tema es que tengo algunos posibles clientes de proyectos freelance para ingeniería de software. En otras palabras, soy un ingeniero de software que ahora está dedicándose a hacer proyectos on desire y me apareció la oportunidad de trabajar con 2 personas. Que ambos quieren cosas radicalmente distintas, pero en el fondo se conectan por un par de hilos en común cuando lo ves desde el punto de vista de los negocios.
+00:00:50 Martín
+Y ese punto de vista en común es que ambos son personas que quieren emprender y que planean llegar a tener una operación de negocios que escale, que se vuelva más grande y que siga girando en torno a ellos, como todo buen emprendedor que quiere tener una empresa y hacer cosas.
+00:01:18 Martín
+Por lo tanto, se pusieron en contacto conmigo porque quieren comenzar a gestionar este proceso de escala o de emprendimiento.
+00:01:32 Martín
+Ambos de mis clientes requieren trabajar con profesionales especialistas.
+00:01:42 Martín
+Uno de mis clientes es un contratista que se dedica a diferentes cosas en el rubro del mantenimiento y limpieza. Él ahora se dedica a hacer limpiezas industriales, pero también arregla hornos, también es electricista, también hace limpiezas profundas, hace de todo el tipo.
+00:02:16 Martín
+Y ahora está empezando a emplear a algunas otras personas para completar ciertos trabajos y le están saliendo cada vez contratos más grandes. Se puso en contacto conmigo porque quiere que le haga una página web. Perfecto, la hago. Pero además, me comentó que iba a empezar a trabajar con más personas. Y que hasta ahora está echando en falta tener una aplicación que le permita gestionar a su personal, específicamente poder tener claro quién está en ruta, qué están haciendo, cómo va el avance de su trabajo, distintas cosas.
+00:02:58 Martín
+Y por su otra parte, estos colegas están necesitando.
+00:03:05 Martín
+Una aplicación que justamente lo ayuda a registrar este tipo de cosas.
+00:03:10 Martín
+El contratista me dio el excelente ejemplo de la aplicación de Sodimac. Él como contratista trabaja para este mercado de materiales y servicios de construcción que le encarga hacer ciertas cosas y él en la aplicación va registrando que puede ir en ruta, por donde va, muchas cosas. Qué hace esa aplicación? Sé que le sirve a él como para gestionar su trabajo y va a necesitar una aplicación parecida.
+00:03:41 Martín
+Perfecto, pasemos al segundo cliente. Me refiero a que él va a necesitar una aplicación como la de Sodimac o mejor para gestionar su equipo, entendiendo que la escala de su operación ahora es pequeña, entonces no necesito una aplicación de grado industrial como la de Sodimac.
+00:04:02 Martín
+Y mi otro cliente es una médica que tiene un innovador proceso de terapia que quiere empezar a ofrecer como servicio. Ya esto significa un servicio de terapia integral que contempla la integración de varios profesionales de la salud de distintas áreas que proveerán un seguimiento personalizado y multidisciplinario a un paciente por 3 a 6 meses.
+00:04:33 Martín
+Entonces ella va a necesitar también un sistema o una aplicación que le permita fácilmente poder gestionar a este personal, incluyendo a sus pacientes, pero poder por lo menos gestionar a la terapeuta con la que va a trabajar la enfermera, la psicóloga, etcétera. Y ella planea expandir esto eventualmente.
+00:05:01 Martín
+Por lo tanto, va a necesitar esta aplicación, va a necesitar gestionar a esas personas de una forma un poco más formal que solamente por correo o por whatsapp.
+00:05:13 Martín
+Eso por ahora, pero te comento un poquito más de la idea.
+00:05:23 Martín
+Esto me hizo pensar algo muy interesante.
+00:05:30 Martín
+Qué tienen en común estos dos clientes? Quieren un sistema que les permita gestionar su personal, su realidad de trabajo, no en lo que hacen, sino en cómo conectan los distintos entes en las distintas entidades humanas que componen su trabajo o su operación total. Pensándolo a ese nivel de abstracción, y créeme que tiene un sentido, la idea sería construir por mi lado un sistema para estas dos personas.
+00:06:04 Martín
+Pero si el sistema en sí es tan parecido para estos dos clientes, un sistema que permita gestionar, llevar trazabilidad, observar, monitorear al personal y las entidades humanas que rodean a este emprendedor o a este nodo matriz. Entonces, ¿qué no hacer el mismo programa adaptable para ellos dos?
+00:06:32 Martín
+Qué significa eso? Me refiero a tener un programa que tenga un núcleo que responda a este nivel de abstracción, pero modularmente pueda ir personalizándose cliente a cliente según las necesidades propias de su negocio. Ahora tenemos un abanico lo suficientemente amplio, conceptualmente hablando, como para entender que el sistema debe expandirse desde su núcleo hacia una personalización apropiada, primero para el cliente contratista y segundo para el cliente que es una médico.
+00:07:06 Martín
+Debo preocuparme de crear el núcleo de este sistema y luego de crear las personalizaciones y venderle instancias de este sistema como un software como servicio, un SaaS, a estos dos clientes por separado. Ellos ni siquiera tienen que saber que existe el sistema nuclear y deben pensar que lo que están recibiendo es una solución 100% hecha a medida, que hasta cierto punto lo será, pero a nivel de mano de obra no voy a tener que invertir tanto tiempo por paciente asumiendo que puedo ofrecer estos servicios a otras personas.
+00:07:42 Martín
+Entonces, para ir finalizando te cuento esta idea porque no tengo muy claro quiero explorar cómo definir esta idea que tengo si es que tiene un nombre ya en la industria si es que existen patrones arquitectónicos asociados a esto si es que esta actividad recibe un nombre etc. Quiero entender primero a nivel conceptual si es que lo que yo estoy ideando ya existe y es consolidado o algo así.
+00:08:16 Martín
+No me refiero a competencia, me refiero a la definición conceptual. Luego, eso me permitirá saber si existen cuáles son los mejores patrones arquitectónicos y las tecnologías recomendadas por otras personas para realizar esta tarea, así como entender cuál es la literatura asociada, cuáles son los estudios científicos o de software que pueden existir al respecto de esto, para construir ya con el pie derecho.
+00:08:46 Martín
+Desde ya estoy pensando en un patrón hexagonal, por ejemplo, lo que decía un núcleo del nivel de arquitectura pueda tener interfaces y adaptadores. Hace poco conocí el stack de Nest JS Nest JavaScript y me pareció bien interesante porque integra todas estas capacidades de forma nativa. Puede ser amigable con.
+00:09:17 Martín
+Bases de datos relacionales y no relacionales podría ocupar Postgres para todo con distintos módulos por ejemplo PGVector aunque no tenga nada que ver en este caso este sistema debería poder soportar la integración de LLMs, agentes, machine learning, etc. Todo tipo de componentes de inteligencia artificial. Pero el punto es mantenerlo hexagonal.
+00:09:49 Martín
+Esto permitiría también distintos despliegues bastante rápido.
+00:09:54 Martín
+Pero no quiero quedarme pegado en la idea del patrón hexagonal porque sé que existen otros patrones de arquitectura. Como el patrón de cebolla o el patrón circular, que por algún motivo u otro podría ser una mejor elección para mi idea.
+00:10:10 Martín
+Así que antes de empezar a pensar muy duro en cuál va a ser el stack o cuál va a ser el patrón que voy a adoptar, primero quiero entender de qué es lo que estoy hablando. Eso ha sido todo.
