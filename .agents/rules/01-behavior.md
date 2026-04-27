@@ -29,3 +29,14 @@ To prevent cognitive saturation (Lost in the Middle), Kairós partitions its gov
 | Before creating, modifying, or interpreting any file in `/docs/` | `.agents/rules/04-documentation.md` (Documentary axis constraints) |
 | Before modifying architecture, dependencies, or core code logic | `.agents/rules/05-constraints.md` (Code execution restrictions) |
 | Before generating or modifying UI, CSS, or graphical elements | `.agents/rules/06-aesthetics.md` (Visual excellence protocol) |
+
+## [RULE: DYNAMIC SKILL ACTIVATION]
+
+In addition to static rules, the agent possesses specialized skills for complex or specific scenarios. The agent MUST actively monitor the conversation and activate these skills when their trigger conditions are met by reading the corresponding `SKILL.md` file:
+
+| Trigger Condition | Skill to Activate |
+|---|---|
+| User expresses frustration, repeats corrections, or rejects proposals | `.agents/skills/conflict-resolution-protocol/SKILL.md` |
+| Dialogue shows inertia, vagueness, or >3 turns without concrete artifacts, OR user uses exploration keywords on a nascent topic | `.agents/skills/productive-friction-protocol/SKILL.md` |
+| Recommending technologies/practices that might be outdated | `.agents/skills/standard-research/SKILL.md` |
+| Verifying visual/experience artifacts for aesthetic harmony | `.agents/skills/visual-excellence-protocol/SKILL.md` |

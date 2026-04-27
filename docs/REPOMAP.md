@@ -1,6 +1,6 @@
 # REPOMAP: Jarvis
 
-> Generated: 2026-04-26 (Kairós v0.1.0)  
+> Generated: 2026-04-27 01:56 (Kairós v1.2.0)  
 > Purpose: Routing matrix. Defines when the AI is authorized to read each directory or file.
 
 ## Authoring Constraints (Read Before Populating)
@@ -15,8 +15,16 @@
 
 | Directory / File | Nature | When to Consult |
 |---|---|---|
-| `docs/MASTER-SPEC.md` | Domain Axiom | Consult FIRST when altering any system behavior, dependency, or architecture to verify constraints. |
-| `docs/*.md` (Excl. MASTER-SPEC) | Documentary Axis | Consult when governed by task initiation rules (e.g., reading `TODO.md` or `MEMORY.md`). |
-| `Idea/` | Noise Cluster | Consult ONLY when explicitly requested to parse historical transcripts or raw product ideas. |
-| `*.*` (Root Project Files) | Noise Cluster | Consult when managing legacy root specifications like `PRD-Constitucion.md`. |
-| `Kairós Governance` | Invisible Infrastructure | NEVER consult for project logic. Regulates AI behavior internally. |
+| `PRD-Constitucion.md` | Domain Axiom | MANDATORY first read for high-level constitutional constraints and architectural vision. |
+| `docs/MASTER-SPEC.md` | Domain Axiom | MANDATORY first read for technical stack, constraints, and system boundaries. |
+| `docs/TEST.md` | Domain Axiom | Consult before writing or modifying any test suite to ensure compliance with testing doctrine. |
+| `docs/*.md` (Documentary Axis) | Documentary Axis | Consult automatically based on Kairós workflow triggers (TODO, MEMORY, CHANGELOG, USER-DECISIONS). |
+| `src/` | Architectural Module | Consult when modifying the Fastify HTTP Core, VSA endpoints, or database pool configuration. |
+| `src/workers/` | Architectural Module | Consult when modifying background jobs, pg-boss consumers, or WhatsApp (Baileys) transduction logic. |
+| `supabase/migrations/` | Architectural Module | Consult when modifying database schemas, RLS policies, or Atlas migrations. |
+| `specs/` | Architectural Module | Consult when modifying or verifying OpenAPI specifications for Contract-Driven Development. |
+| `scripts/` | Architectural Module | Consult when running local health checks, stress tests (K6), or contract tests. |
+| `infrastructure/` | Architectural Module | Consult when modifying the Ops Console (Appsmith) exports or other infrastructure-as-code. |
+| `Idea/` & `Research/` | Ideation & Research | Consult when exploring original project concepts or Deep Research historical reports. |
+| `*.*` (Root Configs) | Configuration | Consult when modifying Docker Compose, Atlas CLI routing, package dependencies, or environment variables. |
+| `.agents/`, `kairos-version.txt` | Kairós Governance | Invisible infrastructure. Consult only when modifying agent behaviors or templates. |

@@ -1,0 +1,101 @@
+openapi: 3.0.3
+info:
+  title: Jarvis Admin API
+  version: 0.1.0
+  description: Ops Console API for superadmin operations. Arquitectura Desacoplada (Admin API + Cliente Externo).
+servers:
+  - url: http://localhost:3000
+    description: Sandbox Environment
+paths:
+  /admin/tenants:
+    get:
+      summary: Get all tenants status
+      operationId: getTenants
+      security:
+        - adminBearerAuth: []
+      responses:
+        '200':
+          description: List of tenants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+
+  /admin/jobs:
+    get:
+      summary: View pg-boss job queues
+      operationId: getJobs
+      security:
+        - adminBearerAuth: []
+      responses:
+        '200':
+          description: Jobs list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /admin/whatsapp/status:
+    get:
+      summary: View Baileys WhatsApp connections status
+      operationId: getWhatsAppStatus
+      security:
+        - adminBearerAuth: []
+      responses:
+        '200':
+          description: WhatsApp connections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /admin/tenants/{id}:
+    delete:
+      summary: Delete a tenant completely (destructive)
+      operationId: deleteTenant
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: confirm
+          in: query
+          required: true
+          schema:
+            type: boolean
+      responses:
+        '204':
+          description: Tenant deleted
+        '400':
+          description: Missing confirm parameter
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+
+components:
+  securitySchemes:
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

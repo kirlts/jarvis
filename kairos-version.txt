@@ -1,4 +1,4 @@
-v3.2.8
+v3.3.0
 .agents/epub/style.css
 .agents/knowledge/ai-smell-registry.md
 .agents/knowledge/constitution.md
@@ -15,7 +15,6 @@ v3.2.8
 .agents/rules/05-constraints.md
 .agents/rules/06-aesthetics.md
 .agents/skills/conflict-resolution-protocol/SKILL.md
-.agents/skills/fertile-void-protocol/SKILL.md
 .agents/skills/productive-friction-protocol/SKILL.md
 .agents/skills/standard-research/SKILL.md
 .agents/skills/visual-excellence-protocol/SKILL.md

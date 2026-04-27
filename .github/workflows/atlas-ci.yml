@@ -1,0 +1,38 @@
+name: Atlas CI
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+
+jobs:
+  lint:
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: setup atlas
+        uses: ariga/setup-atlas@v0
+        with:
+          version: v1.2.0
+      - name: atlas migrate lint
+        run: |
+          atlas migrate lint \
+            --dir "file://supabase/migrations" \
+            --dev-url "postgresql://postgres:password@localhost:5432/dev?search_path=public&sslmode=disable" \
+            --latest 1

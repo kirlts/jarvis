@@ -51,5 +51,6 @@ Research is presented in the format that best serves the user's expressed intent
 
 ## Activation Limits
 
-- Can be omitted for purely conceptual questions (not tool-related).
-- Can be reduced to 1 validation search for mature, stable technologies (e.g., basic SQL, HTTP).
+- **Omit completely** for purely conceptual questions or language syntax that does not involve evolving ecosystems (e.g., "how does a `for` loop work in Python").
+- **Reduce to 2 searches (current state + critical)** for binary decisions between mature, stable technologies (e.g., "Flask vs FastAPI", "PostgreSQL vs MySQL").
+- **Execute all 4 searches** ONLY for full stack evaluations, emerging technologies, or radical architectural shifts.

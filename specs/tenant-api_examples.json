@@ -1,0 +1,21 @@
+{
+  "syncInbox": {
+    "request": {
+      "method": "POST",
+      "path": "/api/v1/sync/inbox",
+      "headers": {
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRfaWQiOiIxMjMiLCJzdWIiOiJ1c2VyXzEiLCJpYXQiOjE3NzcyNjc4MDJ9.hUHXEdzFslEccT8fDDvBC59pNzyrTJRHNfPnzb6eEWE"
+      },
+      "body": {
+        "id": "018f6738-f9b1-789a-b44c-98710a34b221",
+        "tenant_id": "018f6738-f9b1-789a-b44c-98710a34b221",
+        "payload": {
+          "type": "CREATE_TASK"
+        }
+      }
+    },
+    "response": {
+      "status": 202
+    }
+  }
+}

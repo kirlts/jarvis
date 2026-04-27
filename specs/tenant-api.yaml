@@ -1,0 +1,70 @@
+openapi: 3.0.3
+info:
+  title: Jarvis Tenant API
+  version: 0.1.0
+  description: API for tenant operations and offline synchronization.
+servers:
+  - url: http://localhost:3000
+    description: Sandbox Environment
+paths:
+  /api/v1/sync/inbox:
+    post:
+      summary: Submit offline payloads for asynchronous synchronization
+      operationId: syncInbox
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - id
+                - tenant_id
+                - payload
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+                  example: "018f6738-f9b1-789a-b44c-98710a34b221"
+                tenant_id:
+                  type: string
+                  format: uuid
+                  example: "018f6738-f9b1-789a-b44c-98710a34b221"
+                payload:
+                  type: object
+                  minProperties: 1
+                  additionalProperties: true
+                  example:
+                    foo: "bar"
+      responses:
+        '202':
+          description: Payload accepted for asynchronous processing
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - accepted
+                  - id
+                properties:
+                  accepted:
+                    type: boolean
+                    example: true
+                  id:
+                    type: string
+                    format: uuid
+        '400':
+          description: Invalid request body
+        '401':
+          description: Missing or invalid JWT
+        '429':
+          description: Rate limit exceeded
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

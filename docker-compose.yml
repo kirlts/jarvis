@@ -1,0 +1,358 @@
+# Jarvis v0.1.0 – Phase 1 Local Sandbox
+# Covers: TASK-001 Docker Compose & Infrastructure Provisioning
+# Validated checks: CORE.AV.01, CORE.CR.01, CORE.RS.02, DB.AV.01, DB.CR.02, STOR.AV.01
+#
+# Stack versions verified via Deep Research – April 2026:
+#   PostgreSQL 17.6.1.093 (Supabase, ghcr.io)
+#   PgBouncer 1.25.1 (edoburu, Alpine)
+#   MinIO RELEASE.2026-04-14T21-32-45Z (source build)
+
+services:
+  # ── PostgreSQL 17 (vanilla Alpine for sandbox) ──────────────────────
+  # Production uses Supabase managed PG. Sandbox uses vanilla PG 17
+  # to avoid supabase_admin role dependency during extension creation.
+  db:
+    image: postgres:17-alpine
+    container_name: jarvis-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_sandbox
+      POSTGRES_DB: jarvis
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d jarvis"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+    networks:
+      - jarvis-net
+
+  # ── PgBouncer (Supavisor emulator – transaction mode) ──────────────
+  # edoburu/pgbouncer hardcodes internal listener to port 5432.
+  # External mapping 6543:5432 emulates Supabase Supavisor (§4.5).
+  # pg-boss workers MUST bypass this pooler (session-level advisory locks).
+  pooler:
+    image: edoburu/pgbouncer:latest
+    container_name: jarvis-pooler
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: postgres_sandbox
+      DB_NAME: jarvis
+      AUTH_TYPE: scram-sha-256
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: "200"
+      DEFAULT_POOL_SIZE: "20"
+      IGNORE_STARTUP_PARAMETERS: extra_float_digits
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jarvis-net
+
+  # ── S3-Compatible Storage (MinIO, community build) ──────────────────
+  # Official Docker Hub images archived since late 2025.
+  # Using coollabsio automated source-build from official MinIO repo.
+  storage:
+    image: ghcr.io/coollabsio/minio:latest
+    container_name: jarvis-storage
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin_sandbox
+    command: server /data --console-address ":9001"
+    volumes:
+      - storage_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "mc alias set local http://localhost:9000 minioadmin minioadmin_sandbox >/dev/null 2>&1 && mc ready local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jarvis-net
+
+  # ── Storage Bootstrap (creates default bucket) ─────────────────────
+  storage-init:
+    image: ghcr.io/coollabsio/minio:latest
+    container_name: jarvis-storage-init
+    depends_on:
+      storage:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin_sandbox
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://storage:9000 minioadmin minioadmin_sandbox;
+      mc mb local/jarvis-files --ignore-existing;
+      mc anonymous set none local/jarvis-files;
+      mc mb local/jarvis-private --ignore-existing;
+      mc anonymous set none local/jarvis-private;
+      echo 'Buckets jarvis-files and jarvis-private ready';
+      "
+    networks:
+      - jarvis-net
+
+  # ── Core HTTP API (Fastify VSA) ────────────────────────────────────────
+  core-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jarvis-core-api
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: postgres_sandbox
+      DB_NAME: jarvis
+      POOLER_HOST: pooler
+      POOLER_PORT: "5432"
+      STORAGE_ENDPOINT: "http://storage:9000"
+      STORAGE_ACCESS_KEY: "minioadmin"
+      STORAGE_SECRET_KEY: "minioadmin_sandbox"
+      STORAGE_BUCKET: "jarvis-files"
+      BOSS_DATABASE_URL: "postgresql://postgres:postgres_sandbox@db:5432/jarvis"
+      JWT_SECRET: "sandbox_super_secret_key_12345"
+      ADMIN_JWT_PUBLIC_KEY: |
+        -----BEGIN PUBLIC KEY-----
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkQ/s4htokfmaO6OtSiVl
+        v7U5wbWtdCUPDQZEpVocx0alH06UDrvPR7bSvdJmS7/FlKk/phZzkufTVTd+TxaH
+        RaT8TUmkgZ9cRFFFZctq8dwQIZxNND0oyIxY8qTyAaoo5l0yYlXH2pL7yTLuO2Vz
+        Odij4AJwUKo8cSdbb6a7hUdPjy0aD7XL3lV3nY37z7N5GSOEXjQAdnUmGdU2glUg
+        t2uVvaUra9XpBaWIkC3cMgjXz0bTavBaDOvWnc+0EoY5kA1kvi2g022FEAsBcOza
+        R0L4GD/aqVOX39cQPE3bcrQGL4okV1mxqg7snv1ebEK8nUSdMaOnnKO2N7WQTA2L
+        GQIDAQAB
+        -----END PUBLIC KEY-----
+      ADMIN_JWT_PRIVATE_KEY: |
+        -----BEGIN RSA PRIVATE KEY-----
+        MIIEowIBAAKCAQEAkQ/s4htokfmaO6OtSiVlv7U5wbWtdCUPDQZEpVocx0alH06U
+        DrvPR7bSvdJmS7/FlKk/phZzkufTVTd+TxaHRaT8TUmkgZ9cRFFFZctq8dwQIZxN
+        ND0oyIxY8qTyAaoo5l0yYlXH2pL7yTLuO2VzOdij4AJwUKo8cSdbb6a7hUdPjy0a
+        D7XL3lV3nY37z7N5GSOEXjQAdnUmGdU2glUgt2uVvaUra9XpBaWIkC3cMgjXz0bT
+        avBaDOvWnc+0EoY5kA1kvi2g022FEAsBcOzaR0L4GD/aqVOX39cQPE3bcrQGL4ok
+        V1mxqg7snv1ebEK8nUSdMaOnnKO2N7WQTA2LGQIDAQABAoIBABfBwOzCylxlwWGV
+        C7NB7qj32A6mX1LPIujiJunhmSb1peM7rjm/flHjWh4mUASF0qjnEvpzYNglSVIC
+        dZgkO2EnhP5vWha0b5rsqG3kY45amPW4MFimz4AQpByQ8OVe5bXce3zpSYK9Yajw
+        w11M3xMRLL1qCNTdHGr3pBzj9H/+D4vwG0Rc2PWXBL30l8nPhV1HrtbwUlruvmSF
+        +QvKLxZb91masNxFe5sO2hvvz3A663IKrtg8kCzKOOkfYsjWfyOc8ReiMGHoxSWU
+        kMsuiZjIHQEmCMZIOOcCR9VauK5EsTY2NkD8kfPW1HIU7nBcMDeKltxMnWFcHCyv
+        Fai8FJECgYEAy+mTM2hVL99SUm7AFukhdC6Ow3TZkLbjiCuBWzbEEE5VQdm/Vjf+
+        vAod4Pm8oZcKr0dmmuQv7Ox8rYKtjstnXif/sbWyuxg3ihPSzI4g5pf/8HqsMA9E
+        laoq2DQ7tIoPQdvR9M3vgll9LuNFUQs8nWGc75gEMYe20/5HSsM0h60CgYEAth33
+        CXE1Hr2WcfxftJ2BXdcRu8TCze64oWgtUpVDSWcthLmPYh58LzxM1RoIrZfoS0iY
+        JM2Ou8HaVVGagNzm/zqjU/JWyRtgjec2jUlHiF5K1ZejB1p4W2jObQnk7ao9HrQL
+        2KPxKbMnSMpnEDv3oVmwWb2CIZ+ijJPxEOXybp0CgYEAqW6IcEO13NRL+9CobaEC
+        uh3hZAkYqkU85C16C4eC/CWKc+/xKzvVvvsM/p2kHgR5zVCfsf3+0Hdj1Wxqt+bN
+        GhBURp46R3mE1IdKNcu3DMOp13Cm2DwnedBuTz1/irDYopl7aFUhOQcQnEAdnYyf
+        rgmos/B1M46X3KhBJp7ya/UCgYBilnojXGubRpro/ex5hEKCIGlzMqMahD7i8diH
+        OlKArCBSF3ntbf9gOs6FFmDYSMHx70ydr8GzFtAxG8n+NJfAV2gPi8M7f1yXtTEs
+        7xyQUCtG0Z3p3yoEogoNsSuDFYOc2W8ISkfFgTylBR0iBrSZXko/an3F4ftHCteX
+        hEPnaQKBgG/Lg2GQ379l2AKcYhfaSdQ2Wd33uvrR4VsuFROxt+1pnQfe2QYCBGLz
+        OUXv9sIX3S3H9xHZgPcLZDdIg/97YHivlZbMQBTTw8s+c88kboZJeFvfYkSmvWac
+        LW++M3xZmSqcGUhEM/B8JYnljvRxlrEmuDQMs6u0VvnHv/ZMuD2p
+        -----END RSA PRIVATE KEY-----
+      LOKI_HOST: "http://loki:3100"
+    depends_on:
+      pooler:
+        condition: service_healthy
+      storage-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jarvis-net
+
+  # ── Core Async Worker (pg-boss) ────────────────────────────────────────
+  core-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jarvis-core-worker
+    command: ["node", "src/workers/boss-worker.js"]
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: postgres_sandbox
+      DB_NAME: jarvis
+      BOSS_DATABASE_URL: "postgresql://postgres:postgres_sandbox@db:5432/jarvis"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - jarvis-net
+
+  # ── WhatsApp Baileys Worker (Isolated Container) ───────────────────
+  baileys-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["node", "src/workers/baileys/worker.js"]
+    container_name: jarvis-baileys-worker
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    environment:
+      # Direct PG connection for AuthState persistence (WAPP.FN.01)
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: postgres_sandbox
+      DB_NAME: jarvis
+      # Pooler connection for application queries
+      POOLER_HOST: pooler
+      POOLER_PORT: "5432"
+      # Hardcoded session for Phase 1 testing
+      WAPP_TENANT_ID: "01905555-5555-7555-8555-555555555556"
+      WAPP_SESSION_ID: "01905555-5555-7555-8555-555555555560"
+      BOSS_DATABASE_URL: "postgresql://postgres:postgres_sandbox@db:5432/jarvis"
+      STORAGE_ENDPOINT: "http://storage:9000"
+      STORAGE_ACCESS_KEY: "minioadmin"
+      STORAGE_SECRET_KEY: "minioadmin_sandbox"
+      STORAGE_BUCKET: "jarvis-files"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - jarvis-net
+
+  # ── Ops Console (Appsmith) ─────────────────────────────────────────────
+  appsmith:
+    image: appsmith/appsmith-ce:latest
+    container_name: jarvis-appsmith
+    restart: unless-stopped
+    environment:
+      - APPSMITH_DISABLE_TELEMETRY=true
+    volumes:
+      - appsmith_data:/appsmith-stacks
+    networks:
+      - jarvis-net
+
+  # ── Edge Proxy (Caddy) ────────────────────────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    container_name: jarvis-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - jarvis-net
+    depends_on:
+      - core-api
+      - appsmith
+  # ── Observability (Loki) ───────────────────────────────────────────────
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: jarvis-loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/loki-config.yaml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./infrastructure/observability/loki-config.yaml:/etc/loki/loki-config.yaml
+      - loki_data:/loki
+    networks:
+      - jarvis-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ── Observability (Grafana) ────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:11.0.0
+    container_name: jarvis-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=grafana_sandbox
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/observability/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - jarvis-net
+    depends_on:
+      - loki
+
+  # ── Observability (Uptime Kuma) ────────────────────────────────────────
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: jarvis-uptime-kuma
+    restart: unless-stopped
+    ports:
+      - "3002:3001"
+    volumes:
+      - uptime_kuma_data:/app/data
+    networks:
+      - jarvis-net
+
+  # ── Zero-Touch Provisioner ─────────────────────────────────────────────
+  # Runs the Appsmith and Uptime Kuma python setup scripts automatically.
+  # Requires wait-for-it logic since Appsmith takes ~30-60s to boot.
+  provisioner:
+    image: mcr.microsoft.com/playwright/python:v1.43.0-jammy
+    container_name: jarvis-provisioner
+    volumes:
+      - ./scripts:/app/scripts
+    working_dir: /app
+    command: >
+      bash -c "
+      echo 'Waiting for Appsmith to be ready...';
+      until curl -s http://appsmith:80/setup/welcome | grep -q '<title>'; do sleep 5; done;
+      echo 'Appsmith is up. Installing dependencies...';
+      pip install uptime-kuma-api --quiet;
+      python3 scripts/provision_appsmith.py;
+      python3 scripts/provision_kuma.py;
+      "
+    networks:
+      - jarvis-net
+    depends_on:
+      - appsmith
+      - uptime-kuma
+
+volumes:
+  db_data:
+    driver: local
+  storage_data:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
+  appsmith_data:
+    driver: local
+  loki_data:
+    driver: local
+  grafana_data:
+    driver: local
+  uptime_kuma_data:
+    driver: local
+
+networks:
+  jarvis-net:
+    driver: bridge
+    name: jarvis-net

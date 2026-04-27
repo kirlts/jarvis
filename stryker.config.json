@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "packageManager": "npm",
+  "reporters": [
+    "html",
+    "clear-text",
+    "progress",
+    "json"
+  ],
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "npm run test:unit"
+  },
+  "coverageAnalysis": "off",
+  "mutate": [
+    "src/**/*.js",
+    "!src/**/*.test.js",
+    "!src/workers/**/*.js"
+  ]
+}

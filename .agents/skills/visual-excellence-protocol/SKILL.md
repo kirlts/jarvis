@@ -5,27 +5,18 @@ description: Activates to verify that visual and experience artifacts comply wit
 
 # Visual Excellence Verification
 
-This skill operationalizes the `04-aesthetics` rule. Its function is to verify that each visual artifact has its own identity and is not exclusively a generic product of the model's statistical distribution.
+This skill operationalizes the `.agents/rules/06-aesthetics.md` rule. Its function is to verify that each visual artifact has its own identity and is not exclusively a generic product of the model's statistical distribution. It does NOT define the aesthetic laws (which are handled by the rule), but strictly enforces them before artifact delivery.
 
 ## Phase 0: Reference Loading
 
-`@knowledge/ai-smell-registry.md` is loaded to obtain the Convergence Blacklist (CBL) encompassing the 10 vectors and their exact values. This operation is internal and silent.
+`.agents/knowledge/ai-smell-registry.md` is loaded to obtain the Convergence Blacklist (CBL) encompassing the 10 vectors and their exact values. This operation is internal and silent.
 
-## Phase 1: Atmosphere Inhalation
+## Phase 1: Contextual Audit (Internal)
 
-1. **Brownfield Audit:** Existing style files (CSS, tailwind.config, theme) are inspected. Legacy constraints are identified.
-2. **Interchangeability Test (silent):** "If I substitute the logo for that of a generic entity, would this copy/layout still apply?" If the answer is yes, the artifact lacks domain anchoring.
-3. **Visual DNA Extraction:** If a new atmosphere is requested, a unique spacing, curvature, and lighting system is derived.
-4. **Typographic Identity:** Specific weight, tracking, and leading values are calculated.
-5. **Chromatic Curve:** The color logic is established mathematically in OKLCH.
+1. **Brownfield Check:** Existing style files (CSS, tailwind.config, theme) are inspected. Legacy constraints are identified.
+2. **Interchangeability Test:** "If I substitute the logo for that of a generic entity, would this copy/layout still apply?" If the answer is yes, the artifact lacks domain anchoring.
 
-## Phase 2: Token Derivation
-
-1. **Rhythm Scale:** A base unit and harmonic progression are defined.
-2. **Hierarchy Matrix:** Directed reading is forced through calculated contrasts.
-3. **Contextual Density:** Density is adjusted specifically according to the target project's context.
-
-## Phase 3: Verification Gates
+## Phase 2: Verification Gates
 
 Mandatory verification before delivering any visual artifact.
 
@@ -33,7 +24,7 @@ Mandatory verification before delivering any visual artifact.
 
 | Condition | Result |
 |---|---|
-| ≥3 artifact values match CBL without atmospheric justification | BLOCK → rewrite with derived values |
+| ≥3 artifact values match CBL without domain justification | BLOCK → rewrite with domain-specific values |
 | ≥1 Unicode emoji used as a UI icon | BLOCK |
 | ≥1 link points to `#` without being a declared placeholder | BLOCK |
 | A CTA uses literal strings from the CBL without rewriting to the domain | BLOCK |
@@ -42,8 +33,7 @@ Mandatory verification before delivering any visual artifact.
 
 | Condition | Result |
 |---|---|
-| A visual decision is not justifiable from the inhaled atmosphere | BLOCK → residue of statistical inertia |
-| The rhythm system derived in Phase 2 is not respected | BLOCK |
+| A visual decision violates the laws defined in `06-aesthetics.md` | BLOCK → residue of statistical inertia |
 | Hover elements are not interactive, or focusable without `:focus-visible` | BLOCK |
 | Empty space does not communicate semantic grouping (Gestalt) | BLOCK → generic padding |
 
@@ -51,12 +41,12 @@ Mandatory verification before delivering any visual artifact.
 
 | Condition | Result |
 |---|---|
-| MASTER-SPEC §4 constraints or brownfield system not respected | BLOCK |
+| MASTER-SPEC §4 constraints or existing project design systems not respected | BLOCK |
 | Harmony law contradicts legacy constraint | BLOCK → declare to user and request verdict |
 
 ## Output Mandate
 
-Upon delivering the artifact, the system explicitly communicates in standard technical language (omitting internal jargon):
-1. The inhaled reference atmosphere.
-2. The deviations executed regarding the convergence values.
+Upon delivering the artifact, the system explicitly communicates in standard technical language:
+1. The reference design logic applied.
+2. The deviations executed regarding the AI convergence values.
 3. Justification for any matches with convergence values.

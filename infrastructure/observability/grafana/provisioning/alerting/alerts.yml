@@ -1,0 +1,49 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: HighErrorRate
+    folder: "Jarvis Alerts"
+    interval: 1m
+    rules:
+      - uid: fastify_high_errors
+        title: High API Error Rate
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: loki
+            model:
+              expr: sum(count_over_time({service="jarvis-core-api"} |= "error" [1m]))
+              queryType: range
+              refId: A
+            relativeTimeRange:
+              from: 60
+              to: 0
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource:
+                name: Expression
+                type: __expr__
+                uid: __expr__
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              datasource:
+                name: Expression
+                type: __expr__
+                uid: __expr__
+              expression: "$B > 5"
+              refId: C
+              type: math
+        noDataState: OK
+        execErrState: Error
+        for: 1m
+        annotations:
+          description: "More than 5 errors per minute detected in jarvis-core-api"
+        labels:
+          severity: critical

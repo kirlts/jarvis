@@ -1,0 +1,9 @@
+h1:msX19fNNQPpoZBCQy8CJ/q+Qd14xVJA6bPqjyjKNeGM=
+001_extensions.sql h1:o0pUnbcUSlB3sHSM2oN1W4si+5FUtVQct3PeWhZakDQ=
+002_tenants.sql h1:ZfMOs1AHCDIZnJRtO/3Z89dYnSsmZdJkSMTkkS+Sg/0=
+003_sync_inbox.sql h1:oqNU9jk/EtM1Ck8mygK5np0O4DAIf+DdBZQQgFtcOe4=
+004_wapp_state.sql h1:plh6apQKapbe0Y0XCyQcV3BR5HH1YN4raL5gSdwLmfE=
+005_rls_and_isolation.sql h1:2eFb2a2Pos/gEU46mViqu/+sZKCPGyO/MyMGGp4uKjI=
+006_storage_objects.sql h1:FgH1BnAKnyeU3EsR1KC0t1B55IO07/NiUOVNrE1CHXo=
+007_seed.sql h1:7nTltANpOVkVgy5DfLXcThsa7xwtnQyrbWNM+2Lzsz8=
+008_admin_role.sql h1:IifVYVy3WBlOw88FqesExcilbVy4tWzJabh1IevDD4I=
