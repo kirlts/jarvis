@@ -128,3 +128,19 @@ RULES:
 - El flujo local (sandbox) es más ágil.
 - Se debe desarrollar una UI estática (SPA) a futuro para visualizar métricas, crear tenants y manipular Jarvis.
 **Reversion conditions:** Ninguna. La decisión asienta el camino definitivo para interfaces de operaciones en Jarvis.
+
+## [UD-008] Expansión del Admin API antes de construir frontend Refine
+
+**Date:** 2026-04-27
+**Context:** El contrato actual (`specs/admin-api.yaml`) solo expone 4 operaciones: GET /admin/tenants (listado plano), GET /admin/jobs (100 jobs hardcoded), GET /admin/whatsapp/status, y DELETE /admin/tenants/:id. No existe endpoint para crear ni editar tenants. No hay paginación ni filtros. Construir una SPA sobre un contrato incompleto genera re-trabajo en cascada (spec → backend → dataProvider → vistas) cada vez que el contrato crezca.
+**Decision:** Expandir el Admin API **antes** de iniciar la implementación de Refine. Los nuevos endpoints son: POST /admin/tenants (crear), PATCH /admin/tenants/:id (editar), GET /admin/tenants/:id (detalle), paginación (?page, ?limit con max 100) en GET /admin/tenants, y filtros (?state, ?tenant_id, ?limit) en GET /admin/jobs. Cada endpoint nuevo debe cumplir el mismo estándar de seguridad (401/403 para JWT inválido, schema validation estricta, unique constraints con 409). La spec OpenAPI debe actualizarse primero y validarse con Specmatic para prevenir regresiones de contrato.
+**Discarded alternatives:**
+- Construir Refine con el contrato actual y expandir después: rechazado por la cascada de re-trabajo predecible.
+- Agregar GET /admin/stats (dashboard de resumen): diferido a iteración posterior; no es bloqueante para las vistas CRUD básicas.
+- Gestión de API keys de plugins: diferido a Fase 2; no existe esquema SQL ni definición en el PRD actual.
+**Consequences:**
+- TASK-019 creada en TODO.md con 18 checks nuevos y dependencia directa de TASK-015 (dataProvider) y TASK-016 (vistas).
+- VERIFICATION.md expandido: actor ADMIN pasa de 14 a 32 checks.
+- `specs/admin-api.yaml` debe actualizarse como primer paso de TASK-019 (contract-first).
+- La secuencia de ejecución es: TASK-019 → TASK-011 → TASK-015 → TASK-016 → TASK-017 → TASK-018.
+**Reversion conditions:** Si los primeros 10 clientes demuestran que las operaciones de escritura se hacen exclusivamente por SQL/CLI y la SPA solo se usa para monitoreo, los endpoints de escritura (POST, PATCH) se deprecan sin eliminar el código.

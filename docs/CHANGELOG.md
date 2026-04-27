@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Separación estricta de `test:unit` y `test` en `package.json` para aislar pruebas con mock de pruebas con Testcontainers.
 - Suite exhaustiva de pruebas unitarias para `src/features/admin/routes.js` y `src/features/sync-inbox/routes.js` utilizando el Node.js test runner nativo y simulaciones en memoria.
 - Scripts de validación de estrés empírico (`scripts/stress/st-001.js`, `st-002.js`, `st-003.js`) usando K6 y `net.Socket`.
+- Matriz de verificación expandida de 140 a 185 checks: 5 actores nuevos para Ops Console (OPER, AAPI, CSPA, REFN, CDDY) con 57 checks atómicos derivados via `/derive`.
+- TODO.md expandido con 4 tasks nuevas (TASK-015 a TASK-018) y TASK-011 reescrita: dataProvider/authProvider, vistas, containerización Docker+Caddy, y resiliencia/seguridad.
+- Archivo de checks OPSUI archivados en `docs/archive/checks_OPSUI_2026-04-27.md` con referencia a UD-007.
+- TASK-019 en TODO.md: expansión del Admin API (POST /admin/tenants, PATCH /admin/tenants/:id, GET /admin/tenants/:id, paginación, filtros) con 18 checks atómicos de testing robusto (happy path + seguridad + concurrencia + edge cases).
+- Sección ADMIN completa materializada en VERIFICATION.md: 14 checks verificados (TASK-010) + 18 nuevos pendientes (TASK-019) = 32 checks totales.
+- Tabla de endpoints del Admin API en MASTER-SPEC §6 con estados de implementación.
+- UD-008 en USER-DECISIONS.md: expansión del contrato API antes de construir frontend.
 
 ### Changed
 - Migracion `008_admin_role.sql` reescrita: pre-crea el schema `pgboss` via `CREATE SCHEMA IF NOT EXISTS` para eliminar la dependencia temporal con el arranque del worker. pg-boss reutiliza el schema existente sin conflicto.
@@ -20,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Terminologia "Pattern C" reemplazada por "Arquitectura Desacoplada" en todo el eje documental (MASTER-SPEC, USER-DECISIONS).
 - Configuración de Stryker (`stryker.config.json`) ajustada para correr exclusivamente contra `npm run test:unit`, previniendo colapso de RAM por instanciación concurrente masiva de contenedores PostgreSQL.
 - Especificación OpenAPI (`specs/tenant-api.yaml`) estrictamente sincronizada con la implementación real de Fastify (restricción explícita de UUIDv7, `minProperties: 1`, y corrección del objeto de respuesta HTTP 202).
+- TASK-011 en TODO.md: de monolito OPSUI (Appsmith) a Refine Project Initialization con checks REFN/CSPA.
+- VERIFICATION.md: Actor OPSUI archivado y reemplazado por 5 actores granulares de la Ops Console Refine. Referencia a `admin.jarvis.local` en CADDY.AV.03 actualizada de Appsmith a contenedor SPA.
+- Clasificación de verificabilidad: 9 checks reclasificados de HUM/MIX a LLM tras validar que el framework de testing de Jarvis cubre su automatización completa.
+- Matriz de verificación total expandida de 185 a 203 checks (18 nuevos checks ADMIN para endpoints expandidos).
+- Secuencia de ejecución actualizada: TASK-019 (API) bloquea TASK-015 (dataProvider) y TASK-016 (vistas).
 
 ### Fixed
 - Migracion `008_admin_role.sql` fallaba con `ERROR: schema "pgboss" does not exist` en arranques limpios (`docker compose down -v`), dejando a `jarvis_admin` sin acceso al schema de pg-boss y rompiendo `GET /admin/jobs`.
@@ -65,6 +77,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Variable `msgId` izada fuera del bloque `try` interno para prevenir `ReferenceError` en interceptor multimedia.
 - Referencia obsoleta `audio` corregida a `isAudio` en `ContentType` de `PutObjectCommand`.
 - pg-boss: `createQueue` idempotente antes de `work()` para prevenir error `Queue does not exist`.
+
+### Removed
+- Actor OPSUI (Appsmith) de VERIFICATION.md: 12 checks archivados por decisión arquitectónica UD-007. Reemplazado por 57 checks distribuidos en 5 actores de la Ops Console Refine.
 
 <!--
 INPUT FORMAT:

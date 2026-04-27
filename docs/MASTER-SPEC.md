@@ -76,7 +76,7 @@
 6. **Migraciones Declarativas:** Atlas (Ariga) v1.2.0 obligatorio. ORMs manuales prohibidos. Operaciones destructivas bloqueadas por linter.
 7. **pg-boss: Conexión Directa Obligatoria:** pg-boss DEBE conectarse directamente a PostgreSQL (:5432), NO a través del pooler. Advisory locks y `SKIP LOCKED` requieren continuidad de sesión incompatible con transaction pooling.
 8. **Autenticación SCRAM-SHA-256:** PG 17 impone SCRAM por defecto. Todo pooler debe configurar `AUTH_TYPE=scram-sha-256` explícitamente.
-9. **Separación de Realms JWT (Admin ≠ Tenant):** El Admin API (`/admin/*`) NUNCA verifica tokens del realm de tenant. Los tokens de administración son emitidos por Appsmith y verificados por un plugin `@fastify/jwt` registrado con namespace `admin`, independiente del plugin de tenant. Algoritmo: RS256 o ES256. El realm de tenant (HS256) no tiene acceso a rutas `/admin/*`.
+9. **Separación de Realms JWT (Admin ≠ Tenant):** El Admin API (`/admin/*`) NUNCA verifica tokens del realm de tenant. Los tokens de administración son emitidos por un CLI o sistema de backend y verificados por un plugin `@fastify/jwt` registrado con namespace `admin`, independiente del plugin de tenant. Algoritmo: RS256 o ES256. El realm de tenant (HS256) no tiene acceso a rutas `/admin/*`.
 10. **Ops Console: Arquitectura Desacoplada Obligatoria:** El panel de administración es un cliente externo separado (SPA propietaria estática). El core Fastify expone un Admin API dedicado (`/admin/*`). Prohibido integrar lógica de rendering UI dentro del proceso Fastify. El Admin API usa un rol PostgreSQL separado (`jarvis_admin`) que bypasea RLS; jamás comparte el rol de tenant.
 11. **Observabilidad Self-Hosted:** Pino → Loki → Grafana es el stack de observabilidad obligatorio. Prohibido enviar logs a servicios SaaS de terceros (Datadog, Axiom, Better Stack). Grafana con alerting proactivo. Uptime Kuma para synthetic checks HTTP/TCP.
 12. **Prevención SPOF en Monitoreo (Observabilidad Externa):** El sistema de monitoreo de estado (Uptime Kuma) DEBE residir de forma independiente para evitar Puntos Únicos de Falla. En producción, debe alojarse en un VPS externo geográficamente o lógicamente separado del clúster principal de Jarvis. Prohibido integrarlo vía iframes o widgets embebidos dentro de la Ops Console.
@@ -133,6 +133,25 @@ SPA → Admin API (POST /admin/*, GET /admin/*)
 - RLS: `BYPASSRLS` - cross-tenant visibility requerida para operaciones de gestión
 - **Operaciones destructivas (DELETE, UPDATE masivo):** requieren confirmación explícita en la UI (widget de confirmación con texto de acción)
 
+### Admin API Endpoints (Contract: `specs/admin-api.yaml`)
+
+| Método | Ruta | Descripción | Query Params | Status |
+|---|---|---|---|---|
+| GET | `/admin/tenants` | Listar tenants (paginado) | `?page=1&limit=10` | Implementado (paginación pendiente) |
+| POST | `/admin/tenants` | Crear tenant | — | **Pendiente (TASK-019)** |
+| GET | `/admin/tenants/:id` | Detalle de tenant | — | **Pendiente (TASK-019)** |
+| PATCH | `/admin/tenants/:id` | Editar tenant | — | **Pendiente (TASK-019)** |
+| DELETE | `/admin/tenants/:id` | Eliminar tenant | `?confirm=true` (obligatorio) | Implementado |
+| GET | `/admin/jobs` | Listar cola pg-boss | `?state=&tenant_id=&limit=` | Implementado (filtros pendientes) |
+| GET | `/admin/whatsapp/status` | Estado conexiones WhatsApp | — | Implementado |
+
+**Restricciones de implementación:**
+- Schema validation estricto en POST/PATCH (`additionalProperties: false`)
+- Unique constraint en `tenants.name` con respuesta 409 Conflict
+- Paginación con límite superior hardcodeado (max 100 registros por página)
+- Validación de UUID en path params (400 para formatos inválidos)
+- Todos los endpoints protegidos por admin JWT RS256 (401/403)
+
 ### Observabilidad
 
 | Componente | Función | Transporte |
@@ -145,7 +164,7 @@ SPA → Admin API (POST /admin/*, GET /admin/*)
 
 ### Hoja de ruta del Admin UI
 
-1. **MVP:** SPA Propietaria que consume el Admin API y provee una interfaz a medida, ágil y de alto rendimiento.
+1. **MVP:** SPA Propietaria (Refine v5 + Vite + React) que consume el Admin API expandido y provee una interfaz a medida, ágil y de alto rendimiento.
 
 ---
 

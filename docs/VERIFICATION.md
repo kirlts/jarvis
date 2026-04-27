@@ -45,7 +45,11 @@ Implementation format (with mandatory timestamp):
 | Supabase Storage Emulator (MinIO) | STOR | Actor |
 | Caddy (Edge Proxy) | CADDY | Actor |
 | Admin API (Fastify /admin/*) | ADMIN | Actor |
-| Ops Console (Appsmith) | OPSUI | Actor |
+| Operador Ops Console (Superadmin) | OPER | Actor |
+| Admin API Ops Console (Fastify) | AAPI | Actor |
+| Contenedor SPA Ops Console (Docker/Nginx) | CSPA | Actor |
+| Refine Framework Ops Console | REFN | Actor |
+| Caddy Proxy Ops Console | CDDY | Actor |
 | Observabilidad (Loki + Grafana + Uptime Kuma) | OBSRV | Actor |
 | Testing Infrastructure | TINFR | Actor |
 | Availability | AV | Category |
@@ -151,32 +155,131 @@ Implementation format (with mandatory timestamp):
 ## CADDY (Edge Proxy)
 - ✅ 🤖 `[CADDY.AV.01.LLM]` Enviar request HTTP a Caddy en puerto 80 del sandbox → Caddy responde con codigo HTTP (no connection refused). *(🤖 Verified by tool; 2026-04-27 03:34)*
 - ✅ 🤖 `[CADDY.AV.02.LLM]` Enviar request HTTP con Host: api.jarvis.local a Caddy → Caddy proxea a kamal-proxy y retorna respuesta de Fastify (/health 200). *(🤖 Verified by tool; 2026-04-27 03:34)*
-- ✅ 🤖 `[CADDY.AV.03.LLM]` Enviar request HTTP con Host: admin.jarvis.local a Caddy → Caddy proxea a Appsmith y retorna HTML de login (o 502 si Appsmith está caído, lo cual valida el proxeo). *(🤖 Verified by tool; 2026-04-27 03:34)*
+- ✅ 🤖 `[CADDY.AV.03.LLM]` Enviar request HTTP con Host: admin.jarvis.local a Caddy → Caddy proxea al contenedor SPA y retorna HTML (o 502 si SPA está caído, lo cual valida el proxeo). *(🤖 Verified by tool; 2026-04-27 03:34)*
 - ✅ 🤖 `[CADDY.FN.01.LLM]` Inspeccionar certificado TLS servido por Caddy en sandbox → Certificado presente y valido (self-signed o internal CA). *(🤖 Verified by tool; 2026-04-27 03:33)*
 - ✅ 🤖 `[CADDY.FN.02.LLM]` Solicitar archivo estatico via URL de Caddy → Caddy retorna el archivo con Content-Type correcto. *(🤖 Verified by tool; 2026-04-27 03:34)*
 - ✅ 🤖 `[CADDY.CR.01.LLM]` Inspeccionar headers de respuesta de request proxied por Caddy → X-Frame-Options y HSTS presentes. *(🤖 Verified by tool; 2026-04-27 03:34)*
 - ✅ 🤖 `[CADDY.CR.02.LLM]` Enviar request a Fastify via Caddy e inspeccionar req.ip en Fastify → Fastify recibe X-Forwarded-For con IP del cliente original. *(🤖 Verified by tool; 2026-04-27 03:36)*
 - ✅ 🤖 `[CADDY.IN.01.LLM]` Intentar conectar a puertos 5432, 6543, 9000 desde fuera de la red Docker → Connection refused en todos los puertos internos. *(🤖 Verified by tool; 2026-04-27 03:37)*
 - ✅ 🤖 `[CADDY.IN.02.LLM]` Enviar request con Host: fake.jarvis.local a Caddy → Caddy retorna 404 o cierra conexion. *(🤖 Verified by tool; 2026-04-27 03:34)*
-- ✅ 🤖 `[CADDY.RS.01.LLM]` Detener contenedor Appsmith, luego enviar request a api.jarvis.local via Caddy → Caddy retorna respuesta de Fastify normalmente. *(🤖 Verified by tool; 2026-04-27 03:37)*
+- ✅ 🤖 `[CADDY.RS.01.LLM]` Detener contenedor SPA, luego enviar request a api.jarvis.local via Caddy → Caddy retorna respuesta de Fastify normalmente. *(🤖 Verified by tool; 2026-04-27 03:37)*
 - ✅ 🤖 `[CADDY.RS.02.LLM]` Ejecutar K6 con 1000 req/s contra Caddy → Caddy maneja la carga sin errores EMFILE ni caida de contenedor. *(🤖 Verified by tool; 2026-04-27 03:35)*
 - ✅ 🤖 `[CADDY.RS.03.LLM]` Modificar Caddyfile y ejecutar caddy reload → Conexiones HTTP activas no se interrumpen durante reload. *(🤖 Verified by tool; 2026-04-27 03:36)*
+## ADMIN (Admin API / Fastify /admin/*)
 
-- 🔲 🤖 `[ADMIN.RS.03.LLM]` Inspeccionar codigo fuente de carga de claves RS256 → Claves se leen de process.env, no hardcodeadas.
+### Verified (TASK-010)
+- ✅ 🤖 `[ADMIN.AV.01.LLM]` Registrar @fastify/jwt con namespace admin (RS256) → Coexiste con tenant JWT (HS256) sin conflicto. *(🤖 Verified by tool; 2026-04-27 10:45)*
+- ✅ 🤖 `[ADMIN.AV.02.LLM]` Enviar request a /admin/tenants → Endpoint responde HTTP 200 con JSON. *(🤖 Verified by tool; 2026-04-27 10:45)*
+- ✅ 🤖 `[ADMIN.FN.01.LLM]` GET /admin/tenants con admin JWT → Retorna array de tenants con id y name. *(🤖 Verified by tool; 2026-04-27 10:45)*
+- ✅ 🤖 `[ADMIN.FN.02.LLM]` GET /admin/jobs con admin JWT → Retorna array de jobs pg-boss. *(🤖 Verified by tool; 2026-04-27 10:45)*
+- ✅ 🤖 `[ADMIN.FN.03.LLM]` GET /admin/whatsapp/status con admin JWT → Retorna array de sesiones con tenant_id y status. *(🤖 Verified by tool; 2026-04-27 10:45)*
+- ✅ 🤖 `[ADMIN.CR.01.LLM]` Enviar request con tenant JWT (HS256) a /admin/* → Respuesta 401 Unauthorized. *(🤖 Verified by tool; 2026-04-27 10:45)*
+- ✅ 🤖 `[ADMIN.CR.02.LLM]` Enviar request sin JWT a /admin/* → Respuesta 401 Unauthorized. *(🤖 Verified by tool; 2026-04-27 10:45)*
+- ✅ 🤖 `[ADMIN.CR.03.LLM]` Enviar request con admin JWT pero role distinto a super_admin → Respuesta 403 Forbidden. *(🤖 Verified by tool; 2026-04-27 10:45)*
+- ✅ 🤖 `[ADMIN.IN.01.LLM]` Ejecutar SELECT cross-tenant con rol jarvis_admin → BYPASSRLS permite visibilidad total. *(🤖 Verified by tool; 2026-04-27 10:45)*
+- ✅ 🤖 `[ADMIN.IN.02.LLM]` Ejecutar DROP TABLE con rol jarvis_admin → PG rechaza (sin permisos DDL). *(🤖 Verified by tool; 2026-04-27 10:45)*
+- ✅ 🤖 `[ADMIN.IN.03.LLM]` DELETE /admin/tenants/:id sin ?confirm=true → Respuesta 400 Bad Request. *(🤖 Verified by tool; 2026-04-27 10:45)*
+- ✅ 🤖🧑 `[ADMIN.RS.01.MIX]` K6 carga simultánea en rutas tenant + admin → p95 < 20% degradación. *(🤖🧑 Pre-verified by tool, confirmed by user; 2026-04-27 10:45)*
+- ✅ 🤖 `[ADMIN.RS.02.LLM]` Detener PG y enviar request a /admin/* → Respuesta 503 sin stack trace. *(🤖 Verified by tool; 2026-04-27 10:45)*
 
-## OPSUI (Ops Console / Appsmith)
-- [x] 🤖 `[OPSUI.AV.01.LLM]` Verificar que contenedor Appsmith esta running via docker ps → Estado: Up, health check pasando.
-- [x] 🤖🧑 `[OPSUI.AV.02.MIX]` Navegar a admin.jarvis.local en browser via Caddy → Pagina de login de Appsmith se renderiza correctamente.
-- [x] 🤖🧑 `[OPSUI.FN.01.MIX]` Autenticarse en Appsmith con email/contrasena configurados → Appsmith emite un admin JWT (RS256) en la sesion.
-- [x] 🧑 `[OPSUI.FN.02.HUM]` Abrir dashboard de tenants en Appsmith → Panel muestra datos de tenants provenientes de GET /admin/tenants.
-- [x] 🧑 `[OPSUI.FN.03.HUM]` Abrir vista de jobs en Appsmith → Panel muestra cola de pg-boss con estados y filtros funcionales.
-- [x] 🧑 `[OPSUI.FN.04.HUM]` Abrir vista de WhatsApp status en Appsmith → Panel muestra estado de conexiones por tenant.
-- [x] 🤖 `[OPSUI.CR.01.LLM]` Inspeccionar headers de requests salientes de Appsmith hacia Admin API → Header Authorization contiene Bearer + JWT con alg RS256.
-- [x] 🤖🧑 `[OPSUI.CR.02.MIX]` Intentar ejecutar operacion destructiva en Appsmith → Widget de confirmacion aparece antes de ejecutar.
-- [x] 🤖 `[OPSUI.IN.01.LLM]` Inspeccionar volumen Docker de Appsmith → Contrasena del operador almacenada como hash, no texto plano.
-- [x] 🤖🧑 `[OPSUI.IN.02.MIX]` Verificar que Appsmith no tiene cache local de datos de tenants → Recargar dashboard muestra datos frescos del Admin API.
-- [x] 🤖 `[OPSUI.RS.01.LLM]` Detener contenedor Appsmith, enviar request a api.jarvis.local → Fastify responde 200/202 normalmente.
-- [x] 🤖🧑 `[OPSUI.RS.02.MIX]` Detener Admin API, intentar usar Appsmith → Appsmith muestra error de conectividad legible, no crash.
+### Pending (from TASK-010)
+- 🔲 🤖 `[ADMIN.RS.03.LLM]` Inspeccionar código fuente de carga de claves RS256 → Claves se leen de process.env, no hardcodeadas.
+
+### Pending (Admin API Expansion — TASK-019)
+
+#### Endpoint: POST /admin/tenants (Create)
+- 🔲 🤖 `[ADMIN.FN.04.LLM]` POST /admin/tenants con payload {name: "Acme Corp"} → Respuesta 201 con id (UUID) y name del tenant creado.
+- 🔲 🤖 `[ADMIN.CR.04.LLM]` POST /admin/tenants con name duplicado → Respuesta 409 Conflict (unique constraint).
+- 🔲 🤖 `[ADMIN.CR.05.LLM]` POST /admin/tenants sin campo name → Respuesta 400 Bad Request (schema validation).
+- 🔲 🤖 `[ADMIN.CR.06.LLM]` POST /admin/tenants con campos adicionales no definidos en schema → Respuesta 400 (additionalProperties: false).
+- 🔲 🤖 `[ADMIN.IN.04.LLM]` POST /admin/tenants con tenant JWT (no admin) → Respuesta 401.
+- 🔲 🤖 `[ADMIN.RS.04.LLM]` POST /admin/tenants durante caída transitoria de PG → Respuesta 503 sin corrupción; retry posterior crea el tenant sin duplicados.
+
+#### Endpoint: PATCH /admin/tenants/:id (Update)
+- 🔲 🤖 `[ADMIN.FN.05.LLM]` PATCH /admin/tenants/:id con {name: "New Name"} → Respuesta 200 con tenant actualizado.
+- 🔲 🤖 `[ADMIN.CR.07.LLM]` PATCH /admin/tenants/:id con id inexistente → Respuesta 404 Not Found.
+- 🔲 🤖 `[ADMIN.CR.08.LLM]` PATCH /admin/tenants/:id con payload vacío → Respuesta 400 (al menos un campo requerido).
+- 🔲 🤖 `[ADMIN.CR.09.LLM]` PATCH /admin/tenants/:id con name duplicado de otro tenant → Respuesta 409 Conflict.
+- 🔲 🤖 `[ADMIN.IN.05.LLM]` PATCH y DELETE concurrentes sobre el mismo tenant → Uno gana, el otro recibe 404 o 409; sin corrupción.
+
+#### Endpoint: GET /admin/tenants/:id (Detail)
+- 🔲 🤖 `[ADMIN.FN.06.LLM]` GET /admin/tenants/:id con id existente → Respuesta 200 con id, name, created_at, deleted_at.
+- 🔲 🤖 `[ADMIN.CR.10.LLM]` GET /admin/tenants/:id con UUID inexistente → Respuesta 404 Not Found.
+- 🔲 🤖 `[ADMIN.CR.11.LLM]` GET /admin/tenants/:id con id malformado (no UUID) → Respuesta 400 Bad Request.
+
+#### Paginación y Filtros
+- 🔲 🤖 `[ADMIN.FN.07.LLM]` GET /admin/tenants?page=1&limit=10 → Respuesta incluye array paginado y metadatos (total, page, limit).
+- 🔲 🤖 `[ADMIN.FN.08.LLM]` GET /admin/jobs?state=failed → Retorna solo jobs con state=failed.
+- 🔲 🤖 `[ADMIN.FN.09.LLM]` GET /admin/jobs?tenant_id=X → Retorna solo jobs asociados al tenant X.
+- 🔲 🤖 `[ADMIN.CR.12.LLM]` GET /admin/tenants?page=-1 → Respuesta 400 (validación de parámetros).
+- 🔲 🤖 `[ADMIN.CR.13.LLM]` GET /admin/jobs?limit=9999 → Servidor aplica límite superior (max 100); no permite dumping masivo.
+
+## OPER (Operador Ops Console / Superadmin)
+- 🔲 🤖 `[OPER.AV.01.LLM]` Navegar a `admin.jarvis.local` → La SPA carga con HTTP 200 y muestra interfaz funcional. *(Zero-Touch: acceso sin configuración manual)*
+- 🔲 🤖 `[OPER.AV.02.LLM]` Ejecutar `docker-compose down && up -d` y navegar a la consola → Operativa sin wizard de onboarding ni creación de cuenta. *(Zero-Touch: cold start sin intervención)*
+- 🔲 🤖 `[OPER.AV.03.LLM]` Hacer clic en cada enlace de navegación (tenants, jobs, whatsapp) → Vista cambia sin recarga completa del navegador. *(SPA routing funcional)*
+- 🔲 🤖 `[OPER.FN.01.LLM]` Abrir sección "Tenants" con tenants existentes en BD → Tabla muestra id y name de cada tenant. *(Gestión: listado de tenants)*
+- 🔲 🤖 `[OPER.FN.02.LLM]` Completar y enviar formulario de creación de tenant → Tenant aparece en la lista; API retorna 201. *(Gestión: alta de tenant)*
+- 🔲 🤖 `[OPER.FN.03.LLM]` Hacer clic en "Eliminar" y confirmar en modal → Tenant desaparece de la lista; API retorna 204. *(Gestión: baja de tenant con confirmación)*
+- 🔲 🤖 `[OPER.FN.04.LLM]` Abrir sección "Jobs" → Se muestran jobs pg-boss con estados (activo, fallido, completado). *(Monitoreo: colas pg-boss)*
+- 🔲 🤖 `[OPER.FN.05.LLM]` Abrir sección "WhatsApp Status" → Se muestran conexiones WhatsApp con estado por tenant. *(Monitoreo: conexiones Baileys)*
+- 🔲 🤖 `[OPER.CR.01.LLM]` Comparar JSON de `GET /admin/tenants` con datos renderizados en tabla → Campos coinciden 1:1 sin transformaciones erróneas. *(Fidelidad de datos)*
+- 🔲 🤖 `[OPER.CR.02.LLM]` Provocar error 401 (token expirado) → Consola muestra mensaje legible indicando sesión expirada, no stack trace. *(UX de errores)*
+- 🔲 🤖 `[OPER.IN.01.LLM]` Hacer clic en "Eliminar" sin confirmar en modal → Petición DELETE no se ejecuta; tenant permanece. *(Protección contra acciones accidentales)*
+- 🔲 🤖 `[OPER.IN.02.LLM]` Mantener consola abierta 4+ horas y ejecutar una acción → Acción se ejecuta sin requerir re-autenticación manual. *(Persistencia de sesión)*
+- 🔲 🤖 `[OPER.RS.01.LLM]` Detener contenedor Admin API y navegar la consola → Mensaje de error claro ("API no disponible"), no spinner infinito ni pantalla blanca. *(Degradación visible)*
+- 🔲 🤖 `[OPER.RS.02.LLM]` Desconectar red del navegador durante edición de formulario, reconectar → Datos ingresados persisten tras reconexión. *(Resiliencia de formularios)*
+
+## AAPI (Admin API Ops Console / Fastify)
+- 🔲 🤖 `[AAPI.AV.01.LLM]` Inspeccionar variable `VITE_API_URL` en contenedor SPA → Apunta a URL correcta del Admin API. *(Configuración inyectable)*
+- 🔲 🤖 `[AAPI.AV.02.LLM]` Interceptar petición de la SPA al Admin API → Header `Authorization: Bearer <token>` presente con JWT RS256 del namespace admin. *(Autenticación automática)*
+- 🔲 🤖 `[AAPI.FN.01.LLM]` Cargar vista de tenants → SPA ejecuta `GET /admin/tenants` y renderiza tabla. *(Consumo de endpoint tenants)*
+- 🔲 🤖 `[AAPI.FN.02.LLM]` Cargar vista de jobs → SPA ejecuta `GET /admin/jobs` y renderiza resultado. *(Consumo de endpoint jobs)*
+- 🔲 🤖 `[AAPI.FN.03.LLM]` Cargar vista de WhatsApp Status → SPA ejecuta `GET /admin/whatsapp/status` y renderiza resultado. *(Consumo de endpoint whatsapp)*
+- 🔲 🤖 `[AAPI.FN.04.LLM]` Ejecutar eliminación de tenant desde SPA → Petición `DELETE /admin/tenants/{id}?confirm=true` incluye query param. *(Parámetro de confirmación obligatorio)*
+- 🔲 🤖 `[AAPI.CR.01.LLM]` Decodificar JWT enviado por SPA → Campo `alg` es `RS256`, nunca `HS256` ni `none`. *(Seguridad: algoritmo JWT correcto)*
+- 🔲 🤖 `[AAPI.CR.02.LLM]` Aplicar filtro en tabla de tenants → Query params enviados corresponden al filtro en formato esperado por Fastify. *(Traducción correcta de filtros)*
+- 🔲 🤖 `[AAPI.IN.01.LLM]` Navegar entre secciones sin ejecutar acciones mutativas → Ninguna petición POST/PUT/DELETE se ejecuta durante navegación. *(Aislamiento de lectura vs. escritura)*
+- 🔲 🤖 `[AAPI.IN.02.LLM]` Inspeccionar almacenamiento del navegador tras autenticación → Token JWT no está en localStorage en texto plano sin protección. *(Seguridad: almacenamiento de tokens)*
+- 🔲 🤖 `[AAPI.RS.01.LLM]` Detener PostgreSQL y ejecutar acción en consola → Mensaje de error derivado del HTTP 503, sin crash. *(Degradación ante falla de BD)*
+- 🔲 🤖 `[AAPI.RS.02.LLM]` Provocar error 500 transitorio → SPA reintenta con backoff antes de mostrar error final. *(Retry automático)*
+
+## CSPA (Contenedor SPA Ops Console / Docker+Nginx)
+- 🔲 🤖 `[CSPA.AV.01.LLM]` Ejecutar `docker-compose up -d` → Contenedor SPA aparece con estado `running` o `healthy`. *(Arranque Zero-Touch)*
+- 🔲 🤖 `[CSPA.AV.02.LLM]` Ejecutar `docker inspect` del contenedor SPA → Healthcheck reporta `healthy`. *(Healthcheck funcional)*
+- 🔲 🤖 `[CSPA.FN.01.LLM]` Ejecutar `docker build` del Dockerfile → Build multi-stage completa sin errores (exit code 0). *(Build reproducible)*
+- 🔲 🤖 `[CSPA.FN.02.LLM]` Inspeccionar variables de entorno en `docker-compose.yml` → `VITE_API_URL` definida; no hardcodeada en código fuente. *(Configuración externalizada)*
+- 🔲 🤖 `[CSPA.CR.01.LLM]` Comparar hash de activos en contenedor con los de `vite build` → Hashes coinciden (sin activos stale). *(Inmutabilidad de activos)*
+- 🔲 🤖 `[CSPA.CR.02.LLM]` Solicitar archivo `.js` de la SPA → `Content-Type: application/javascript`. *(MIME types correctos)*
+- 🔲 🤖 `[CSPA.IN.01.LLM]` Ejecutar `docker-compose down && up -d` → Consola funciona sin residuos de estado previo. *(Efimeridad del contenedor)*
+- 🔲 🤖 `[CSPA.IN.02.LLM]` Inspeccionar `docker-compose.yml` → No hay volúmenes persistentes para el servicio SPA. *(Sin estado persistente)*
+- 🔲 🤖 `[CSPA.RS.01.LLM]` Arrancar contenedor SPA sin Admin API disponible → Contenedor arranca y sirve HTML; no aborta. *(Independencia de arranque)*
+- 🔲 🤖 `[CSPA.RS.02.LLM]` Ejecutar `docker kill` del contenedor SPA y esperar 30s → Docker reinicia automáticamente (restart policy). *(Auto-recuperación)*
+
+## REFN (Refine Framework Ops Console)
+- 🔲 🤖 `[REFN.AV.01.LLM]` Inicializar proyecto Refine y ejecutar `npm run build` → Build completa sin errores ni conflictos de peer deps. *(Inicialización limpia)*
+- 🔲 🤖 `[REFN.AV.02.LLM]` Importar `useTable` en componente conectado al dataProvider → Hook se conecta sin errores de tipo y ejecuta petición. *(Integración de hooks)*
+- 🔲 🤖 `[REFN.FN.01.LLM]` Invocar `getList` del dataProvider con recurso "tenants" → DataProvider ejecuta `GET /admin/tenants` y retorna formato esperado. *(DataProvider: operación de lectura)*
+- 🔲 🤖 `[REFN.FN.02.LLM]` Navegar a ruta protegida sin token → Refine redirige a login. Con token válido, permite acceso. *(AuthProvider: ciclo de autenticación)*
+- 🔲 🤖 `[REFN.FN.03.LLM]` Navegar directamente a `admin.jarvis.local/tenants` (deep link) → Vista de tenants carga correctamente. *(Routing: deep links)*
+- 🔲 🤖 `[REFN.CR.01.LLM]` Cargar lista paginada y navegar entre páginas → Registros no se duplican ni se pierden entre páginas. *(Paginación correcta)*
+- 🔲 🤖 `[REFN.CR.02.LLM]` Crear tenant y verificar lista → Nuevo tenant aparece inmediatamente sin recarga manual. *(Invalidación de caché tras mutación)*
+- 🔲 🤖 `[REFN.IN.01.LLM]` Actualizar `@refinedev/core` a siguiente minor y ejecutar tests → Todos los tests pasan sin modificaciones. *(Estabilidad ante actualizaciones)*
+- 🔲 🤖 `[REFN.IN.02.LLM]` Añadir componente React puro con React Query directo → Funciona sin conflictos con QueryClient de Refine. *(Coexistencia con componentes custom)*
+- 🔲 🤖 `[REFN.RS.01.LLM]` Configurar token inválido en authProvider y navegar → Refine muestra login o error; no crash del árbol de componentes. *(Manejo de auth fallida)*
+- 🔲 🤖 `[REFN.RS.02.LLM]` Forzar HTTP 500 durante `getList` → UI muestra notificación de error; no pantalla blanca. *(Manejo de errores del API)*
+
+## CDDY (Caddy Proxy Ops Console)
+- 🔲 🤖 `[CDDY.AV.01.LLM]` Ejecutar `curl -k https://admin.jarvis.local` → HTTP 200 con contenido HTML de la SPA. *(Routing de subdominio)*
+- 🔲 🤖 `[CDDY.AV.02.LLM]` Verificar certificado TLS de `admin.jarvis.local` → Certificado válido (self-signed en sandbox), no bloquea carga en navegador. *(TLS funcional)*
+- 🔲 🤖 `[CDDY.FN.01.LLM]` Inspeccionar headers de respuesta de `admin.jarvis.local` → X-Frame-Options, X-Content-Type-Options, HSTS presentes. *(Headers de seguridad)*
+- 🔲 🤖 `[CDDY.FN.02.LLM]` Navegar directamente a `admin.jarvis.local/tenants` → Caddy retorna `index.html` (SPA fallback), no 404. *(SPA fallback)*
+- 🔲 🤖 `[CDDY.CR.01.LLM]` Interceptar peticiones proxeadas → Headers originales (Host, Authorization) preservados. *(Transparencia de proxy)*
+- 🔲 🤖 `[CDDY.CR.02.LLM]` Comparar petición al API vía Caddy vs. directa → Respuestas idénticas (sin caché ni modificación). *(Sin alteración de datos)*
+- 🔲 🤖 `[CDDY.IN.01.LLM]` Navegar a subdominio no configurado (`hacker.jarvis.local`) → Caddy rechaza con error HTTP, no sirve contenido. *(Rechazo de subdominios desconocidos)*
+- 🔲 🤖 `[CDDY.IN.02.LLM]` Reiniciar contenedor de Caddy → `admin.jarvis.local` sigue enrutando correctamente. *(Persistencia de configuración)*
+- 🔲 🤖 `[CDDY.RS.01.LLM]` Detener contenedor SPA y curl a `admin.jarvis.local` → HTTP 502. `api.jarvis.local` sigue operativo. *(Aislamiento de fallos)*
+- 🔲 🤖 `[CDDY.RS.02.LLM]` Eliminar servicio SPA del compose y arrancar stack → Caddy arranca; API funciona; admin retorna error sin crash. *(Tolerancia a servicios faltantes)*
 
 ## OBSRV (Observabilidad / Loki + Grafana + Uptime Kuma)
 - ✅ 🤖 `[OBSRV.AV.01.LLM]` Verificar que contenedor Loki acepta POST en /loki/api/v1/push → Respuesta 204 o 200.
@@ -210,18 +313,23 @@ Implementation format (with mandatory timestamp):
 ---
 
 ## Summary
-| Actor | 🤖 .LLM | 🧑 .HUM | 🤖🧑 .MIX | Total |
-|---|---|---|---|---|
-| CLNT | 12 | 0 | 0 | 12 |
-| CORE | 13 | 0 | 0 | 13 |
-| BOSS | 13 | 0 | 0 | 13 |
-| WAPP | 9 | 3 | 1 | 13 |
-| DB | 14 | 0 | 0 | 14 |
-| STOR | 12 | 0 | 0 | 12 |
-| CADDY | 12 | 0 | 0 | 12 |
-| ADMIN | 13 | 0 | 1 | 14 |
-| OPSUI | 4 | 3 | 5 | 12 |
-| OBSRV | 11 | 0 | 2 | 13 |
-| TINFR | 12 | 0 | 0 | 12 |
-| **Total** | **125** | **6** | **9** | **140** |
+| Actor | 🤖 .LLM | 🧑 .HUM | 🤖🧑 .MIX | Total | Status |
+|---|---|---|---|---|---|
+| CLNT | 12 | 0 | 0 | 12 | ✅ Complete |
+| CORE | 13 | 0 | 0 | 13 | ✅ Complete |
+| BOSS | 13 | 0 | 0 | 13 | ✅ Complete |
+| WAPP | 9 | 3 | 1 | 13 | ✅ Complete |
+| DB | 14 | 0 | 0 | 14 | ✅ Complete |
+| STOR | 12 | 0 | 0 | 12 | ✅ Complete |
+| CADDY | 12 | 0 | 0 | 12 | ✅ Complete |
+| ADMIN | 31 | 0 | 1 | 32 | 🔲 19 pending |
+| OBSRV | 11 | 0 | 2 | 13 | ✅ Complete |
+| TINFR | 12 | 0 | 0 | 12 | ✅ Complete |
+| OPER | 14 | 0 | 0 | 14 | 🔲 14 pending |
+| AAPI | 12 | 0 | 0 | 12 | 🔲 12 pending |
+| CSPA | 10 | 0 | 0 | 10 | 🔲 10 pending |
+| REFN | 11 | 0 | 0 | 11 | 🔲 11 pending |
+| CDDY | 10 | 0 | 0 | 10 | 🔲 10 pending |
+| ~~OPSUI~~ | ~~4~~ | ~~3~~ | ~~5~~ | ~~12~~ | Archived (UD-007) |
+| **Total** | **196** | **3** | **4** | **203** |
 
