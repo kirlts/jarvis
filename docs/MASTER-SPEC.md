@@ -60,7 +60,7 @@
 | Logging | Pino | 10.x | Structured JSON, worker threads, zero event-loop blocking |
 | Observability | Loki + Grafana | latest stable | Log aggregation + dashboards + alerting proactivo. Self-hosted, zero dependencia SaaS |
 | Migrations | Atlas CLI (Ariga) | 1.2.0 | Declarativo. Linter bloquea operaciones destructivas |
-| Admin UI | Appsmith Community | latest | Panel de operaciones desacoplado. Self-hosted, Docker. MVP hasta desarrollo de SPA propietaria |
+| Admin UI | SPA Propietaria | N/A | Panel de operaciones construido sobre el Admin API. Backend enteramente delegado a Jarvis |
 
 ---
 
@@ -77,9 +77,9 @@
 7. **pg-boss: Conexión Directa Obligatoria:** pg-boss DEBE conectarse directamente a PostgreSQL (:5432), NO a través del pooler. Advisory locks y `SKIP LOCKED` requieren continuidad de sesión incompatible con transaction pooling.
 8. **Autenticación SCRAM-SHA-256:** PG 17 impone SCRAM por defecto. Todo pooler debe configurar `AUTH_TYPE=scram-sha-256` explícitamente.
 9. **Separación de Realms JWT (Admin ≠ Tenant):** El Admin API (`/admin/*`) NUNCA verifica tokens del realm de tenant. Los tokens de administración son emitidos por Appsmith y verificados por un plugin `@fastify/jwt` registrado con namespace `admin`, independiente del plugin de tenant. Algoritmo: RS256 o ES256. El realm de tenant (HS256) no tiene acceso a rutas `/admin/*`.
-10. **Ops Console: Arquitectura Desacoplada Obligatoria:** El panel de administración es un cliente externo separado (Appsmith Community, self-hosted). El core Fastify expone un Admin API dedicado (`/admin/*`). Prohibido integrar lógica de rendering UI dentro del proceso Fastify. El Admin API usa un rol PostgreSQL separado (`jarvis_admin`) que bypasea RLS; jamás comparte el rol de tenant.
+10. **Ops Console: Arquitectura Desacoplada Obligatoria:** El panel de administración es un cliente externo separado (SPA propietaria estática). El core Fastify expone un Admin API dedicado (`/admin/*`). Prohibido integrar lógica de rendering UI dentro del proceso Fastify. El Admin API usa un rol PostgreSQL separado (`jarvis_admin`) que bypasea RLS; jamás comparte el rol de tenant.
 11. **Observabilidad Self-Hosted:** Pino → Loki → Grafana es el stack de observabilidad obligatorio. Prohibido enviar logs a servicios SaaS de terceros (Datadog, Axiom, Better Stack). Grafana con alerting proactivo. Uptime Kuma para synthetic checks HTTP/TCP.
-12. **Prevención SPOF en Monitoreo (Observabilidad Externa):** El sistema de monitoreo de estado (Uptime Kuma) DEBE residir de forma independiente para evitar Puntos Únicos de Falla. En producción, debe alojarse en un VPS externo geográficamente o lógicamente separado del clúster principal de Jarvis. Prohibido integrarlo vía iframes o widgets embebidos dentro de Appsmith (Ops Console).
+12. **Prevención SPOF en Monitoreo (Observabilidad Externa):** El sistema de monitoreo de estado (Uptime Kuma) DEBE residir de forma independiente para evitar Puntos Únicos de Falla. En producción, debe alojarse en un VPS externo geográficamente o lógicamente separado del clúster principal de Jarvis. Prohibido integrarlo vía iframes o widgets embebidos dentro de la Ops Console.
 
 > Note: Constraints logged here are defensively duplicated in `.agents/rules/05-constraints.md` to survive context degradation in long sessions.
 
@@ -95,7 +95,6 @@
 | pg-boss bypass del pooler | Integridad de advisory locks | Uniformidad de conexión | `SKIP LOCKED` requiere sesión persistente; transaction mode la destruye |
 | postgres:17-alpine en sandbox | Compatibilidad Docker Compose | Paridad con Supabase gestionado | Imagen Supabase exige rol `supabase_admin` inexistente en standalone |
 | MinIO community build | Operabilidad inmediata | Provenance criptográfica oficial | Build from source inviable sin acceso a proxy.golang.org en Docker |
-| Appsmith como Admin UI MVP | Velocidad de implementación | Soberanía total del frontend | Permite lanzar Ops Console en horas. Reemplazable por SPA propietaria sin cambiar Admin API |
 | Caddy como edge proxy adicional | Routing multi-servicio + TLS automático | Simplicidad (solo kamal-proxy) | kamal-proxy no enruta por subdomain ni sirve estáticos; Caddy llena ese gap sin reemplazar Kamal |
 | Loki + Grafana self-hosted | Soberanía de datos + alerting proactivo | Consumo de RAM en servidor | Prohibición explícita de enviar logs a SaaS de terceros. RAM calculada en sizing de producción |
 
@@ -111,28 +110,28 @@
 Internet
     └── Caddy (:443, TLS automático, Let's Encrypt)
             ├── api.jarvis.com      → kamal-proxy → Fastify containers (tenant API)
-            └── admin.jarvis.com    → Appsmith container (Admin UI)
+            └── admin.jarvis.com    → SPA estática (Admin UI)
 
-Appsmith → Admin API (POST /admin/*, GET /admin/*)
+SPA → Admin API (POST /admin/*, GET /admin/*)
          → Fastify verifica Admin JWT (RS256, namespace: admin)
          → jarvis_admin PG role (sin RLS, acceso total)
 ```
 
-> **Contrato de Interfaz:** Appsmith (y futuros clientes) consume el Core asumiendo estrictamente el contrato `specs/admin-api.yaml`. Specmatic audita el backend contra este contrato, garantizando que actualizaciones futuras no interrumpirán la operatividad visual.
+> **Contrato de Interfaz:** La SPA (y futuros clientes) consume el Core asumiendo estrictamente el contrato `specs/admin-api.yaml`. Specmatic audita el backend contra este contrato, garantizando que actualizaciones futuras no interrumpirán la operatividad visual.
 
 ### Roles de identidad
 
 | Realm | Emisor | Algoritmo | Claims | Acceso |
 |---|---|---|---|---|
 | **Tenant** | Fastify core | HS256 | `{ tenant_id, sub, role }` | Rutas `/api/v1/*`, filtradas por RLS |
-| **Admin** | Appsmith | RS256/ES256 | `{ sub: operator_id, role: "super_admin" }` | Rutas `/admin/*`, rol PG `jarvis_admin` sin RLS |
+| **Admin** | CLI/Sistema externo | RS256/ES256 | `{ sub: operator_id, role: "super_admin" }` | Rutas `/admin/*`, rol PG `jarvis_admin` sin RLS |
 
 ### Rol PostgreSQL admin
 
 - Rol: `jarvis_admin`
 - Permisos: SELECT/INSERT/UPDATE/DELETE en todas las tablas operativas
 - RLS: `BYPASSRLS` - cross-tenant visibility requerida para operaciones de gestión
-- **Operaciones destructivas (DELETE, UPDATE masivo):** requieren confirmación explícita en Appsmith (widget de confirmación con texto de acción)
+- **Operaciones destructivas (DELETE, UPDATE masivo):** requieren confirmación explícita en la UI (widget de confirmación con texto de acción)
 
 ### Observabilidad
 
@@ -142,13 +141,11 @@ Appsmith → Admin API (POST /admin/*, GET /admin/*)
 | Loki | Aggregación de logs (single-binary mode) | pino-loki transport |
 | Grafana | Dashboards + alerting proactivo | Consulta Loki + pg-boss metrics |
 | Uptime Kuma | Synthetic HTTP/TCP checks | Independiente |
-| `@pg-boss/dashboard` | Vista de colas de jobs | Montado en `/admin/jobs` vía Appsmith |
+| `@pg-boss/dashboard` | Vista de colas de jobs | Montado en `/admin/jobs` vía SPA |
 
 ### Hoja de ruta del Admin UI
 
-1. **MVP (Fase 1 - sandbox local):** Appsmith Community, self-hosted, autenticación propia (email/contraseña). Validada en Docker Compose local antes de producción.
-2. **Consolidación:** Migración progresiva a SPA propietaria (React/Vite estático) que consume el mismo Admin API
-3. Appsmith se retira una vez que la SPA propietaria cubre el 100% de las funciones operativas
+1. **MVP:** SPA Propietaria que consume el Admin API y provee una interfaz a medida, ágil y de alto rendimiento.
 
 ---
 
@@ -226,7 +223,7 @@ Fase iterativa. No se cierra hasta la aprobación explícita del Arquitecto Prin
 - Fastify y Baileys aislados en procesos independientes.
 - Atlas CLI para linting de migraciones contra el sandbox.
 - Caddy como edge proxy local para routing de subdominios (emulación de topología de producción).
-- Appsmith Community en Docker para validación del Ops Console desacoplado.
+- UI Propietaria (SPA) consumiendo el Admin API de forma local.
 - Loki (single-binary mode) + Grafana en Docker para validación del pipeline de observabilidad.
 - Admin API (`/admin/*`) con JWT realm separado (RS256) y rol `jarvis_admin` sin RLS.
 - Re-validación empírica de checks de infraestructura con K6 + xk6-dashboard.
@@ -237,5 +234,5 @@ Fase iterativa. No se cierra hasta la aprobación explícita del Arquitecto Prin
 - PostgreSQL gestionado por Supabase (Supavisor reemplaza PgBouncer).
 - Supabase Storage reemplaza MinIO.
 - Caddy en producción con TLS automático (Let's Encrypt).
-- Appsmith persistente con volúmenes Docker en servidor de producción.
+- SPA persistente conectada al Admin API.
 - Uptime Kuma desplegado en VPS externo independiente para protección SPOF.

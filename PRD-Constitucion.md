@@ -62,11 +62,11 @@ Despliegue puramente imperativo vía **Kamal 2**, utilizando **kamal-proxy** par
 - **CLI auxiliar:** `mpstat`, `vnstat` como herramientas de auditoría manual complementaria.
 - **SaaS prohibido:** Envío de logs a servicios de terceros (Datadog, Axiom, Better Stack) prohibido.
 
-### Ops Console (Appsmith)
-- **Tecnología**: Appsmith (Community Edition).
+### Ops Console (SPA Propietaria)
+- **Tecnología**: Single Page Application (React/Vite u otra por definir).
 - **Rol**: Panel de control visual aislado, no expuesto al internet público.
-- **Protocolo de Conexión**: Appsmith consume la API de Administración (`/admin/*`) autenticándose obligatoriamente vía JWT asimétrico (RS256) (`ADMIN_JWT_PRIVATE_KEY`).
-- **Declaratividad GitOps**: El estado de la interfaz gráfica y los bindings de datos se han consolidado como código en `infrastructure/appsmith/jarvis-ops-console.json`. En caso de destrucción del volumen Docker o migración de infraestructura, la consola se recupera de manera determinista importando este archivo JSON, eliminando la necesidad de reconstrucción manual o dependencia total en la base de datos interna de Appsmith.
+- **Protocolo de Conexión**: La SPA consume la API de Administración (`/admin/*`) delegando todo el backend a Jarvis.
+- **Justificación de Abandono de Appsmith**: Se revierte la decisión de usar Appsmith debido a la mala experiencia de desarrollador (problemas de cold starts, inyección obligada de credenciales en cada reinicio, configuraciones herméticas y dificultad para crear interfaces maestras de monitoreo). La SPA permitirá control total y manipulación precisa sin features innecesarias.
 
 ---
 
@@ -100,10 +100,10 @@ La materialización sigue un orden cronológico estricto para aislamiento de rie
 
 *   **FASE 1: Validación Local (Sandbox)**
     *   **Orquestación:** Fastify, Baileys, PostgreSQL oficial y emuladores locales (S3/Auth) levantados vía **Docker Compose** en `localhost`.
-    *   **Expansión arquitectónica:** Caddy (edge proxy), Appsmith Community (Ops Console), Loki + Grafana (observabilidad), Admin API (`/admin/*`) con JWT realm separado (RS256) y rol `jarvis_admin`.
+    *   **Expansión arquitectónica:** Caddy (edge proxy), SPA (Ops Console), Loki + Grafana (observabilidad), Admin API (`/admin/*`) con JWT realm separado (RS256) y rol `jarvis_admin`.
     *   **Doctrina de testing:** Specmatic (contratos OpenAPI), Stryker (mutación), Testcontainers (integración), fast-check (propiedades), K6 + xk6-dashboard (stress).
     *   **Condición de Avance:** Aprobación manual del Arquitecto Principal tras auditar seguridad RLS, sincronización offline, contratos (Specmatic) y re-validación empírica de checks de infraestructura. Despliegues externos bloqueados durante esta fase.
 *   **FASE 2: MVP (Hipótesis Sujeta a Cambios)**
     *   **Infraestructura:** Despliegue hacia Oracle ARM, Kamal 2, Caddy con TLS automático (Let's Encrypt) y Supabase Free Tier.
-    *   **Ops Console:** Appsmith persistente con volúmenes Docker en servidor de producción.
+    *   **Ops Console:** SPA estática alojada y conectada al Admin API.
     *   Las definiciones de la Fase 2 están sujetas a modificación en base a los hallazgos y fricciones técnicas detectadas durante la Fase 1. La decisión final se bloquea al concluir la validación local.

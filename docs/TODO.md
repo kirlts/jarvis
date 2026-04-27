@@ -158,7 +158,7 @@
 **Covered checks:** `[CADDY.AV.01.LLM]`, `[CADDY.AV.02.LLM]`, `[CADDY.AV.03.LLM]`, `[CADDY.FN.01.LLM]`, `[CADDY.FN.02.LLM]`, `[CADDY.CR.01.LLM]`, `[CADDY.CR.02.LLM]`, `[CADDY.IN.01.LLM]`, `[CADDY.IN.02.LLM]`, `[CADDY.RS.01.LLM]`, `[CADDY.RS.02.LLM]`, `[CADDY.RS.03.LLM]`
 
 - [x] Agregar contenedor Caddy 2.x al Docker Compose con Caddyfile `2026-04-27 03:32`
-- [x] Configurar routing por subdominio: api.jarvis.local → kamal-proxy (core-api en sandbox), admin.jarvis.local → Appsmith `2026-04-27 03:32`
+- [x] Configurar routing por subdominio: api.jarvis.local → kamal-proxy (core-api en sandbox), admin.jarvis.local → SPA estática `2026-04-27 03:32`
 - [x] Configurar TLS con certificados self-signed para sandbox `2026-04-27 03:32`
 - [x] Inyectar headers de seguridad (X-Frame-Options, HSTS) en Caddyfile `2026-04-27 03:32`
 - [x] Verificar preservacion de X-Forwarded-For al proxear a Fastify `2026-04-27 03:36`
@@ -166,7 +166,7 @@
 - [x] Validar rechazo de subdominios no configurados `2026-04-27 03:34`
 - [x] Estresar Caddy con K6 a 1000 req/s `2026-04-27 03:35`
 - [x] Verificar hot reload sin interrupcion de conexiones activas `2026-04-27 03:36`
-- [x] Validar que Caddy sigue sirviendo rutas API cuando un upstream (Appsmith) esta caido `2026-04-27 03:37`
+- [x] Validar que Caddy sigue sirviendo rutas API cuando un upstream (UI) esta caido `2026-04-27 03:37`
 
 ### 🔲 [TASK-010] Admin API Implementation (Fastify /admin/*)
 
@@ -187,24 +187,19 @@
 - [x] Verificar respuesta 503 sin stack trace cuando PG esta caido `2026-04-27 10:45`
 - [x] Confirmar que claves RS256 se leen de process.env `2026-04-27 10:45`
 
-### ✅ [TASK-011] Ops Console Provisioning (Appsmith); 2026-04-27 00:41 [🧑 Verified by user]
+### 🔲 [TASK-011] Ops Console Provisioning (SPA Propietaria)
 
 > Ref: MASTER-SPEC §6, PRD-Constitucion §5
 
 **Covered checks:** `[OPSUI.AV.01.LLM]`, `[OPSUI.AV.02.MIX]`, `[OPSUI.FN.01.MIX]`, `[OPSUI.FN.02.HUM]`, `[OPSUI.FN.03.HUM]`, `[OPSUI.FN.04.HUM]`, `[OPSUI.CR.01.LLM]`, `[OPSUI.CR.02.MIX]`, `[OPSUI.IN.01.LLM]`, `[OPSUI.IN.02.MIX]`, `[OPSUI.RS.01.LLM]`, `[OPSUI.RS.02.MIX]`
 
-- [x] Agregar contenedor Appsmith Community al Docker Compose `2026-04-27 10:45`
-- [x] Configurar datasource en Appsmith apuntando al Admin API `2026-04-27 11:41`
-- [x] Crear dashboard de estado de tenants (GET /admin/tenants) `2026-04-27 11:41`
-- [x] Crear vista de cola de jobs pg-boss (GET /admin/jobs) `2026-04-27 11:41`
-- [x] Crear vista de estado WhatsApp por tenant (GET /admin/whatsapp/status) `2026-04-27 11:41`
-- [x] Configurar emision de admin JWT (RS256) tras autenticacion `2026-04-27 11:41`
-- [x] Implementar widget de confirmacion para operaciones destructivas `2026-04-27 11:41`
-- [x] Verificar que Appsmith no cachea datos localmente `2026-04-27 11:41`
-- [x] Confirmar que credenciales se almacenan hasheadas en volumen Docker `2026-04-27 11:41`
-- [x] Validar que Fastify sigue operando si Appsmith cae `2026-04-27 11:41`
-- [x] Validar que Appsmith muestra error legible si Admin API cae `2026-04-27 11:41`
-- [x] Exportar UI como `infrastructure/appsmith/jarvis-ops-console.json` para despliegue declarativo `2026-04-27 11:41`
+- [ ] Inicializar repositorio de frontend para SPA estática
+- [ ] Configurar datasource apuntando al Admin API de Jarvis
+- [ ] Crear dashboard de estado de tenants (GET /admin/tenants)
+- [ ] Crear vista de cola de jobs pg-boss (GET /admin/jobs)
+- [ ] Crear vista de estado WhatsApp por tenant (GET /admin/whatsapp/status)
+- [ ] Implementar login de admin JWT
+- [ ] Implementar widget de confirmacion para operaciones destructivas
 
 ### ✅ [TASK-012] Observability Stack (Loki + Grafana + Uptime Kuma); 2026-04-27 00:54 [🤖 Verified by LLM]
 

@@ -62,7 +62,7 @@ RULES:
 
 **Date:** 2026-04-26
 **Context:** El monólogo del 2026-04-26 planteó la pregunta de si el panel de administración (monitoreo de tenants, gestión de jobs, estado WhatsApp) pertenece al core o a la capa de personalización. Dos informes Deep Research analizaron 7 plataformas de referencia (Clerk, WorkOS, Vendure, Nango, Medusa, Payload, Strapi).
-**Decision:** Arquitectura Desacoplada: el core Fastify expone un Admin API dedicado (`/admin/*`). Un cliente separado (Appsmith Community, self-hosted) consume ese API. Appsmith es el MVP, reemplazable en el futuro por una SPA propietaria que consume el mismo Admin API sin modificar el backend.
+**Decision:** [REVERTIDA VER UD-007] Arquitectura Desacoplada: el core Fastify expone un Admin API dedicado (`/admin/*`). Un cliente separado (SPA propietaria estática) consume ese API. La decisión original de usar Appsmith fue revertida.
 **Discarded alternatives:**
 - Pattern A (built-in al core): contamina el event loop de Fastify con rendering de UI; impide reemplazar el frontend sin tocar el backend.
 - Pattern B (plugin): sigue ejecutándose en el proceso Fastify; mismas limitaciones de acoplamiento.
@@ -70,8 +70,8 @@ RULES:
 **Consequences:**
 - El MASTER-SPEC §6 está definido. El Admin API se implementa y valida dentro de Fase 1 (sandbox local).
 - Caddy entra al stack como edge proxy para routing de subdominios (`api.`, `admin.`).
-- Appsmith se deploea como contenedor Docker adicional en producción.
-**Reversion conditions:** Si Appsmith cambia su licencia a modelo comercial sin free tier, o si la SPA propietaria cubre el 100% de las funciones operativas antes de lo anticipado.
+- La SPA se despliega de manera independiente o vía Caddy.
+**Reversion conditions:** Ninguna. La migración a SPA propietaria es final.
 
 ## [UD-004] Observabilidad Self-Hosted: Loki + Grafana obligatorios
 
@@ -90,8 +90,8 @@ RULES:
 ## [UD-005] Admin JWT: Emitido por Appsmith, rol jarvis_admin sin RLS
 
 **Date:** 2026-04-26
-**Context:** La arquitectura desacoplada requiere un mecanismo de autenticación para el Admin API que sea criptográficamente separado del realm de tenants. Se evaluaron tres opciones de emisión: (A) CLI local con clave privada, (B) IdP externo (Google Workspace, Entra ID), (C) Appsmith emite el JWT tras login propio.
-**Decision:** Opción C: Appsmith gestiona la autenticación del operador (email/contraseña) y emite el admin JWT. Fastify verifica el JWT con un plugin `@fastify/jwt` en namespace `admin`, separado del plugin de tenant (HS256). Algoritmo: RS256 o ES256. El rol PostgreSQL `jarvis_admin` tiene `BYPASSRLS` para visibilidad cross-tenant. Operaciones destructivas requieren confirmación explícita en Appsmith. Scope único `super_admin` por ahora.
+**Context:** La arquitectura desacoplada requiere un mecanismo de autenticación para el Admin API que sea criptográficamente separado del realm de tenants. Originalmente Appsmith emitía el JWT. Ahora se utilizará un mecanismo de backend o CLI que emita el JWT asimétrico para ser consumido por la SPA.
+**Decision:** Opción modificada: El Admin JWT será emitido por un script/backend de administración y provisto a la SPA. Fastify verifica el JWT con un plugin `@fastify/jwt` en namespace `admin`, separado del plugin de tenant (HS256). Algoritmo: RS256 o ES256. El rol PostgreSQL `jarvis_admin` tiene `BYPASSRLS` para visibilidad cross-tenant. Operaciones destructivas requieren confirmación explícita en la SPA. Scope único `super_admin` por ahora.
 **Discarded alternatives:**
 - CLI local (opción A): más operativo pero desacopla la autenticación de la UI; innecesariamente complejo para escala inicial.
 - IdP externo (opción B): over-engineering para un solo operador; introduce dependencia externa de autenticación.
@@ -105,12 +105,26 @@ RULES:
 ## [UD-006] Aislamiento Físico y Lógico de Uptime Kuma (Prevención SPOF)
 
 **Date:** 2026-04-27
-**Context:** Hubo ambigüedad sobre cómo el Superadmin interactuaría con Uptime Kuma (¿un widget en Appsmith, un iframe, un enlace?). Integrar el monitor dentro del panel operativo crea un Punto Único de Falla (SPOF): si el servidor o Appsmith colapsa, el operador pierde el monitor justo cuando más lo necesita.
-**Decision:** Uptime Kuma operará como una entidad de radar completamente independiente. En Fase 1 (Sandbox) corre en un puerto separado (`:3002`). En Fase 2/Producción, DEBE residir en un VPS externo geográficamente o lógicamente separado del clúster de Jarvis (ej. VPS de $4/mes) bajo un subdominio propio (`status.dominio.com`). Appsmith solo contendrá un hipervínculo saliente ("Status Page").
+**Context:** Hubo ambigüedad sobre cómo el Superadmin interactuaría con Uptime Kuma. Integrar el monitor dentro del panel operativo crea un Punto Único de Falla (SPOF): si el servidor colapsa, el operador pierde el monitor justo cuando más lo necesita.
+**Decision:** Uptime Kuma operará como una entidad de radar completamente independiente. En Fase 1 (Sandbox) corre en un puerto separado (`:3002`). En Fase 2/Producción, DEBE residir en un VPS externo geográficamente o lógicamente separado del clúster de Jarvis (ej. VPS de $4/mes) bajo un subdominio propio (`status.dominio.com`). La SPA solo contendrá un hipervínculo saliente ("Status Page").
 **Discarded alternatives:**
-- Integración vía iframe/widget en Appsmith: rechazado categóricamente por crear un SPOF (ceguera del observador).
+- Integración vía iframe/widget en SPA: rechazado categóricamente por crear un SPOF (ceguera del observador).
 - Hosting en el mismo VPS de producción que Jarvis: rechazado, una falla a nivel de hypervisor apaga la alarma y el sistema simultáneamente.
 **Consequences:**
 - La arquitectura gana resiliencia ante caídas catastróficas del datacenter principal.
 - Actúa como una página de estado (Status Page) pública u operable por el B2B client para validar el SLA.
 **Reversion conditions:** Imposibilidad financiera extrema para costear un VPS de $4, forzando la co-ubicación en el mismo servidor (con aceptación explícita del riesgo de SPOF).
+
+## [UD-007] Abandono de Appsmith en favor de SPA propietaria
+
+**Date:** 2026-04-27
+**Context:** Problemas de experiencia de desarrollador con Appsmith (creación manual de usuarios en cold starts, inyección repetitiva de credenciales, hermetismo en configuraciones y fricción en la creación de vistas maestras de monitoreo). Estos síntomas sugieren que Appsmith se comporta como servicio pagado disfrazado de open source.
+**Decision:** Eliminar por completo a Appsmith del ecosistema de Jarvis y revocar las decisiones previas que dependían de él (UD-003, parcialmente UD-005). La interfaz de administración se construirá como una Single Page Application (SPA) propietaria pura que consumirá los endpoints del Admin API (`/admin/*`) de Jarvis. Jarvis actúa como el backend definitivo delegando la renderización visual a un frontend ligero y sin las ataduras de un entorno low-code opaco.
+**Discarded alternatives:**
+- Continuar peleando contra la configuración de Appsmith (perdida de tiempo productivo en cosas de bajo nivel).
+- Retool u otras alternativas PaaS low-code (mismos problemas de hermetismo y vendor lock-in).
+**Consequences:**
+- Se han purgado los manifiestos declarativos y scripts de provisionamiento asociados a Appsmith en `infrastructure` y `scripts`.
+- El flujo local (sandbox) es más ágil.
+- Se debe desarrollar una UI estática (SPA) a futuro para visualizar métricas, crear tenants y manipular Jarvis.
+**Reversion conditions:** Ninguna. La decisión asienta el camino definitivo para interfaces de operaciones en Jarvis.

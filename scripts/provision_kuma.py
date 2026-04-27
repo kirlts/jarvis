@@ -121,15 +121,7 @@ def main():
             "maxretries": 3,
             "accepted_statuscodes": ["200-299"],
         },
-        {
-            "name": "🖥️ HTTP: Appsmith (Ops Console)",
-            "type": MonitorType.HTTP,
-            "url": "http://appsmith:80/api/v1/health",
-            "interval": 60,
-            "retryInterval": 60,
-            "maxretries": 3,
-            "accepted_statuscodes": ["200-299"],
-        },
+
         {
             "name": "🛡️ TCP: Caddy (Edge Proxy)",
             "type": MonitorType.PORT,

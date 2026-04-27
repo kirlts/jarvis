@@ -233,17 +233,6 @@ services:
     networks:
       - jarvis-net
 
-  # ── Ops Console (Appsmith) ─────────────────────────────────────────────
-  appsmith:
-    image: appsmith/appsmith-ce:latest
-    container_name: jarvis-appsmith
-    restart: unless-stopped
-    environment:
-      - APPSMITH_DISABLE_TELEMETRY=true
-    volumes:
-      - appsmith_data:/appsmith-stacks
-    networks:
-      - jarvis-net
 
   # ── Edge Proxy (Caddy) ────────────────────────────────────────────────
   caddy:
@@ -261,7 +250,6 @@ services:
       - jarvis-net
     depends_on:
       - core-api
-      - appsmith
   # ── Observability (Loki) ───────────────────────────────────────────────
   loki:
     image: grafana/loki:3.0.0
@@ -321,17 +309,15 @@ services:
     working_dir: /app
     command: >
       bash -c "
-      echo 'Waiting for Appsmith to be ready...';
-      until curl -s http://appsmith:80/setup/welcome | grep -q '<title>'; do sleep 5; done;
-      echo 'Appsmith is up. Installing dependencies...';
+      echo 'Waiting for Uptime Kuma to be ready...';
+      until curl -s http://uptime-kuma:3001 | grep -q '<title>'; do sleep 5; done;
+      echo 'Uptime Kuma is up. Installing dependencies...';
       pip install uptime-kuma-api --quiet;
-      python3 scripts/provision_appsmith.py;
       python3 scripts/provision_kuma.py;
       "
     networks:
       - jarvis-net
     depends_on:
-      - appsmith
       - uptime-kuma
 
 volumes:
@@ -343,8 +329,7 @@ volumes:
     driver: local
   caddy_config:
     driver: local
-  appsmith_data:
-    driver: local
+
   loki_data:
     driver: local
   grafana_data:
