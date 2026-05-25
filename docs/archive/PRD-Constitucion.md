@@ -65,7 +65,7 @@ Despliegue puramente imperativo vía **Kamal 2**, utilizando **kamal-proxy** par
 ### Ops Console (SPA Propietaria)
 - **Tecnología**: Single Page Application (React/Vite u otra por definir).
 - **Rol**: Panel de control visual aislado, no expuesto al internet público.
-- **Protocolo de Conexión**: La SPA consume la API de Administración (`/admin/*`) delegando todo el backend a Jarvis.
+- **Protocolo de Conexión**: La SPA consume la API de Administración (`/admin/*`) delegando todo el backend a Jarvis. En Fase 1 (Sandbox), la consola incluye un mecanismo de `Dev Login` (1-Click) autorizado por `NODE_ENV=development` para reducir la fricción de prueba. En Fase 2 (Producción) operará estrictamente vía JWT firmados mediante OAuth2/OIDC.
 - **Justificación de Abandono de Appsmith**: Se revierte la decisión de usar Appsmith debido a la mala experiencia de desarrollador (problemas de cold starts, inyección obligada de credenciales en cada reinicio, configuraciones herméticas y dificultad para crear interfaces maestras de monitoreo). La SPA permitirá control total y manipulación precisa sin features innecesarias.
 
 ---

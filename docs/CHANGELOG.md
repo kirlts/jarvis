@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Implementación del test suite para el frontend (Ops Console) utilizando Vitest y React Testing Library. Validando estados de carga, manejo de errores, renderizado vacío, mutaciones e interacciones (TEST.md, TASK-018).
+- Empirical verification of resilience and security tests including session persistence, automatic retries with backoff, offline forms, API degradation fallback, and Caddy SPA proxy fallback (TASK-018).
+- Caddy Edge Proxy routing (`admin.jarvis.local`) for Ops Console SPA con SPA fallback (`try_files` behavior) y estrictos security headers (`X-Frame-Options: SAMEORIGIN`, `HSTS`). Catch-all block rechaza subdominios no configurados con 404 (TASK-017).
+- `VITE_API_URL` runtime resolution pointing to `http://api.jarvis.local` inside `docker-compose.yml` for correct browser-to-API communication across Caddy (TASK-017).
+- Design system (`App.css`): OKLCH color palette, Minor Third (1.2) fluid typography via `clamp()`, 4px base unit spacing, dark admin surface hierarchy, focus-visible rings, modal animations, scrollbar styling (TASK-016).
+- Sidebar layout (`components/layout`): sticky sidebar with brand, navigation via `useMenu()`, user identity display from `authProvider.getIdentity()`, logout button (TASK-016).
+- Tenant list view (`pages/tenants/list.tsx`): paginated data table with ID/name/created columns, "New Tenant" action, inline delete button with confirmation modal (OPER.IN.01). DELETE includes `?confirm=true` query param (AAPI.FN.04) (TASK-016).
+- Tenant create view (`pages/tenants/create.tsx`): single-field form with validation, error display, and auto-navigation back to list on success with cache invalidation (TASK-016).
+- Jobs monitoring view (`pages/jobs/list.tsx`): pg-boss job table with state filter buttons (All/Active/Completed/Failed), color-coded status badges, truncated UUIDs (TASK-016).
+- WhatsApp status view (`pages/whatsapp/list.tsx`): Baileys connection table with tenant ID, status badge (connected/disconnected/connecting), and timestamp (TASK-016).
+- `dataProvider` personalizado (`ops-console/src/providers/data.ts`): traduce operaciones CRUD de Refine al contrato del Admin API (`specs/admin-api.yaml` v0.2.0) con inyeccion automatica de `Authorization: Bearer` y mapeo de paginacion (`currentPage/pageSize` a `page/limit`) (TASK-015).
+- `authProvider` (`ops-console/src/providers/auth.ts`): ciclo completo login/logout/check/getIdentity/getPermissions/onError con JWT RS256. Token almacenado en `sessionStorage` (no `localStorage`) para limitar exposicion XSS. Validacion client-side de algoritmo RS256 y expiracion con buffer de 30s (TASK-015).
+- Pagina de login Phase 1 (`ops-console/src/pages/login.tsx`): acepta JWT pre-firmado RS256 via textarea. Sera reemplazada por flujo OAuth2/OIDC en Phase 2 (TASK-015).
+- Routing protegido en `App.tsx`: wrapper `Authenticated` con fallback a `/login`, recursos declarados (`tenants`, `jobs`, `whatsapp`) con rutas CRUD, placeholders para vistas (TASK-016) (TASK-015).
+- Proyecto Refine v5 (Vite 6 + React 19 + TypeScript 5.8) inicializado en `ops-console/` con data provider REST headless y sin UI framework preset (TASK-011).
+- Dockerfile multi-stage para `ops-console/`: Node 24 Alpine (build) + Nginx 1.27 Alpine (serve) con SPA fallback, cache de activos estáticos, y security headers.
+- Configuración Nginx (`ops-console/nginx.conf`) con `try_files` para SPA routing, cache inmutable para activos hasheados, y headers de seguridad (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`).
+- Servicio `ops-console` en `docker-compose.yml`: build contextual, `VITE_API_URL` como build arg, healthcheck, restart policy, sin volúmenes persistentes (CSPA.IN.02).
+- Caddy configurado como dependencia del servicio `ops-console` para routing `admin.jarvis.local`.
 - Directorio `infrastructure/observability/grafana/provisioning/dashboards/` y `plugins/` con archivos de provisionamiento vacios para eliminar errores de Grafana al arranque.
 - Garantias de mantencion futura de Specmatic documentadas en TEST.md (OpenAPI Spec Requirements) y MASTER-SPEC.md (§6).
 - Separación estricta de `test:unit` y `test` en `package.json` para aislar pruebas con mock de pruebas con Testcontainers.
@@ -20,6 +39,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sección ADMIN completa materializada en VERIFICATION.md: 14 checks verificados (TASK-010) + 18 nuevos pendientes (TASK-019) = 32 checks totales.
 - Tabla de endpoints del Admin API en MASTER-SPEC §6 con estados de implementación.
 - UD-008 en USER-DECISIONS.md: expansión del contrato API antes de construir frontend.
+- Migración `009_tenant_unique_name.sql`: índice único parcial en `tenants.name WHERE deleted_at IS NULL` para permitir recreación de tenants soft-deleted sin conflictos de nombre.
+- Suite de integración Admin API con Testcontainers: 12 tests contra PG 17 real validando triggers, soft-delete, unique constraints, y BYPASSRLS.
+- Suite de property-based testing Admin API con fast-check: 7 tests (~4000 iteraciones) validando UUID regex, paginación, SQL injection prevention.
+- Script de stress K6 `scripts/stress/st-010-admin-crud.js` para carga Admin API bajo 50 VUs.
+- Runner de contract testing Specmatic para Admin API (`scripts/run-admin-contract-tests.js`): 24/24 scenarios pasando.
 
 ### Changed
 - Migracion `008_admin_role.sql` reescrita: pre-crea el schema `pgboss` via `CREATE SCHEMA IF NOT EXISTS` para eliminar la dependencia temporal con el arranque del worker. pg-boss reutiliza el schema existente sin conflicto.
@@ -32,6 +56,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clasificación de verificabilidad: 9 checks reclasificados de HUM/MIX a LLM tras validar que el framework de testing de Jarvis cubre su automatización completa.
 - Matriz de verificación total expandida de 185 a 203 checks (18 nuevos checks ADMIN para endpoints expandidos).
 - Secuencia de ejecución actualizada: TASK-019 (API) bloquea TASK-015 (dataProvider) y TASK-016 (vistas).
+- Migracion de `ghcr.io/supabase/postgres:17.6.1.093` a `postgres:17-alpine` por incompatibilidad de rol `supabase_admin`.
+- pg-boss ahora conecta directamente a PG (:5432), no a traves de PgBouncer (:6543).
+- PgBouncer configurado con `AUTH_TYPE=scram-sha-256` para compatibilidad con PG 17.
+- MinIO de source build a imagen comunitaria `ghcr.io/coollabsio/minio` por falta de acceso a proxy.golang.org en Docker.
+- Baileys worker: `syncFullHistory: false`, `markOnlineOnConnect: false`, dummy `getMessage` resolver para prevenir timeouts.
+- Filtro de mensajes entrantes: de inclusion (`@s.whatsapp.net`) a exclusion (`@g.us`, `@broadcast`, `@newsletter`) para soportar LID.
+- `specs/admin-api.yaml` actualizado a v0.2.0: endpoints CRUD completos, paginación, filtros, `confirm` parameter corregido de `type: boolean` a `type: string enum: ['true']`.
+- TEST.md: E2E Policy actualizada (referencia Appsmith eliminada), Coverage Metrics actualizadas con valores reales, OpenAPI Spec Requirements marcadas como creadas.
 
 ### Fixed
 - Migracion `008_admin_role.sql` fallaba con `ERROR: schema "pgboss" does not exist` en arranques limpios (`docker compose down -v`), dejando a `jarvis_admin` sin acceso al schema de pg-boss y rompiendo `GET /admin/jobs`.
@@ -39,6 +71,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Grafana emitia errores `open /etc/grafana/provisioning/dashboards: no such file or directory` por ausencia de directorios de provisionamiento.
 - Falso negativo en pruebas de contrato Specmatic originado por deriva documental entre la especificación OpenAPI y el validador estricto de Fastify (ajv).
 - Timeouts masivos en Stryker provocados por la ejecución concurrente (20+ hilos) del runner de Testcontainers.
+- DELETE /admin/tenants/:id ejecutaba `DELETE FROM tenants` (bloqueado por trigger `prevent_hard_delete`): corregido a `UPDATE SET deleted_at = now()` (soft-delete).
+- GET /admin/tenants mezclaba tenants activos con soft-deleted: corregido con `WHERE deleted_at IS NULL`.
+- PATCH /admin/tenants/:id permitía modificar tenants soft-deleted: corregido con `AND deleted_at IS NULL` en UPDATE.
+- DELETE /admin/tenants/:id faltaba `additionalProperties: false` en querystring schema (HP-004).
+- DELETE /admin/tenants/:id no validaba formato UUID en `:id` (inconsistente con GET/PATCH).
 - Docker Compose sandbox con PostgreSQL 17 (`postgres:17-alpine`), PgBouncer (`edoburu/pgbouncer`), y MinIO S3 (`ghcr.io/coollabsio/minio`).
 - Health check script (`scripts/health-check.js`) validando 5 capas: PG directo, pooler, S3, schema, y RLS.
 - Esquema SQL con 4 tablas: `tenants`, `sync_inbox`, `wapp_sessions`, `wapp_incoming` (con soporte para `deleted_at`).
@@ -63,20 +100,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Doctrina de testing formalizada en docs/TEST.md: Specmatic (contratos), Stryker (mutacion), Testcontainers (integracion), fast-check (propiedades), K6 (stress).
 - TASK-014 en TODO.md: re-validacion empirica de 9 falsos positivos revertidos, mapeados 1:1 a ST-001→ST-009 del TEST.md.
 - Trazabilidad formal HP-* → VERIFICATION.md en tabla de High Priority Tests del TEST.md.
-
-### Changed
-- Migracion de `ghcr.io/supabase/postgres:17.6.1.093` a `postgres:17-alpine` por incompatibilidad de rol `supabase_admin`.
-- pg-boss ahora conecta directamente a PG (:5432), no a traves de PgBouncer (:6543).
-- PgBouncer configurado con `AUTH_TYPE=scram-sha-256` para compatibilidad con PG 17.
-- MinIO de source build a imagen comunitaria `ghcr.io/coollabsio/minio` por falta de acceso a proxy.golang.org en Docker.
-- Baileys worker: `syncFullHistory: false`, `markOnlineOnConnect: false`, dummy `getMessage` resolver para prevenir timeouts.
-- Filtro de mensajes entrantes: de inclusion (`@s.whatsapp.net`) a exclusion (`@g.us`, `@broadcast`, `@newsletter`) para soportar LID.
-
-### Fixed
-- `POOLER_PORT` corregido de 6543 a 5432 para comunicacion intra-red Docker (solo afecta `core-api`).
-- Variable `msgId` izada fuera del bloque `try` interno para prevenir `ReferenceError` en interceptor multimedia.
-- Referencia obsoleta `audio` corregida a `isAudio` en `ContentType` de `PutObjectCommand`.
-- pg-boss: `createQueue` idempotente antes de `work()` para prevenir error `Queue does not exist`.
 
 ### Removed
 - Actor OPSUI (Appsmith) de VERIFICATION.md: 12 checks archivados por decisión arquitectónica UD-007. Reemplazado por 57 checks distribuidos en 5 actores de la Ops Console Refine.

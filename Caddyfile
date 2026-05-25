@@ -2,17 +2,33 @@
 	local_certs
 }
 
+# ── Admin API ──────────────────────────────────────────────────────
 http://api.jarvis.local, https://api.jarvis.local {
 	reverse_proxy core-api:3000
 
 	header {
 		X-Frame-Options "DENY"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
 		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
 	}
 }
 
+# ── Ops Console SPA ────────────────────────────────────────────────
+# Routes to Nginx container serving the Refine v5 SPA.
+# Nginx handles SPA fallback (try_files) internally.
+http://admin.jarvis.local, https://admin.jarvis.local {
+	reverse_proxy ops-console:80
 
+	header {
+		X-Frame-Options "SAMEORIGIN"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+	}
+}
 
+# ── Catch-all: reject unconfigured subdomains ──────────────────────
 :80, :443 {
 	respond "Not Found" 404
 }

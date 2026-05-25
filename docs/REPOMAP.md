@@ -1,30 +1,208 @@
-# REPOMAP: Jarvis
+# Repository Map (REPOMAP)
 
-> Generated: 2026-04-27 01:56 (Kairós v1.2.0)  
-> Purpose: Routing matrix. Defines when the AI is authorized to read each directory or file.
+> This document defines the exact structural layout of the repository.
 
-## Authoring Constraints (Read Before Populating)
+## Physical Structure
 
-- **Scope:** Map the host project only. Kairós governance files (`.agents/`, `README-KAIROS.md`, `kairos-version.txt`) are invisible infrastructure. They MUST NOT appear as Domain Axioms or individual rows. If listed at all, compress them into a single noise cluster row labeled `Kairós Governance`. The documentary axis files in `docs/` are project documentation, not governance. `docs/MASTER-SPEC.md` receives an individual row as a Domain Axiom; the remaining axis files defined in `04-documentation.md` are grouped into a single row.
-- **Abstraction level:** Source code files are always mapped at the directory level, never as individual rows. Only documentation and specification files qualify for individual rows as Domain Axioms, per the three-signal detection algorithm in the `/repomap` workflow.
-- **Anti-recency bias:** The physical timestamp of a file is not a factor. Do not elevate recently modified files. Prominence is determined by architectural role defined in `MASTER-SPEC`, not by modification date.
-- **MECE:** Every row must be Mutually Exclusive (no overlapping access conditions) and Collectively Exhaustive (every directory or logical cluster must be represented).
-- **Language:** This document is written in English regardless of the host project's language.
+```
+/home/kirlts/jarvis
+├── atlas.hcl
+├── build
+│   └── reports
+│       └── specmatic
+│           ├── coverage_report.json
+│           ├── html
+│           │   ├── assets
+│           │   │   ├── badge.svg
+│           │   │   ├── blocked.svg
+│           │   │   ├── check-badge.svg
+│           │   │   ├── clipboard-document-list.svg
+│           │   │   ├── clock.svg
+│           │   │   ├── download.svg
+│           │   │   ├── exclamation-triangle.svg
+│           │   │   ├── favicon.svg
+│           │   │   ├── main.js
+│           │   │   ├── mark-approved.svg
+│           │   │   ├── mark-rejected.svg
+│           │   │   ├── specmatic-logo.svg
+│           │   │   ├── styles.css
+│           │   │   ├── summaryUpdater.js
+│           │   │   ├── tableFilter.js
+│           │   │   ├── test_data.json
+│           │   │   ├── trend-up.svg
+│           │   │   ├── utils.js
+│           │   │   └── x-circle.svg
+│           │   └── index.html
+│           └── test
+│               └── html
+│                   └── index.html
+├── Caddyfile
+├── docker-compose.yml
+├── Dockerfile
+├── docs
+│   ├── archive
+│   │   └── checks_OPSUI_2026-04-27.md
+│   ├── CHANGELOG.md
+│   ├── MASTER-SPEC.md
+│   ├── MEMORY.md
+│   ├── REPOMAP.md
+│   ├── REPOMAP_raw.txt
+│   ├── TEST.md
+│   ├── TODO.md
+│   ├── USER-DECISIONS.md
+│   └── VERIFICATION.md
+├── Idea
+│   ├── 04-25 Estrategia de Producto_ De Soluciones Freelance Aisladas a una Plataforma SaaS Modular y Escalable-Summary.txt
+│   ├── 04-25 Estrategia de Producto_ De Soluciones Freelance Aisladas a una Plataforma SaaS Modular y Escalable-transcript.txt
+│   └── 04-26 Stabilizing a Multi-tenant Messaging Core_ Contracts, Unhappy-Path Discipline, Testing Doctrine, and Ops Console Decisions-transcript.txt
+├── infrastructure
+│   ├── observability
+│   │   ├── grafana
+│   │   │   └── provisioning
+│   │   │       ├── alerting
+│   │   │       │   └── alerts.yml
+│   │   │       ├── dashboards
+│   │   │       │   └── dashboards.yml
+│   │   │       ├── datasources
+│   │   │       │   └── datasource.yml
+│   │   │       └── plugins
+│   │   │           └── plugins.yml
+│   │   └── loki-config.yaml
+│   └── security
+│       └── keys
+│           ├── private.key
+│           ├── private.key.pub
+│           └── public.key
+├── kairos-version.txt
+├── ops-console
+│   ├── Dockerfile
+│   ├── eslint.config.js
+│   ├── index.html
+│   ├── nginx.conf
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── public
+│   │   └── favicon.ico
+│   ├── README.MD
+│   ├── src
+│   │   ├── App.css
+│   │   ├── App.tsx
+│   │   ├── components
+│   │   │   ├── breadcrumb
+│   │   │   │   └── index.tsx
+│   │   │   ├── layout
+│   │   │   │   └── index.tsx
+│   │   │   └── menu
+│   │   │       └── index.tsx
+│   │   ├── index.tsx
+│   │   ├── pages
+│   │   │   ├── jobs
+│   │   │   │   ├── list.test.tsx
+│   │   │   │   └── list.tsx
+│   │   │   ├── login.tsx
+│   │   │   ├── tenants
+│   │   │   │   ├── create.test.tsx
+│   │   │   │   ├── create.tsx
+│   │   │   │   ├── list.test.tsx
+│   │   │   │   └── list.tsx
+│   │   │   └── whatsapp
+│   │   │       ├── list.test.tsx
+│   │   │       └── list.tsx
+│   │   ├── providers
+│   │   │   ├── auth.ts
+│   │   │   ├── constants.ts
+│   │   │   └── data.ts
+│   │   ├── setupTests.ts
+│   │   └── vite-env.d.ts
+│   ├── tsconfig.json
+│   ├── tsconfig.node.json
+│   └── vite.config.ts
+├── package.json
+├── package-lock.json
+├── PRD-Constitucion.md
+├── private_key.pem
+├── private_key_pkcs1.pem
+├── public_key.pem
+├── reports
+│   └── mutation
+│       ├── mutation.html
+│       └── mutation.json
+├── Research
+│   ├── 01 - Solo Dev SaaS Testing Strategies.md
+│   ├── 02 - SaaS Admin Panel Architecture Research.md
+│   └── 03 - Alternativas Open Source para Panel Admin.md
+├── scripts
+│   ├── audit_storage.js
+│   ├── dump-routes.js
+│   ├── generate-admin-jwt.js
+│   ├── generate_token.js
+│   ├── health-check.js
+│   ├── jwt_test.js
+│   ├── provision_kuma.py
+│   ├── run-admin-contract-tests.js
+│   ├── run-contract-tests.js
+│   ├── stress
+│   │   ├── st-001.js
+│   │   ├── st-002.js
+│   │   ├── st-003.js
+│   │   └── st-010-admin-crud.js
+│   ├── stress-admin.js
+│   ├── stress-caddy.js
+│   ├── stress-test.js
+│   ├── test-stub.js
+│   ├── test_task_005.js
+│   ├── test_task_006.js
+│   └── validate_coherence.cjs
+├── specs
+│   ├── admin-api.yaml
+│   ├── tenant-api_examples.json
+│   └── tenant-api.yaml
+├── src
+│   ├── config.js
+│   ├── db.js
+│   ├── db.test.js
+│   ├── features
+│   │   ├── admin
+│   │   │   ├── admin.property.test.js
+│   │   │   ├── routes.integration.test.js
+│   │   │   ├── routes.js
+│   │   │   └── routes.test.js
+│   │   ├── storage
+│   │   │   ├── routes.js
+│   │   │   └── s3-client.js
+│   │   └── sync-inbox
+│   │       ├── routes.js
+│   │       ├── routes.test.js
+│   │       └── schema.js
+│   ├── middleware
+│   │   ├── boss-publisher.js
+│   │   ├── event-loop-monitor.js
+│   │   └── jwt.js
+│   ├── rls.test.js
+│   ├── server.js
+│   └── workers
+│       ├── baileys
+│       │   ├── auth-state.js
+│       │   └── worker.js
+│       └── boss-worker.js
+├── stryker.config.json
+├── supabase
+│   └── migrations
+│       ├── 001_extensions.sql
+│       ├── 002_tenants.sql
+│       ├── 003_sync_inbox.sql
+│       ├── 004_wapp_state.sql
+│       ├── 005_rls_and_isolation.sql
+│       ├── 006_storage_objects.sql
+│       ├── 007_seed.sql
+│       ├── 008_admin_role.sql
+│       ├── 009_tenant_unique_name.sql
+│       └── atlas.sum
+├── test-jwt.js
+├── test-routes.js
+├── test-server.js
+├── worker2.log
+└── worker.log
 
-## Routing Matrix
-
-| Directory / File | Nature | When to Consult |
-|---|---|---|
-| `PRD-Constitucion.md` | Domain Axiom | MANDATORY first read for high-level constitutional constraints and architectural vision. |
-| `docs/MASTER-SPEC.md` | Domain Axiom | MANDATORY first read for technical stack, constraints, and system boundaries. |
-| `docs/TEST.md` | Domain Axiom | Consult before writing or modifying any test suite to ensure compliance with testing doctrine. |
-| `docs/*.md` (Documentary Axis) | Documentary Axis | Consult automatically based on Kairós workflow triggers (TODO, MEMORY, CHANGELOG, USER-DECISIONS). |
-| `src/` | Architectural Module | Consult when modifying the Fastify HTTP Core, VSA endpoints, or database pool configuration. |
-| `src/workers/` | Architectural Module | Consult when modifying background jobs, pg-boss consumers, or WhatsApp (Baileys) transduction logic. |
-| `supabase/migrations/` | Architectural Module | Consult when modifying database schemas, RLS policies, or Atlas migrations. |
-| `specs/` | Architectural Module | Consult when modifying or verifying OpenAPI specifications for Contract-Driven Development. |
-| `scripts/` | Architectural Module | Consult when running local health checks, stress tests (K6), or contract tests. |
-| `infrastructure/` | Architectural Module | Consult when modifying the Ops Console (Appsmith) exports or other infrastructure-as-code. |
-| `Idea/` & `Research/` | Ideation & Research | Consult when exploring original project concepts or Deep Research historical reports. |
-| `*.*` (Root Configs) | Configuration | Consult when modifying Docker Compose, Atlas CLI routing, package dependencies, or environment variables. |
-| `.agents/`, `kairos-version.txt` | Kairós Governance | Invisible infrastructure. Consult only when modifying agent behaviors or templates. |
+49 directories, 149 files
+```

@@ -20,6 +20,15 @@
 
 **What it IS NOT:** No es un sistema atado a una sola industria. Los casos de uso de contratistas o médicos (Plugins) están FUERA DEL SCOPE del sistema core; son expansiones implementables futuras. Microservicios distribuidos, bases vectoriales externas e interfaces PaaS visuales están prohibidas.
 
+### Business Model (Microkernel SaaS)
+
+El sistema opera como plataforma genérica con instancias modulares aisladas:
+- **Core Genérico:** Identidad, autenticación, base de datos multi-tenant, notificaciones push, facturación. El Core es agnóstico a la industria del cliente.
+- **Módulo Contratista (Plugin A):** Lógica de Tracking GPS en terreno y gestión de cuadrillas.
+- **Módulo Clínico (Plugin B):** Orquestación de pacientes y tratamientos interdisciplinarios.
+
+Cada cliente recibe una instancia que percibe como personalizada. El esfuerzo de ingeniería se concentra en el Core; los plugins son expansiones modulares que reutilizan la infraestructura compartida.
+
 ---
 
 ## §2. Architecture
@@ -41,6 +50,13 @@
 1. Cliente sincroniza datos offline vía UUIDv7 hacia Fastify Inbox.
 2. Fastify inserta crudo en `sync_inbox` vía PgBouncer (transaction mode, :6543) y retorna `202 Accepted`.
 3. Worker `pg-boss` procesa el inbox conectándose directamente a PostgreSQL (:5432). Esta conexión elude el pooler para garantizar la continuidad de sesión exigida por los advisory locks y `SKIP LOCKED`.
+
+### I/O Channel Isolation (Arquitectura Hexagonal)
+
+Los canales de comunicación (WhatsApp, Telegram, Email, Slack) operan estrictamente como adaptadores externos. Desde la perspectiva del Core, son agnósticos e intercambiables.
+- **Despliegue:** Workers dockerizados aislados (ej. `baileys-worker`) vía Kamal 2. No comparten el proceso ni el Event Loop del Core HTTP.
+- **Contrato de Interfaz:** Los workers traducen sus protocolos nativos (ej. WhatsApp LID `@lid`) a payloads agnósticos que se inyectan transaccionalmente en la base de datos o en colas genéricas de `pg-boss` (`sync-inbox-process`, `notification-send-process`).
+- **Persistencia de Sesiones Externas:** Adaptadores como `usePgAuthState` guardan llaves criptográficas en PostgreSQL (`JSONB`). Uso del sistema de archivos local (`fs`) estrictamente prohibido.
 
 ---
 
@@ -72,7 +88,13 @@
 2. **GitOps Imperativo:** Uso de CLI cruda y logs. Prohibido Dokploy, Coolify, Traefik. Solo Kamal 2 + kamal-proxy.
 3. **Criptografía Baileys Aislada:** Worker debe operar fuera del HTTP Core y guardar llaves en PG JSONB. Uso de `fs` prohibido.
 4. **UUIDv7 Obligatorio:** Auto-incrementales y UUIDv4 prohibidos para asegurar ordenamiento cronológico absoluto. Generación client-side vía `uuid.v7()` (ESM).
-5. **Aislamiento Multi-Tenant (RLS):** Uso de variables locales para inyección RLS (`SET LOCAL request.jwt.claims ...`). Inyección global prohibida. Tráfico HTTP vía PgBouncer (transaction mode, :6543).
+5. **Aislamiento Multi-Tenant (RLS):** Uso de variables locales para inyección RLS (`SET LOCAL request.jwt.claims ...`). Inyección global prohibida (causa fuga de datos entre tenants al reciclar conexiones). Tráfico HTTP vía PgBouncer (transaction mode, :6543). Sintaxis SQL exigida:
+   ```sql
+   BEGIN;
+   SELECT set_config('request.jwt.claims.tenant_id', '...', true);
+   -- <query_de_negocio>;
+   COMMIT;
+   ```
 6. **Migraciones Declarativas:** Atlas (Ariga) v1.2.0 obligatorio. ORMs manuales prohibidos. Operaciones destructivas bloqueadas por linter.
 7. **pg-boss: Conexión Directa Obligatoria:** pg-boss DEBE conectarse directamente a PostgreSQL (:5432), NO a través del pooler. Advisory locks y `SKIP LOCKED` requieren continuidad de sesión incompatible con transaction pooling.
 8. **Autenticación SCRAM-SHA-256:** PG 17 impone SCRAM por defecto. Todo pooler debe configurar `AUTH_TYPE=scram-sha-256` explícitamente.
@@ -137,12 +159,12 @@ SPA → Admin API (POST /admin/*, GET /admin/*)
 
 | Método | Ruta | Descripción | Query Params | Status |
 |---|---|---|---|---|
-| GET | `/admin/tenants` | Listar tenants (paginado) | `?page=1&limit=10` | Implementado (paginación pendiente) |
-| POST | `/admin/tenants` | Crear tenant | — | **Pendiente (TASK-019)** |
-| GET | `/admin/tenants/:id` | Detalle de tenant | — | **Pendiente (TASK-019)** |
-| PATCH | `/admin/tenants/:id` | Editar tenant | — | **Pendiente (TASK-019)** |
-| DELETE | `/admin/tenants/:id` | Eliminar tenant | `?confirm=true` (obligatorio) | Implementado |
-| GET | `/admin/jobs` | Listar cola pg-boss | `?state=&tenant_id=&limit=` | Implementado (filtros pendientes) |
+| GET | `/admin/tenants` | Listar tenants activos (paginado) | `?page=1&limit=10` | Implementado |
+| POST | `/admin/tenants` | Crear tenant (UUIDv7 server-side) | — | Implementado |
+| GET | `/admin/tenants/:id` | Detalle de tenant | — | Implementado |
+| PATCH | `/admin/tenants/:id` | Editar tenant (parcial, solo activos) | — | Implementado |
+| DELETE | `/admin/tenants/:id` | Soft-delete tenant (SET deleted_at) | `?confirm=true` (obligatorio) | Implementado |
+| GET | `/admin/jobs` | Listar cola pg-boss (filtrable) | `?state=&tenant_id=&limit=` | Implementado |
 | GET | `/admin/whatsapp/status` | Estado conexiones WhatsApp | — | Implementado |
 
 **Restricciones de implementación:**
@@ -160,7 +182,12 @@ SPA → Admin API (POST /admin/*, GET /admin/*)
 | Loki | Aggregación de logs (single-binary mode) | pino-loki transport |
 | Grafana | Dashboards + alerting proactivo | Consulta Loki + pg-boss metrics |
 | Uptime Kuma | Synthetic HTTP/TCP checks | Independiente |
+| `mpstat`, `vnstat` | Auditoría manual complementaria (CPU, red) | CLI local |
 | `@pg-boss/dashboard` | Vista de colas de jobs | Montado en `/admin/jobs` vía SPA |
+
+### Autenticación en desarrollo
+
+En Fase 1 (Sandbox), la consola incluye un mecanismo de `Dev Login` (1-Click) autorizado por `NODE_ENV=development` para reducir la fricción de prueba. Endpoint: `POST /admin/dev-login`. En Fase 2 (Producción) operará estrictamente vía JWT firmados mediante OAuth2/OIDC.
 
 ### Hoja de ruta del Admin UI
 

@@ -1,53 +1,222 @@
 openapi: 3.0.3
 info:
   title: Jarvis Admin API
-  version: 0.1.0
+  version: 0.2.0
   description: Ops Console API for superadmin operations. Arquitectura Desacoplada (Admin API + Cliente Externo).
 servers:
   - url: http://localhost:3000
     description: Sandbox Environment
+
 paths:
   /admin/tenants:
     get:
-      summary: Get all tenants status
+      summary: List all tenants (paginated)
       operationId: getTenants
       security:
         - adminBearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
       responses:
         '200':
-          description: List of tenants
+          description: Paginated list of tenants with metadata
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                      format: uuid
-                    name:
-                      type: string
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tenant'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '400':
+          description: Invalid pagination parameters
         '401':
           description: Missing or invalid Admin JWT
         '403':
           description: Role is not super_admin
 
+    post:
+      summary: Create a new tenant
+      operationId: createTenant
+      security:
+        - adminBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+              additionalProperties: false
+      responses:
+        '201':
+          description: Tenant created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantCreated'
+        '400':
+          description: Invalid or missing payload
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+        '409':
+          description: Tenant name already exists (unique constraint)
+
+  /admin/tenants/{id}:
+    get:
+      summary: Get tenant detail by ID
+      operationId: getTenantById
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Tenant detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+        '400':
+          description: Invalid UUID format
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+        '404':
+          description: Tenant not found
+
+    patch:
+      summary: Update tenant fields (partial)
+      operationId: updateTenant
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+              additionalProperties: false
+              minProperties: 1
+      responses:
+        '200':
+          description: Tenant updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+        '400':
+          description: Invalid payload or UUID format
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+        '404':
+          description: Tenant not found
+        '409':
+          description: Tenant name already exists (unique constraint)
+
+    delete:
+      summary: Soft-delete a tenant (sets deleted_at timestamp)
+      operationId: deleteTenant
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: confirm
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: ['true']
+      responses:
+        '200':
+          description: Tenant deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [deleted]
+                  id:
+                    type: string
+                    format: uuid
+        '400':
+          description: Missing confirm parameter
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+        '404':
+          description: Tenant not found
+
   /admin/jobs:
     get:
-      summary: View pg-boss job queues
+      summary: View pg-boss job queues (with filters)
       operationId: getJobs
       security:
         - adminBearerAuth: []
+      parameters:
+        - name: state
+          in: query
+          schema:
+            type: string
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
       responses:
         '200':
-          description: Jobs list
+          description: Filtered jobs list
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  type: object
+                  $ref: '#/components/schemas/Job'
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
 
   /admin/whatsapp/status:
     get:
@@ -64,36 +233,93 @@ paths:
                 type: array
                 items:
                   type: object
-
-  /admin/tenants/{id}:
-    delete:
-      summary: Delete a tenant completely (destructive)
-      operationId: deleteTenant
-      security:
-        - adminBearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - name: confirm
-          in: query
-          required: true
-          schema:
-            type: boolean
-      responses:
-        '204':
-          description: Tenant deleted
-        '400':
-          description: Missing confirm parameter
+                  properties:
+                    tenant_id:
+                      type: string
+                      format: uuid
+                    status:
+                      type: string
+                    updated_at:
+                      type: string
+                      format: date-time
         '401':
           description: Missing or invalid Admin JWT
         '403':
           description: Role is not super_admin
 
 components:
+  parameters:
+    TenantId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    Tenant:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    TenantCreated:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    Job:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        state:
+          type: string
+        data:
+          type: object
+        created_on:
+          type: string
+          format: date-time
+        started_on:
+          type: string
+          format: date-time
+          nullable: true
+        completed_on:
+          type: string
+          format: date-time
+          nullable: true
+
   securitySchemes:
     adminBearerAuth:
       type: http

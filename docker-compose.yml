@@ -111,6 +111,7 @@ services:
     container_name: jarvis-core-api
     restart: unless-stopped
     environment:
+      NODE_ENV: "development"
       DB_HOST: db
       DB_PORT: "5432"
       DB_USER: postgres
@@ -234,6 +235,25 @@ services:
       - jarvis-net
 
 
+  # ── Ops Console SPA (Refine v5 + Vite + React) ───────────────────────
+  # Stateless SPA served by Nginx. No persistent volumes (CSPA.IN.02).
+  # VITE_API_URL baked at build time via build arg.
+  ops-console:
+    build:
+      context: ./ops-console
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: "http://api.jarvis.local"
+    container_name: jarvis-ops-console
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:80/"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+    networks:
+      - jarvis-net
+
   # ── Edge Proxy (Caddy) ────────────────────────────────────────────────
   caddy:
     image: caddy:2-alpine
@@ -250,6 +270,7 @@ services:
       - jarvis-net
     depends_on:
       - core-api
+      - ops-console
   # ── Observability (Loki) ───────────────────────────────────────────────
   loki:
     image: grafana/loki:3.0.0

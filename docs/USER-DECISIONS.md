@@ -144,3 +144,17 @@ RULES:
 - `specs/admin-api.yaml` debe actualizarse como primer paso de TASK-019 (contract-first).
 - La secuencia de ejecución es: TASK-019 → TASK-011 → TASK-015 → TASK-016 → TASK-017 → TASK-018.
 **Reversion conditions:** Si los primeros 10 clientes demuestran que las operaciones de escritura se hacen exclusivamente por SQL/CLI y la SPA solo se usa para monitoreo, los endpoints de escritura (POST, PATCH) se deprecan sin eliminar el código.
+
+## [UD-009] Mecanismo de Dev Login (1-Click) para Ops Console en Fase 1
+
+**Date:** 2026-04-27
+**Context:** Se requería ejecutar un script manual de Node.js en terminal para generar y copiar un JWT cada vez que el operador necesitaba autenticarse en la Ops Console local (Sandbox). Esto creaba una fricción inaceptable para el testing continuo.
+**Decision:** Implementar un botón "Dev Login (1-Click)" en el frontend y habilitar una ruta `POST /admin/dev-login` en Fastify. Esta ruta firma automáticamente un JWT `super_admin` válido **sólo** cuando `NODE_ENV=development`, evadiendo la verificación de autenticación de las otras rutas seguras de administración y permitiendo el bypass directo.
+**Discarded alternatives:**
+- Desactivar completamente la autenticación JWT en local: rechazado categóricamente. Anularía las pruebas de resiliencia y verificación del contrato OpenAPI (401/403).
+- Implementar flujo OAuth2 completo para Sandbox: prematuro. Generaría un over-engineering no requerido antes de la Fase 2.
+**Consequences:**
+- Fricción de inicio de sesión de desarrollador/operador eliminada.
+- Las vistas y hooks en `ops-console` y el backend Fastify mantienen la arquitectura de seguridad JWT.
+- Se actualizó el `MASTER-SPEC.md` (anteriormente en `PRD-Constitucion.md`, archivado) especificando esta excepción en Fase 1.
+**Reversion conditions:** Al entrar a la Fase 2 (Producción) donde `NODE_ENV=production` desactiva inherentemente la ruta, el Frontend se conectará finalmente al proveedor OIDC / OAuth2.

@@ -143,7 +143,7 @@ The traditional pyramid (many unit tests → few integration → fewer E2E) is *
 ## E2E Policy
 
 - **Activate when:** Never. Jarvis is a headless API backend. There is no browser UI to test.
-- **Appsmith (Ops Console):** Appsmith is a third-party tool. Its internal UI is not covered by this test suite. The Admin API endpoints consumed by Appsmith are covered by contract tests (Specmatic) and integration tests (Testcontainers).
+- **Ops Console (SPA Propietaria):** The Admin API endpoints consumed by the SPA are covered by contract tests (Specmatic) and integration tests (Testcontainers). The SPA itself will be tested via its own Refine/React test suite when implemented (TASK-018).
 - **WhatsApp (Baileys):** Manual verification via `.HUM` checks in VERIFICATION.md. Automated testing of WhatsApp WebSocket protocol is blocked by Meta's anti-automation policies.
 
 ---
@@ -154,8 +154,8 @@ Specmatic requires an OpenAPI 3.x spec as its source of truth. The following spe
 
 | Spec | Covers | Location |
 |---|---|---|
-| `specs/tenant-api.yaml` | `/api/v1/sync/inbox`, `/api/v1/storage/presign`, `/health` | To be created |
-| `specs/admin-api.yaml` | `/admin/tenants`, `/admin/jobs`, `/admin/whatsapp/status` | To be created |
+| `specs/tenant-api.yaml` | `/api/v1/sync/inbox`, `/api/v1/storage/presign`, `/health` | Created (v0.1.0) |
+| `specs/admin-api.yaml` | `/admin/tenants` (CRUD), `/admin/jobs`, `/admin/whatsapp/status` | Created (v0.2.0) |
 
 **Maintenance Guarantees:**
 These specs are the **contracts** between the Core and all consumers (Appsmith, Plugins, WhatsApp workers). Specmatic garantiza facilidad de mantención futura sin afectar operaciones mediante:
@@ -169,12 +169,12 @@ These specs are the **contracts** between the Core and all consumers (Appsmith, 
 
 | Metric | Current Value | Target |
 |---|---|---|
-| Specmatic contract coverage | 0% (no spec exists) | 100% of public endpoints |
-| Stryker mutation score | N/A (not installed) | > 80% on business logic |
-| Testcontainers integration coverage | 0% (no tests exist) | All VERIFICATION.md `.LLM` checks |
-| fast-check property coverage | 0% (not installed) | All HP-* invariants |
-| K6 stress scenarios | 0/9 | 9/9 (resolves all false positives) |
-| node:test unit coverage | 0% | Pure functions only (schema, config, UUID) |
+| Specmatic contract coverage | 24/24 (tenant + admin) | 100% of public endpoints |
+| Stryker mutation score | 95.92% (admin routes) | > 80% on business logic |
+| Testcontainers integration coverage | 12 tests (PG 17 real) | All VERIFICATION.md `.LLM` checks |
+| fast-check property coverage | 7 tests (~4000 iterations) | All HP-* invariants |
+| K6 stress scenarios | 9/9 + st-010 (admin) | 9/9 (resolves all false positives) |
+| node:test unit coverage | 55 tests (31 admin + 24 core) | Pure functions only (schema, config, UUID) |
 
 ---
 

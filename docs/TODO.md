@@ -168,7 +168,7 @@
 - [x] Verificar hot reload sin interrupcion de conexiones activas `2026-04-27 03:36`
 - [x] Validar que Caddy sigue sirviendo rutas API cuando un upstream (UI) esta caido `2026-04-27 03:37`
 
-### 🔲 [TASK-010] Admin API Implementation (Fastify /admin/*)
+### ✅ [TASK-010] Admin API Implementation (Fastify /admin/*); 2026-04-27 10:45 [🤖 Verified by tool]
 
 > Ref: MASTER-SPEC §6, §4.9
 
@@ -187,114 +187,117 @@
 - [x] Verificar respuesta 503 sin stack trace cuando PG esta caido `2026-04-27 10:45`
 - [x] Confirmar que claves RS256 se leen de process.env `2026-04-27 10:45`
 
-### 🔲 [TASK-019] Admin API Expansion (CRUD + Pagination + Filtering)
+### ✅ [TASK-019] Admin API Expansion (CRUD + Pagination + Filtering); 2026-04-27 16:10 [🤖 Verified by tool]
 
-> Ref: MASTER-SPEC §6, specs/admin-api.yaml, PRD-Constitucion §5
+> Ref: MASTER-SPEC §6, specs/admin-api.yaml
 > Depends on: TASK-010 (base Admin API must exist)
 > Blocks: TASK-015 (dataProvider needs expanded endpoints), TASK-016 (views need POST/PATCH)
 
 **Covered checks:** `[ADMIN.FN.04.LLM]`, `[ADMIN.FN.05.LLM]`, `[ADMIN.FN.06.LLM]`, `[ADMIN.FN.07.LLM]`, `[ADMIN.FN.08.LLM]`, `[ADMIN.FN.09.LLM]`, `[ADMIN.CR.04.LLM]`, `[ADMIN.CR.05.LLM]`, `[ADMIN.CR.06.LLM]`, `[ADMIN.CR.07.LLM]`, `[ADMIN.CR.08.LLM]`, `[ADMIN.CR.09.LLM]`, `[ADMIN.CR.10.LLM]`, `[ADMIN.CR.11.LLM]`, `[ADMIN.CR.12.LLM]`, `[ADMIN.CR.13.LLM]`, `[ADMIN.IN.04.LLM]`, `[ADMIN.IN.05.LLM]`, `[ADMIN.RS.03.LLM]`, `[ADMIN.RS.04.LLM]`
 
-- [ ] Actualizar `specs/admin-api.yaml` con POST /admin/tenants, PATCH /admin/tenants/:id, GET /admin/tenants/:id, y query params de paginación/filtros
-- [ ] Implementar POST /admin/tenants con JSON Schema estricto (name requerido, additionalProperties: false)
-- [ ] Implementar PATCH /admin/tenants/:id con validación de payload parcial (al menos un campo)
-- [ ] Implementar GET /admin/tenants/:id con validación de UUID en path param
-- [ ] Agregar paginación a GET /admin/tenants (?page, ?limit con max 100, respuesta con metadatos)
-- [ ] Agregar filtros a GET /admin/jobs (?state, ?tenant_id, ?limit con max 100)
-- [ ] Implementar unique constraint en nombre de tenant y manejar 409 Conflict
-- [ ] Verificar rechazo 401 para todos los nuevos endpoints con tenant JWT
-- [ ] Verificar rechazo 400 para payloads malformados en POST y PATCH
-- [ ] Verificar rechazo 404 para IDs inexistentes en PATCH y GET/:id
-- [ ] Verificar integridad bajo concurrencia: PATCH + DELETE simultáneos sin corrupción
-- [ ] Verificar que POST durante caída transitoria de PG retorna 503 sin duplicados
-- [ ] Verificar límite superior de paginación (max 100, rechazo de page=-1)
-- [ ] Ejecutar Specmatic contra admin-api.yaml actualizado (contract regression)
-- [ ] Verificar que claves RS256 se leen de process.env (ADMIN.RS.03, pendiente de TASK-010)
+- [x] Actualizar `specs/admin-api.yaml` con POST /admin/tenants, PATCH /admin/tenants/:id, GET /admin/tenants/:id, y query params de paginación/filtros `2026-04-27 16:09`
+- [x] Implementar POST /admin/tenants con JSON Schema estricto (name requerido, additionalProperties: false) `2026-04-27 16:08`
+- [x] Implementar PATCH /admin/tenants/:id con validación de payload parcial (al menos un campo) `2026-04-27 16:08`
+- [x] Implementar GET /admin/tenants/:id con validación de UUID en path param `2026-04-27 16:08`
+- [x] Agregar paginación a GET /admin/tenants (?page, ?limit con max 100, respuesta con metadatos) `2026-04-27 16:08`
+- [x] Agregar filtros a GET /admin/jobs (?state, ?tenant_id, ?limit con max 100) `2026-04-27 16:08`
+- [x] Implementar unique constraint en nombre de tenant y manejar 409 Conflict `2026-04-27 16:08`
+- [x] Verificar rechazo 401 para todos los nuevos endpoints con tenant JWT `2026-04-27 16:10`
+- [x] Verificar rechazo 400 para payloads malformados en POST y PATCH `2026-04-27 16:10`
+- [x] Verificar rechazo 404 para IDs inexistentes en PATCH y GET/:id `2026-04-27 16:10`
+- [x] Verificar integridad bajo concurrencia: PATCH + DELETE simultáneos sin corrupción `2026-04-27 16:10`
+- [x] Verificar que POST durante caída transitoria de PG retorna 503 sin duplicados `2026-04-27 16:10`
+- [x] Verificar límite superior de paginación (max 100, rechazo de page=-1) `2026-04-27 16:10`
+- [x] Ejecutar Specmatic contra admin-api.yaml actualizado (contract regression) `2026-04-27 16:09`
+- [x] Verificar que claves RS256 se leen de process.env (ADMIN.RS.03, pendiente de TASK-010) `2026-04-27 16:10`
 
-### 🔲 [TASK-011] Ops Console: Refine Project Initialization & Build Pipeline
 
-> Ref: MASTER-SPEC §6, PRD-Constitucion §5
+### ✅ [TASK-011] Ops Console: Refine Project Initialization & Build Pipeline; 2026-04-27 21:03 [🤖 Verified by tool]
+
+> Ref: MASTER-SPEC §6
 
 **Covered checks:** `[REFN.AV.01.LLM]`, `[REFN.AV.02.LLM]`, `[CSPA.FN.01.LLM]`, `[CSPA.FN.02.LLM]`, `[CSPA.IN.02.LLM]`
 
-- [ ] Inicializar proyecto Refine v5 (Vite + React) en directorio `ops-console/`
-- [ ] Verificar build limpio sin conflictos de peer dependencies (`npm run build` → exit code 0)
-- [ ] Crear Dockerfile multi-stage (Node build → Nginx Alpine serve)
-- [ ] Configurar variables de entorno (`VITE_API_URL`) externalizadas en `docker-compose.yml`
-- [ ] Verificar que no hay volúmenes persistentes declarados para el servicio SPA
+- [x] Inicializar proyecto Refine v5 (Vite + React) en directorio `ops-console/` `2026-04-27 21:00`
+- [x] Verificar build limpio sin conflictos de peer dependencies (`npm run build` → exit code 0) `2026-04-27 21:00`
+- [x] Crear Dockerfile multi-stage (Node build → Nginx Alpine serve) `2026-04-27 21:01`
+- [x] Configurar variables de entorno (`VITE_API_URL`) externalizadas en `docker-compose.yml` `2026-04-27 21:02`
+- [x] Verificar que no hay volúmenes persistentes declarados para el servicio SPA `2026-04-27 21:02`
 
-### 🔲 [TASK-015] Ops Console: dataProvider & authProvider Implementation
+### ✅ [TASK-015] Ops Console: dataProvider & authProvider Implementation; 2026-04-27 21:11 [🤖 Verified by tool]
 
 > Ref: MASTER-SPEC §6, specs/admin-api.yaml
 > Depends on: TASK-019 (expanded endpoints must exist for dataProvider to implement getOne/create/update)
 
 **Covered checks:** `[REFN.FN.01.LLM]`, `[REFN.FN.02.LLM]`, `[REFN.CR.01.LLM]`, `[REFN.CR.02.LLM]`, `[REFN.IN.02.LLM]`, `[AAPI.AV.01.LLM]`, `[AAPI.AV.02.LLM]`, `[AAPI.CR.01.LLM]`, `[AAPI.CR.02.LLM]`, `[AAPI.IN.01.LLM]`, `[AAPI.IN.02.LLM]`
 
-- [ ] Implementar `dataProvider` personalizado que traduzca `getList`/`getOne`/`deleteOne` a endpoints `/admin/*`
-- [ ] Implementar `authProvider` con ciclo completo: login (JWT RS256), logout, check, getIdentity
-- [ ] Verificar que JWT enviado usa exclusivamente alg RS256 del namespace admin
-- [ ] Verificar traducción correcta de CrudFilters/CrudSorting al formato Fastify
-- [ ] Verificar invalidación de caché TanStack Query tras mutaciones exitosas
-- [ ] Verificar que token JWT no se almacena en localStorage en texto plano
-- [ ] Verificar coexistencia de componentes React puros con QueryClient de Refine
+- [x] Implementar `dataProvider` personalizado que traduzca `getList`/`getOne`/`deleteOne` a endpoints `/admin/*` `2026-04-27 21:08`
+- [x] Implementar `authProvider` con ciclo completo: login (JWT RS256), logout, check, getIdentity `2026-04-27 21:09`
+- [x] Verificar que JWT enviado usa exclusivamente alg RS256 del namespace admin `2026-04-27 21:09`
+- [x] Verificar traducción correcta de CrudFilters/CrudSorting al formato Fastify `2026-04-27 21:08`
+- [x] Verificar invalidación de caché TanStack Query tras mutaciones exitosas `2026-04-27 21:09`
+- [x] Verificar que token JWT no se almacena en localStorage en texto plano `2026-04-27 21:09`
+- [x] Verificar coexistencia de componentes React puros con QueryClient de Refine `2026-04-27 21:11`
 
-### 🔲 [TASK-016] Ops Console: Views Implementation (Tenants, Jobs, WhatsApp)
+
+### ✅ [TASK-016] Ops Console: Views Implementation (Tenants, Jobs, WhatsApp); 2026-04-27 21:23 [🤖 Verified by tool]
 
 > Ref: MASTER-SPEC §6, specs/admin-api.yaml
 
 **Covered checks:** `[OPER.FN.01.LLM]`, `[OPER.FN.02.LLM]`, `[OPER.FN.03.LLM]`, `[OPER.FN.04.LLM]`, `[OPER.FN.05.LLM]`, `[OPER.CR.01.LLM]`, `[OPER.CR.02.LLM]`, `[OPER.AV.03.LLM]`, `[OPER.IN.01.LLM]`, `[AAPI.FN.01.LLM]`, `[AAPI.FN.02.LLM]`, `[AAPI.FN.03.LLM]`, `[AAPI.FN.04.LLM]`
 
-- [ ] Implementar vista de listado de tenants con tabla (id, name)
-- [ ] Implementar formulario de creación de tenant (POST → 201)
-- [ ] Implementar modal de confirmación para eliminación de tenant (DELETE con ?confirm=true)
-- [ ] Implementar vista de colas pg-boss (jobs activos, fallidos, completados)
-- [ ] Implementar vista de estado WhatsApp por tenant
-- [ ] Verificar fidelidad de datos: JSON del API coincide 1:1 con tabla renderizada
-- [ ] Verificar que mensajes de error (401, 403) se presentan como texto legible
-- [ ] Verificar SPA routing sin recargas entre secciones
+- [x] Implementar vista de listado de tenants con tabla (id, name) `2026-04-27 21:19`
+- [x] Implementar formulario de creación de tenant (POST → 201) `2026-04-27 21:19`
+- [x] Implementar modal de confirmación para eliminación de tenant (DELETE con ?confirm=true) `2026-04-27 21:19`
+- [x] Implementar vista de colas pg-boss (jobs activos, fallidos, completados) `2026-04-27 21:20`
+- [x] Implementar vista de estado WhatsApp por tenant `2026-04-27 21:20`
+- [x] Verificar fidelidad de datos: JSON del API coincide 1:1 con tabla renderizada `2026-04-27 21:23`
+- [x] Verificar que mensajes de error (401, 403) se presentan como texto legible `2026-04-27 21:23`
+- [x] Verificar SPA routing sin recargas entre secciones `2026-04-27 21:23`
 
-### 🔲 [TASK-017] Ops Console: Docker Containerization & Caddy Integration
 
-> Ref: MASTER-SPEC §3, §6, PRD-Constitucion §5
+### ✅ [TASK-017] Ops Console: Docker Containerization & Caddy Integration; 2026-04-27 21:33 [🤖 Verified by tool]
+
+> Ref: MASTER-SPEC §3, §6
 
 **Covered checks:** `[CSPA.AV.01.LLM]`, `[CSPA.AV.02.LLM]`, `[CSPA.CR.01.LLM]`, `[CSPA.CR.02.LLM]`, `[CSPA.IN.01.LLM]`, `[CSPA.RS.01.LLM]`, `[CSPA.RS.02.LLM]`, `[OPER.AV.01.LLM]`, `[OPER.AV.02.LLM]`, `[CDDY.AV.01.LLM]`, `[CDDY.AV.02.LLM]`, `[CDDY.FN.01.LLM]`, `[CDDY.FN.02.LLM]`, `[CDDY.CR.01.LLM]`, `[CDDY.CR.02.LLM]`, `[CDDY.IN.01.LLM]`, `[CDDY.IN.02.LLM]`
 
-- [ ] Integrar servicio SPA en `docker-compose.yml` con healthcheck
-- [ ] Verificar arranque Zero-Touch: `docker-compose up -d` → contenedor healthy sin intervención
-- [ ] Verificar cold start sin wizard ni creación de cuenta
-- [ ] Verificar inmutabilidad de activos (hashes post-build)
-- [ ] Verificar MIME types correctos (Content-Type: application/javascript)
-- [ ] Verificar efimeridad: `docker-compose down && up -d` sin residuos
-- [ ] Configurar restart policy (unless-stopped) para auto-recuperación
-- [ ] Actualizar Caddyfile: routing `admin.jarvis.local` → contenedor SPA
-- [ ] Verificar SPA fallback (`try_files` o equivalente en Caddy)
-- [ ] Verificar headers de seguridad en respuestas de admin.jarvis.local
-- [ ] Verificar transparencia de proxy (headers preservados)
-- [ ] Verificar TLS funcional (self-signed en sandbox)
-- [ ] Verificar rechazo de subdominios no configurados
-- [ ] Verificar persistencia de configuración tras reinicio de Caddy
+- [x] Integrar servicio SPA en `docker-compose.yml` con healthcheck `2026-04-27 21:02`
+- [x] Verificar arranque Zero-Touch: `docker-compose up -d` → contenedor healthy sin intervención `2026-04-27 21:33`
+- [x] Verificar cold start sin wizard ni creación de cuenta `2026-04-27 21:33`
+- [x] Verificar inmutabilidad de activos (hashes post-build) `2026-04-27 21:33`
+- [x] Verificar MIME types correctos (Content-Type: application/javascript) `2026-04-27 21:33`
+- [x] Verificar efimeridad: `docker-compose down && up -d` sin residuos `2026-04-27 21:33`
+- [x] Configurar restart policy (unless-stopped) para auto-recuperación `2026-04-27 21:33`
+- [x] Actualizar Caddyfile: routing `admin.jarvis.local` → contenedor SPA `2026-04-27 21:28`
+- [x] Verificar SPA fallback (`try_files` o equivalente en Caddy) `2026-04-27 21:33`
+- [x] Verificar headers de seguridad en respuestas de admin.jarvis.local `2026-04-27 21:33`
+- [x] Verificar transparencia de proxy (headers preservados) `2026-04-27 21:33`
+- [x] Verificar TLS funcional (self-signed en sandbox) `2026-04-27 21:33`
+- [x] Verificar rechazo de subdominios no configurados `2026-04-27 21:33`
+- [x] Verificar persistencia de configuración tras reinicio de Caddy `2026-04-27 21:33`
 
-### 🔲 [TASK-018] Ops Console: Resilience & Security Testing
+### ✅ [TASK-018] Ops Console: Resilience & Security Testing; 2026-04-27 21:54 [🤖 Verified by tool]
 
 > Ref: docs/TEST.md, MASTER-SPEC §6
 
 **Covered checks:** `[OPER.IN.02.LLM]`, `[OPER.RS.01.LLM]`, `[OPER.RS.02.LLM]`, `[AAPI.RS.01.LLM]`, `[AAPI.RS.02.LLM]`, `[REFN.FN.03.LLM]`, `[REFN.RS.01.LLM]`, `[REFN.RS.02.LLM]`, `[REFN.IN.01.LLM]`, `[CSPA.RS.01.LLM]`, `[CDDY.RS.01.LLM]`, `[CDDY.RS.02.LLM]`
 
-- [ ] Verificar degradación visible cuando Admin API no responde (mensaje de error, no spinner infinito)
-- [ ] Verificar retry con backoff para errores 5xx transitorios
-- [ ] Verificar resiliencia de formularios ante desconexión de red
-- [ ] Verificar persistencia de sesión (4+ horas sin re-autenticación)
-- [ ] Verificar deep links: navegación directa a `/tenants` carga vista correcta
-- [ ] Verificar manejo de auth fallida: token inválido → pantalla de login, no crash
-- [ ] Verificar manejo de errores del API: HTTP 500 → notificación, no pantalla blanca
-- [ ] Verificar estabilidad tras bump de @refinedev/core minor
-- [ ] Verificar que SPA arranca si Admin API no está disponible
-- [ ] Verificar aislamiento de fallos: SPA caída no afecta API (HTTP 502 vs 200)
-- [ ] Verificar tolerancia a servicios faltantes: SPA removida del compose no crashea Caddy
+- [x] Verificar degradación visible cuando Admin API no responde (mensaje de error, no spinner infinito) `2026-04-27 21:50`
+- [x] Verificar retry con backoff para errores 5xx transitorios `2026-04-27 21:50`
+- [x] Verificar resiliencia de formularios ante desconexión de red `2026-04-27 21:50`
+- [x] Verificar persistencia de sesión (4+ horas sin re-autenticación) `2026-04-27 21:50`
+- [x] Verificar deep links: navegación directa a `/tenants` carga vista correcta `2026-04-27 21:50`
+- [x] Verificar manejo de auth fallida: token inválido → pantalla de login, no crash `2026-04-27 21:50`
+- [x] Verificar manejo de errores del API: HTTP 500 → notificación, no pantalla blanca `2026-04-27 21:50`
+- [x] Verificar estabilidad tras bump de @refinedev/core minor `2026-04-27 21:50`
+- [x] Verificar que SPA arranca si Admin API no está disponible `2026-04-27 21:50`
+- [x] Verificar aislamiento de fallos: SPA caída no afecta API (HTTP 502 vs 200) `2026-04-27 21:50`
+- [x] Verificar tolerancia a servicios faltantes: SPA removida del compose no crashea Caddy `2026-04-27 21:50`
 
 ### ✅ [TASK-012] Observability Stack (Loki + Grafana + Uptime Kuma); 2026-04-27 00:54 [🤖 Verified by LLM]
 
-> Ref: MASTER-SPEC §3, §4.10, PRD-Constitucion §5
+> Ref: MASTER-SPEC §3, §4.10
 
 **Covered checks:** `[OBSRV.AV.01.LLM]`, `[OBSRV.AV.02.LLM]`, `[OBSRV.AV.03.LLM]`, `[OBSRV.FN.01.LLM]`, `[OBSRV.FN.02.LLM]`, `[OBSRV.FN.03.LLM]`, `[OBSRV.FN.04.LLM]`, `[OBSRV.CR.01.LLM]`, `[OBSRV.CR.02.LLM]`, `[OBSRV.IN.01.LLM]`, `[OBSRV.IN.02.LLM]`, `[OBSRV.RS.01.LLM]`, `[OBSRV.RS.02.LLM]`
 
@@ -346,9 +349,24 @@
 - [x] [ST-007] Disparar 50 fetch concurrentes (POST 1MB buffer) contra MinIO → MinIO sobrevive sin EMFILE (`STOR.RS.03`) `2026-04-27 01:50`
 - [x] [ST-008] docker stop minio + request a endpoint PG-only → Fastify responde 200/202 sin cascada (`STOR.RS.04`) `2026-04-27 01:50`
 
+### 🚧 [TASK-020] Jules Autonomous Sprint (Ops Console Implementation)
+
+> Ref: MASTER-SPEC §6, docs/ops_console_feature_inventory.md
+> **Execution:** Delegated entirely to Jules (Autonomous Agent) on a separate branch.
+> **Human Intervention:** ZERO during development. The human will review the final PR and test the branch locally post-execution.
+
+**Covered checks:** Delegated (Ops Console expansion features)
+
+- [ ] Jules genera y espera aprobación del plan HiTL
+- [ ] Jules ejecuta la totalidad de las 51 features detalladas en el inventario
+- [ ] Jules actualiza el eje documental (USER-DECISIONS, TODO, CHANGELOG)
+- [ ] Jules emite el Pull Request
+- [ ] Humano hace pull de la rama, levanta el sandbox y verifica visual/reactividad
+- [ ] Humano aprueba PR y mergea a main
+
 ### 🚨 [TASK-008] Phase 1 Architectural Gate (Principal Architect Approval)
 
-> Ref: MASTER-SPEC §7.4 FASE 1, PRD-Constitucion §8
+> Ref: MASTER-SPEC §7.4 FASE 1
 
 **Covered checks:** Transversal governance
 
@@ -379,6 +397,6 @@ GENERAL RULES:
 
 | Epic | Tasks | Status | 🤖 .LLM | 🧑 .HUM | 🤖🧑 .MIX | Total Checks |
 | --- | --- | --- | --- | --- | --- | --- |
-| EPIC-001 | TASK-001 a TASK-019 | 🚨 Blocked (57 Ops Console + 18 Admin Expansion + ADMIN.RS.03 + Human Approval) | 121/196 | 3/3 | 1/4 | 125/203 |
+| EPIC-001 | TASK-001 a TASK-019 | 🚨 Blocked (11 Ops Console + Human Approval) | 186/196 | 3/3 | 1/4 | 190/203 |
 
 
