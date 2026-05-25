@@ -32,6 +32,7 @@ Read every template file from `.agents/templates/` into working memory:
 | `.agents/templates/changelog.md` | `docs/CHANGELOG.md` |
 | `.agents/templates/TEST.md` | `docs/TEST.md` (if exists) |
 | `.agents/templates/technical-debt.md` | `docs/TECHNICAL-DEBT.md` (if exists) |
+| `.agents/templates/rules.md` | `docs/RULES.md` (if exists) |
 
 ### 0.2. Verify Mandatory Sections
 
@@ -131,6 +132,7 @@ The system scans `docs/` looking for the documentary axis files:
 | `docs/CHANGELOG.md` | `.agents/templates/changelog.md` | Yes |
 | `docs/TEST.md` | `.agents/templates/TEST.md` | No (created via /test) |
 | `docs/TECHNICAL-DEBT.md` | `.agents/templates/technical-debt.md` | No (created via /fix) |
+| `docs/RULES.md` | `.agents/templates/rules.md` | No (created by user) |
 
 ### Step 2: Catalog Discrepancies
 
@@ -187,10 +189,11 @@ Executes directly without prior user validation.
 The system mathematically verifies the coherence of each document with the project's current state:
 
 - Does the MASTER-SPEC reflect the real implemented architecture?
+- Does MASTER-SPEC contain a §8 (Operational Rules) section? If missing, add the empty section from the template.
+- If §8 points to `docs/RULES.md`, does that file exist? If it exists, lint it against `.agents/templates/rules.md`.
 - Does the TODO reflect real progress with correct timestamps?
 - Are there decisions in the codebase missing in USER-DECISIONS.md?
 - Are there product changes missing in CHANGELOG.md?
-- Are MASTER-SPEC §4 constraints strictly synchronized with `.agents/rules/05-constraints.md`?
 
 ### Slop and Mock Detection
 

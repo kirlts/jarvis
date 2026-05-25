@@ -1,6 +1,6 @@
 ---
 trigger: model_decision
-description: Applies when creating, reading, or modifying project documentation within the docs/ directory (MASTER-SPEC, TODO, MEMORY, CHANGELOG).
+description: Applies when creating, reading, or modifying project documentation within the docs/ directory (MASTER-SPEC, TODO, MEMORY, CHANGELOG, RULES).
 ---
 
 # Documentation & Operational Cycle
@@ -23,6 +23,7 @@ All guiding project documents reside in `/docs/`. The canonical templates reside
 | `docs/CHANGELOG.md` | `.agents/templates/changelog.md` | Versioned history. Keep a Changelog format. |
 | `docs/TECHNICAL-DEBT.md` | `.agents/templates/technical-debt.md` | Ephemeral file. Self-liquidates when 100% completed. |
 | `docs/TEST.md` | (generated via /test) | Testing contract. Must be read if it exists. |
+| `docs/RULES.md` | `.agents/templates/rules.md` | Repository-specific operational rules for the AI agent. **Not mandatory.** Only exists if the user declares rules. |
 | `docs/LIVING-DOCUMENT.md` | `.agents/templates/living-document.md` | Pedagogical narrative. **Isolated from normal operations.** Can ONLY be created or modified via the `/narrate` workflow. |
 
 

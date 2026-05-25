@@ -5,10 +5,9 @@ description: Applies when writing code, altering architecture, managing dependen
 
 # Project Constraints Execution
 
-The operational environment executes compliance with project-specific constraints. 
-
 ## Core Protocol
 
-1. Project constraints exist exclusively within the final project documentation, specifically `docs/MASTER-SPEC.md` section §4 and §5.
-2. System outputs and proposals comply with the limits and constraints defined in the project's architecture.
-3. The system appends newly discovered constraints directly to the project's documentation. Constraints are never appended to this rule file.
+1. Before modifying code, architecture, or dependencies, the agent reads `docs/MASTER-SPEC.md` §4 (Constraints) and §8 (Operational Rules).
+2. §4 defines inviolable architectural boundaries of the project.
+3. §8 declares the location and scope of operational rules for the agent. The agent follows the routing indicated in §8.
+4. Newly discovered constraints are appended to `docs/MASTER-SPEC.md` §4. Newly discovered operational rules are appended to the system declared in §8. This file is a dispatcher. No project-specific content is appended here.

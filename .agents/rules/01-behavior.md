@@ -40,3 +40,4 @@ In addition to static rules, the agent possesses specialized skills for complex 
 | Dialogue shows inertia, vagueness, or >3 turns without concrete artifacts, OR user uses exploration keywords on a nascent topic | `.agents/skills/productive-friction-protocol/SKILL.md` |
 | Recommending technologies/practices that might be outdated | `.agents/skills/standard-research/SKILL.md` |
 | Verifying visual/experience artifacts for aesthetic harmony | `.agents/skills/visual-excellence-protocol/SKILL.md` |
+| User declares a permanent operational pattern, or agent detects a systemic correction with transversal implications | `.agents/skills/suggest-rules/SKILL.md` |
