@@ -1,133 +1,119 @@
-import { useList } from "@refinedev/core";
-import { useState } from "react";
+import React, { useState } from "react";
+import { useTable, useCustomMutation } from "@refinedev/core";
 
-interface Job {
-  id: string;
-  name: string;
-  state: string;
-  data: Record<string, unknown>;
-  created_on: string;
-  started_on: string | null;
-  completed_on: string | null;
-}
+export const JobList = () => {
+    const [stateFilter, setStateFilter] = useState("");
+    const [queueFilter, setQueueFilter] = useState("");
 
-const STATE_BADGE: Record<string, string> = {
-  active: "badge-info",
-  completed: "badge-success",
-  failed: "badge-danger",
-  expired: "badge-warning",
-  cancelled: "badge-neutral",
-  retry: "badge-warning",
+    const { tableQueryResult, filters, setFilters } = useTable({
+        resource: "jobs",
+        pagination: { pageSize: 50 },
+        filters: {
+            initial: [],
+        }
+    });
+
+    const { mutate } = useCustomMutation();
+    const { data, isLoading, isError } = tableQueryResult;
+
+    // A real implementation would parse filters correctly via refine.
+    // For brevity, we handle it simply
+    const applyFilters = (state: string, queue: string) => {
+        setStateFilter(state);
+        setQueueFilter(queue);
+        let currentFilters: any[] = [];
+        if (state) currentFilters.push({ field: "state", value: state, operator: "eq" });
+        if (queue) currentFilters.push({ field: "name", value: queue, operator: "eq" });
+        setFilters(currentFilters);
+    };
+
+    const handleRetry = (id: string) => {
+        if (window.confirm("Retry this job?")) {
+            mutate({ url: `jobs/${id}/retry`, method: "post", values: {} });
+        }
+    };
+
+    const handleCancel = (id: string) => {
+        if (window.confirm("Cancel this job?")) {
+            mutate({ url: `jobs/${id}/cancel`, method: "post", values: {} });
+        }
+    };
+
+    if (isError) return <div className="error-banner">Error loading jobs</div>;
+
+    return (
+        <div style={{ padding: "var(--sp-6)" }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--sp-4)' }}>
+                <h1 style={{ fontSize: "var(--text-2xl)" }}>Jobs (pg-boss)</h1>
+                <button className="btn-ghost" onClick={() => window.open('http://localhost:3000/admin/jobs/export', '_blank')}>↓ Export CSV</button>
+            </div>
+
+            <div style={{ display: 'flex', gap: 'var(--sp-4)', marginBottom: 'var(--sp-4)' }}>
+                <select
+                    className="form-input"
+                    value={stateFilter}
+                    onChange={(e) => applyFilters(e.target.value, queueFilter)}
+                >
+                    <option value="">All States</option>
+                    <option value="created">Created</option>
+                    <option value="active">Active</option>
+                    <option value="completed">Completed</option>
+                    <option value="failed">Failed</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+                <input
+                    className="form-input"
+                    placeholder="Filter by Queue Name"
+                    value={queueFilter}
+                    onChange={(e) => applyFilters(stateFilter, e.target.value)}
+                />
+            </div>
+
+            {isLoading ? (
+                <div className="loading-spinner"></div>
+            ) : data?.data.length === 0 ? (
+                <div className="empty-state">No jobs found.</div>
+            ) : (
+                <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", background: "var(--surface-2)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
+                        <thead>
+                            <tr style={{ background: "var(--surface-3)", textAlign: "left" }}>
+                                <th style={{ padding: "var(--sp-3)" }}>ID</th>
+                                <th style={{ padding: "var(--sp-3)" }}>Queue Name</th>
+                                <th style={{ padding: "var(--sp-3)" }}>State</th>
+                                <th style={{ padding: "var(--sp-3)" }}>Created</th>
+                                <th style={{ padding: "var(--sp-3)" }}>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data?.data.map((job: any) => (
+                                <tr key={job.id} style={{ borderBottom: "1px solid var(--surface-3)" }}>
+                                    <td style={{ padding: "var(--sp-3)" }} className="cell-mono">{job.id.split("-")[0]}...</td>
+                                    <td style={{ padding: "var(--sp-3)" }}>{job.name}</td>
+                                    <td style={{ padding: "var(--sp-3)" }}>
+                                        <span className={`badge badge-${
+                                            job.state === 'completed' ? 'success' :
+                                            job.state === 'failed' ? 'danger' :
+                                            job.state === 'active' ? 'info' : 'neutral'
+                                        }`}>
+                                            {job.state}
+                                        </span>
+                                    </td>
+                                    <td style={{ padding: "var(--sp-3)" }}>{new Date(job.created_on).toLocaleString()}</td>
+                                    <td style={{ padding: "var(--sp-3)" }}>
+                                        {job.state === 'failed' && (
+                                            <button onClick={() => handleRetry(job.id)} className="btn-primary btn-sm">Retry</button>
+                                        )}
+                                        {job.state === 'created' && (
+                                            <button onClick={() => handleCancel(job.id)} className="btn-danger btn-sm">Cancel</button>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
 };
-
-export function JobListPage() {
-  const [stateFilter, setStateFilter] = useState("");
-
-  const { query, result } = useList<Job>({
-    resource: "jobs",
-    pagination: { pageSize: 50 },
-    filters: stateFilter
-      ? [{ field: "state", operator: "eq" as const, value: stateFilter }]
-      : [],
-  });
-
-  const jobs = result.data ?? [];
-
-  return (
-    <>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Job Queues</h1>
-          <p className="page-subtitle">pg-boss job monitoring</p>
-        </div>
-        <div style={{ display: "flex", gap: "var(--sp-2)" }}>
-          {["", "active", "completed", "failed"].map((state) => (
-            <button
-              key={state}
-              className={`btn btn-sm ${stateFilter === state ? "btn-primary" : "btn-ghost"}`}
-              onClick={() => setStateFilter(state)}
-            >
-              {state || "All"}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {query.isError && (
-        <div className="error-banner" role="alert">
-          {query.error?.message || "Failed to load jobs"}
-        </div>
-      )}
-
-      {query.isLoading ? (
-        <div className="loading">
-          <div className="loading-spinner" />
-          Loading jobs…
-        </div>
-      ) : jobs.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">⚙️</div>
-          <p className="empty-state-text">
-            No jobs found{stateFilter ? ` with state "${stateFilter}"` : ""}.
-          </p>
-        </div>
-      ) : (
-        <div className="data-table-wrapper">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>State</th>
-                <th>Created</th>
-                <th>Started</th>
-                <th>Completed</th>
-              </tr>
-            </thead>
-            <tbody>
-              {jobs.map((job: Job) => (
-                <tr key={job.id}>
-                  <td className="cell-mono">{job.id.slice(0, 8)}…</td>
-                  <td>{job.name}</td>
-                  <td>
-                    <span
-                      className={`badge ${STATE_BADGE[job.state] || "badge-neutral"}`}
-                    >
-                      {job.state}
-                    </span>
-                  </td>
-                  <td className="cell-mono">
-                    {new Date(job.created_on).toLocaleString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </td>
-                  <td className="cell-mono">
-                    {job.started_on
-                      ? new Date(job.started_on).toLocaleString("en-US", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          second: "2-digit",
-                        })
-                      : "—"}
-                  </td>
-                  <td className="cell-mono">
-                    {job.completed_on
-                      ? new Date(job.completed_on).toLocaleString("en-US", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          second: "2-digit",
-                        })
-                      : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </>
-  );
-}

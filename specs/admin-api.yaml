@@ -1,13 +1,31 @@
 openapi: 3.0.3
 info:
   title: Jarvis Admin API
-  version: 0.2.0
+  version: 0.3.0
   description: Ops Console API for superadmin operations. Arquitectura Desacoplada (Admin API + Cliente Externo).
 servers:
   - url: http://localhost:3000
     description: Sandbox Environment
 
 paths:
+  /admin/dashboard/summary:
+    get:
+      summary: Get system summary metrics for dashboard
+      operationId: getDashboardSummary
+      security:
+        - adminBearerAuth: []
+      responses:
+        '200':
+          description: Summary metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummary'
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+
   /admin/tenants:
     get:
       summary: List all tenants (paginated)
@@ -28,6 +46,15 @@ paths:
             minimum: 1
             maximum: 100
             default: 20
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, deleted, all, suspended, trial]
       responses:
         '200':
           description: Paginated list of tenants with metadata
@@ -84,6 +111,24 @@ paths:
         '409':
           description: Tenant name already exists (unique constraint)
 
+  /admin/tenants/export:
+    get:
+      summary: Export all tenants
+      operationId: exportTenants
+      security:
+        - adminBearerAuth: []
+      responses:
+        '200':
+          description: CSV of tenants
+          content:
+            text/csv:
+              schema:
+                type: string
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+
   /admin/tenants/{id}:
     get:
       summary: Get tenant detail by ID
@@ -126,6 +171,8 @@ paths:
                   type: string
                   minLength: 1
                   maxLength: 255
+                config:
+                  type: object
               additionalProperties: false
               minProperties: 1
       responses:
@@ -182,6 +229,136 @@ paths:
         '404':
           description: Tenant not found
 
+  /admin/tenants/{id}/status:
+    patch:
+      summary: Update tenant status
+      operationId: updateTenantStatus
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [active, suspended, trial]
+      responses:
+        '200':
+          description: Tenant status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+        '400':
+          description: Invalid payload or UUID format
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+        '404':
+          description: Tenant not found
+
+  /admin/tenants/{id}/restore:
+    post:
+      summary: Restore soft-deleted tenant
+      operationId: restoreTenant
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Tenant restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+        '404':
+          description: Tenant not found
+
+  /admin/tenants/{id}/stats:
+    get:
+      summary: Get tenant statistics
+      operationId: getTenantStats
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Tenant stats
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+        '404':
+          description: Tenant not found
+
+  /admin/tenants/{id}/token:
+    post:
+      summary: Generate tenant API token
+      operationId: generateTenantToken
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '201':
+          description: Token generated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [token]
+                properties:
+                  token:
+                    type: string
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+        '404':
+          description: Tenant not found
+
+  /admin/tokens/{jti}/revoke:
+    post:
+      summary: Revoke tenant API token
+      operationId: revokeTenantToken
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - name: jti
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Token revoked
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+
   /admin/jobs:
     get:
       summary: View pg-boss job queues (with filters)
@@ -204,6 +381,20 @@ paths:
             minimum: 1
             maximum: 100
             default: 50
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: name
+          in: query
+          schema:
+            type: string
       responses:
         '200':
           description: Filtered jobs list
@@ -217,6 +408,143 @@ paths:
           description: Missing or invalid Admin JWT
         '403':
           description: Role is not super_admin
+
+  /admin/jobs/export:
+    get:
+      summary: Export jobs
+      operationId: exportJobs
+      security:
+        - adminBearerAuth: []
+      responses:
+        '200':
+          description: CSV of jobs
+          content:
+            text/csv:
+              schema:
+                type: string
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+
+  /admin/jobs/queues:
+    get:
+      summary: Queue overview
+      operationId: getJobQueues
+      security:
+        - adminBearerAuth: []
+      responses:
+        '200':
+          description: List of queues and their stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+
+  /admin/jobs/metrics:
+    get:
+      summary: Job metrics
+      operationId: getJobMetrics
+      security:
+        - adminBearerAuth: []
+      responses:
+        '200':
+          description: Job metrics
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+
+  /admin/jobs/{id}:
+    get:
+      summary: Get job detail
+      operationId: getJobById
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Job detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+        '404':
+          description: Job not found
+
+  /admin/jobs/{id}/retry:
+    post:
+      summary: Retry failed job
+      operationId: retryJob
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Job retried
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+        '404':
+          description: Job not found
+
+  /admin/jobs/{id}/cancel:
+    post:
+      summary: Cancel pending job
+      operationId: cancelJob
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Job cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+        '404':
+          description: Job not found
 
   /admin/whatsapp/status:
     get:
@@ -242,6 +570,446 @@ paths:
                     updated_at:
                       type: string
                       format: date-time
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+
+  /admin/whatsapp/{tenant_id}:
+    get:
+      summary: Get session details for tenant
+      operationId: getWhatsAppSession
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Session detail
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+        '404':
+          description: Session not found
+
+  /admin/whatsapp/{tenant_id}/reconnect:
+    post:
+      summary: Reconnect session
+      operationId: reconnectWhatsApp
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Reconnect requested
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+        '404':
+          description: Session not found
+
+  /admin/whatsapp/{tenant_id}/disconnect:
+    post:
+      summary: Disconnect session
+      operationId: disconnectWhatsApp
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Disconnect requested
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+        '404':
+          description: Session not found
+
+  /admin/whatsapp/{tenant_id}/messages:
+    get:
+      summary: Get recent message history
+      operationId: getWhatsAppMessages
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+
+  /admin/whatsapp/{tenant_id}/messages/export:
+    get:
+      summary: Export message history
+      operationId: exportWhatsAppMessages
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Messages CSV
+          content:
+            text/csv:
+              schema:
+                type: string
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+
+  /admin/whatsapp/{tenant_id}/stats:
+    get:
+      summary: Message throughput stats
+      operationId: getWhatsAppStats
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+
+  /admin/inbox:
+    get:
+      summary: List inbox items
+      operationId: getInboxItems
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Paginated items
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+
+  /admin/inbox/{id}:
+    get:
+      summary: Get inbox item detail
+      operationId: getInboxItem
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Item detail
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+        '404':
+          description: Not found
+
+  /admin/inbox/{id}/reprocess:
+    post:
+      summary: Reprocess failed item
+      operationId: reprocessInboxItem
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Reprocessed
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+        '404':
+          description: Not found
+
+  /admin/storage/usage:
+    get:
+      summary: Get storage usage
+      operationId: getStorageUsage
+      security:
+        - adminBearerAuth: []
+      responses:
+        '200':
+          description: Storage usage
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+
+  /admin/storage/objects:
+    get:
+      summary: Get recent uploads
+      operationId: getStorageObjects
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Uploads list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+
+  /admin/storage/orphans:
+    get:
+      summary: Get orphaned files
+      operationId: getStorageOrphans
+      security:
+        - adminBearerAuth: []
+      responses:
+        '200':
+          description: Orphaned files list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+
+  /admin/logs:
+    get:
+      summary: View recent logs
+      operationId: getLogs
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - name: level
+          in: query
+          schema:
+            type: string
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+        - name: query
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+
+  /admin/audit:
+    get:
+      summary: Get audit logs
+      operationId: getAuditLogs
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: resource
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Audit logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+
+  /admin/audit/export:
+    get:
+      summary: Export audit logs
+      operationId: exportAuditLogs
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [csv]
+            default: csv
+      responses:
+        '200':
+          description: Audit logs export
+          content:
+            text/csv:
+              schema:
+                type: string
         '401':
           description: Missing or invalid Admin JWT
         '403':
@@ -273,6 +1041,11 @@ components:
           type: string
           format: date-time
           nullable: true
+        status:
+          type: string
+          enum: [active, suspended, trial]
+        config:
+          type: object
 
     TenantCreated:
       type: object
@@ -319,6 +1092,49 @@ components:
           type: string
           format: date-time
           nullable: true
+
+    DashboardSummary:
+      type: object
+      properties:
+        tenants:
+          type: object
+          properties:
+            active:
+              type: integer
+            suspended:
+              type: integer
+            deleted:
+              type: integer
+        jobs:
+          type: object
+          properties:
+            active:
+              type: integer
+            failed:
+              type: integer
+            completed:
+              type: integer
+        whatsapp:
+          type: object
+          properties:
+            connected:
+              type: integer
+            qr_pending:
+              type: integer
+            disconnected:
+              type: integer
+        storage:
+          type: object
+          properties:
+            files:
+              type: integer
+            bytes:
+              type: integer
+        inbox:
+          type: object
+          properties:
+            pending:
+              type: integer
 
   securitySchemes:
     adminBearerAuth:
