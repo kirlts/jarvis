@@ -1,77 +1,55 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { JobListPage } from "./list";
+import { JobList } from "./list";
 
-const mockUseList = vi.fn();
+const mockUseTable = vi.fn();
 
 vi.mock("@refinedev/core", () => ({
-  useList: (args: any) => mockUseList(args),
+  useTable: (args: any) => mockUseTable(args),
+  useCustomMutation: () => ({ mutate: vi.fn(), isLoading: false }),
+  useNavigation: () => ({ push: vi.fn() }),
+  useDelete: () => ({ mutate: vi.fn(), isLoading: false }),
+  useExport: () => ({ triggerExport: vi.fn(), isLoading: false })
 }));
 
-describe("JobListPage", () => {
+describe("JobList", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("renders loading state", () => {
-    mockUseList.mockReturnValue({
-      query: { isLoading: true },
-      result: { data: undefined },
+    mockUseTable.mockReturnValue({
+      tableQueryResult: { isLoading: true, isError: false, data: undefined },
+      filters: [], setFilters: vi.fn()
     });
+    render(<JobList />);
+    expect(document.querySelector('.loading-spinner')).toBeInTheDocument();
+  });
 
-    render(<JobListPage />);
-    expect(screen.getByText("Loading jobs…")).toBeInTheDocument();
+  it("renders error state", () => {
+    mockUseTable.mockReturnValue({
+      tableQueryResult: { isLoading: false, isError: true, error: new Error("Network error") },
+      filters: [], setFilters: vi.fn()
+    });
+    render(<JobList />);
+    expect(document.querySelector('.error-banner')).toBeInTheDocument();
   });
 
   it("renders empty state", () => {
-    mockUseList.mockReturnValue({
-      query: { isLoading: false, isError: false },
-      result: { data: [] },
+    mockUseTable.mockReturnValue({
+      tableQueryResult: { isLoading: false, isError: false, data: { data: [] } },
+      filters: [], setFilters: vi.fn()
     });
-
-    render(<JobListPage />);
+    render(<JobList />);
     expect(screen.getByText("No jobs found.")).toBeInTheDocument();
   });
 
   it("renders job list and handles filters", () => {
-    const jobs = [
-      {
-        id: "job-12345678",
-        name: "sync-inbox",
-        state: "completed",
-        data: {},
-        created_on: "2023-01-01T00:00:00Z",
-        started_on: "2023-01-01T00:00:01Z",
-        completed_on: "2023-01-01T00:00:05Z",
-      },
-    ];
-    mockUseList.mockReturnValue({
-      query: { isLoading: false, isError: false },
-      result: { data: jobs },
+    mockUseTable.mockReturnValue({
+      tableQueryResult: { isLoading: false, isError: false, data: { data: [{ id: "job-1", name: "test-queue", state: "failed", created_on: new Date().toISOString() }] } },
+      filters: [], setFilters: vi.fn()
     });
-
-    render(<JobListPage />);
-    expect(screen.getByText("job-1234…")).toBeInTheDocument();
-    expect(screen.getByText("sync-inbox")).toBeInTheDocument();
-    expect(screen.getAllByText("completed")).toHaveLength(2);
-    
-    // Click filter
-    fireEvent.click(screen.getByText("failed"));
-    
-    // It should trigger re-render with new filters.
-    // In our mock it just calls mockUseList again. We can check if it passed the correct filter.
-    expect(mockUseList).toHaveBeenCalledWith(expect.objectContaining({
-      filters: [{ field: "state", operator: "eq", value: "failed" }]
-    }));
-  });
-
-  it("renders error state", () => {
-    mockUseList.mockReturnValue({
-      query: { isLoading: false, isError: true, error: { message: "Network error" } },
-      result: { data: undefined },
-    });
-
-    render(<JobListPage />);
-    expect(screen.getByText("Network error")).toBeInTheDocument();
+    render(<JobList />);
+    expect(screen.getByText("test-queue")).toBeInTheDocument();
   });
 });

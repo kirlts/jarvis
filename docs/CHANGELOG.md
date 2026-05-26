@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Ops Console MVP:**
+  - Expanded `tenants` schema (added `status` and `config`).
+  - Implemented `admin_audit_log` table with global audit middleware.
+  - Implemented `revoked_tokens` table for JWT key revocation.
+  - Added 26 new endpoints in `admin-api.yaml` and `src/features/admin/routes.js` handling Dashboards, Jobs, WhatsApp, Storage, Inbox, Export, and Tokens.
+  - Created Frontend interfaces (Dashboard, Tenants, Jobs, WhatsApp) complying strictly with OKLCH visual harmony requirements.
+
+
+### Added
 - Implementación del test suite para el frontend (Ops Console) utilizando Vitest y React Testing Library. Validando estados de carga, manejo de errores, renderizado vacío, mutaciones e interacciones (TEST.md, TASK-018).
 - Empirical verification of resilience and security tests including session persistence, automatic retries with backoff, offline forms, API degradation fallback, and Caddy SPA proxy fallback (TASK-018).
 - Caddy Edge Proxy routing (`admin.jarvis.local`) for Ops Console SPA con SPA fallback (`try_files` behavior) y estrictos security headers (`X-Frame-Options: SAMEORIGIN`, `HSTS`). Catch-all block rechaza subdominios no configurados con 404 (TASK-017).

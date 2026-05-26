@@ -1,145 +1,160 @@
-/**
- * Custom dataProvider for Jarvis Admin API.
- *
- * Translates Refine's CRUD conventions to the Admin API contract
- * defined in specs/admin-api.yaml (v0.2.0).
- *
- * Response shape: GET /admin/tenants → { data: [...], meta: { total, page, limit } }
- * Auth: Bearer JWT RS256 injected via getAuthHeader().
- */
-import type { DataProvider } from "@refinedev/core";
-import { API_URL } from "./constants";
-import { getAuthHeader, getStoredToken } from "./auth";
-
-// Central fetch wrapper with auth injection and error handling.
-async function fetchWithAuth(
-  url: string,
-  options: RequestInit = {}
-): Promise<Response> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...getAuthHeader(),
-    ...(options.headers as Record<string, string>),
-  };
-
-  const response = await fetch(url, { ...options, headers });
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    const message =
-      (body as Record<string, string>).error ||
-      (body as Record<string, string>).message ||
-      `HTTP ${response.status}`;
-    throw new Error(message);
-  }
-
-  return response;
-}
-
-// Map Refine resource names to Admin API paths.
-function getResourcePath(resource: string): string {
-  const map: Record<string, string> = {
-    tenants: "/admin/tenants",
-    jobs: "/admin/jobs",
-    whatsapp: "/admin/whatsapp/status",
-  };
-  return map[resource] || `/admin/${resource}`;
-}
+import { DataProvider, BaseRecord, CreateResponse, DeleteOneResponse, GetListResponse, GetOneResponse, UpdateResponse, HttpError } from "@refinedev/core";
+import { API_URL, getAuthHeaders } from "./constants";
 
 export const dataProvider: DataProvider = {
-  getApiUrl: () => API_URL,
-
-  getList: async ({ resource, pagination, filters }) => {
-    const path = getResourcePath(resource);
+  getList: async ({ resource, pagination, filters, sorters, meta }) => {
+    let url = `${API_URL}/admin/${resource}`;
     const params = new URLSearchParams();
 
-    // Pagination: Refine sends { current, pageSize }
-    const current = pagination?.currentPage ?? 1;
-    const pageSize = pagination?.pageSize ?? 20;
-    params.set("page", String(current));
-    params.set("limit", String(pageSize));
+    if (pagination) {
+      if (pagination.current) params.append("page", String(pagination.current));
+      if (pagination.pageSize) params.append("limit", String(pagination.pageSize));
+    }
 
-    // Filters: translate CrudFilters to query params
-    // Admin API accepts flat query params (e.g. state=active, tenant_id=...)
     if (filters) {
-      for (const filter of filters) {
-        if ("field" in filter && filter.operator === "eq") {
-          params.set(filter.field, String(filter.value));
+      filters.forEach((filter) => {
+        if ("field" in filter && filter.value !== undefined) {
+          if (filter.field === 'q') params.append('search', filter.value);
+          else params.append(filter.field, filter.value);
         }
-      }
+      });
     }
 
-    const url = `${API_URL}${path}?${params.toString()}`;
-    const response = await fetchWithAuth(url);
-    const json = await response.json();
-
-    // Admin API returns { data: [...], meta: { total, page, limit } }
-    // Jobs and WhatsApp return plain arrays
-    if (Array.isArray(json)) {
-      return { data: json, total: json.length };
+    if (params.toString()) {
+      url += `?${params.toString()}`;
     }
 
+    const response = await fetch(url, { headers: getAuthHeaders() });
+
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw {
+            message: err.message || response.statusText,
+            statusCode: response.status
+        } as HttpError;
+    }
+
+    const data = await response.json();
+
+    if (resource === 'whatsapp/status' || resource === 'dashboard/summary' || resource.includes('metrics') || resource.includes('queues')) {
+         return {
+            data: data.data || data,
+            total: (data.data || data).length
+        } as GetListResponse<any>;
+    }
+
+    if (data.data) {
+        return {
+            data: data.data,
+            total: data.meta?.total || data.data.length,
+        };
+    }
+
+    // For direct array responses
     return {
-      data: json.data,
-      total: json.meta?.total ?? json.data.length,
+        data: data,
+        total: data.length,
     };
   },
+  getOne: async ({ resource, id, meta }) => {
+    const response = await fetch(`${API_URL}/admin/${resource}/${id}`, {
+      headers: getAuthHeaders(),
+    });
 
-  getOne: async ({ resource, id }) => {
-    const path = getResourcePath(resource);
-    const url = `${API_URL}${path}/${id}`;
-    const response = await fetchWithAuth(url);
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw {
+            message: err.message || response.statusText,
+            statusCode: response.status
+        } as HttpError;
+    }
     const data = await response.json();
     return { data };
   },
-
-  create: async ({ resource, variables }) => {
-    const path = getResourcePath(resource);
-    const url = `${API_URL}${path}`;
-    const response = await fetchWithAuth(url, {
+  create: async ({ resource, variables, meta }) => {
+    const response = await fetch(`${API_URL}/admin/${resource}`, {
       method: "POST",
       body: JSON.stringify(variables),
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
     });
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw {
+            message: err.message || response.statusText,
+            statusCode: response.status
+        } as HttpError;
+    }
     const data = await response.json();
-    return { data };
+    return { data } as CreateResponse<any>;
   },
-
-  update: async ({ resource, id, variables }) => {
-    const path = getResourcePath(resource);
-    const url = `${API_URL}${path}/${id}`;
-    const response = await fetchWithAuth(url, {
+  update: async ({ resource, id, variables, meta }) => {
+    const response = await fetch(`${API_URL}/admin/${resource}/${id}`, {
       method: "PATCH",
       body: JSON.stringify(variables),
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
     });
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw {
+            message: err.message || response.statusText,
+            statusCode: response.status
+        } as HttpError;
+    }
     const data = await response.json();
-    return { data };
+    return { data } as UpdateResponse<any>;
   },
-
-  deleteOne: async ({ resource, id }) => {
-    const path = getResourcePath(resource);
-    // Admin API requires ?confirm=true for destructive operations
-    const url = `${API_URL}${path}/${id}?confirm=true`;
-    const response = await fetchWithAuth(url, { method: "DELETE" });
+  deleteOne: async ({ resource, id, variables, meta }) => {
+    const response = await fetch(`${API_URL}/admin/${resource}/${id}?confirm=true`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw {
+            message: err.message || response.statusText,
+            statusCode: response.status
+        } as HttpError;
+    }
     const data = await response.json();
-    return { data };
+    return { data } as DeleteOneResponse<any>;
   },
+  custom: async ({ url, method, filters, sorters, payload, query, headers }) => {
+      let requestUrl = `${API_URL}/admin/${url}`;
 
-  getMany: async ({ resource, ids }) => {
-    // Admin API has no batch endpoint; fan out individual requests
-    const results = await Promise.all(
-      ids.map(async (id) => {
-        const path = getResourcePath(resource);
-        const url = `${API_URL}${path}/${id}`;
-        const response = await fetchWithAuth(url);
-        return response.json();
-      })
-    );
-    return { data: results };
+      if (query) {
+        const params = new URLSearchParams();
+        Object.keys(query).forEach((key) => {
+            params.append(key, query[key]);
+        });
+        requestUrl += `?${params.toString()}`;
+      }
+
+      const response = await fetch(requestUrl, {
+          method: method,
+          body: payload ? JSON.stringify(payload) : undefined,
+          headers: {
+              "Content-Type": "application/json",
+              ...getAuthHeaders(),
+              ...headers
+          }
+      });
+
+      if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw {
+              message: err.message || response.statusText,
+              statusCode: response.status
+          } as HttpError;
+      }
+
+      const data = await response.json();
+      return { data };
   },
-
-  // Not implemented — Admin API does not support batch mutations
-  createMany: undefined as never,
-  updateMany: undefined as never,
-  deleteMany: undefined as never,
-  custom: undefined as never,
+  getApiUrl: () => API_URL,
 };

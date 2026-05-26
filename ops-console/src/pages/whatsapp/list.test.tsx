@@ -1,64 +1,55 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { WhatsAppStatusPage } from "./list";
+import { WhatsAppList } from "./list";
 
-const mockUseList = vi.fn();
+const mockUseTable = vi.fn();
 
 vi.mock("@refinedev/core", () => ({
-  useList: (args: any) => mockUseList(args),
+  useTable: (args: any) => mockUseTable(args),
+  useCustomMutation: () => ({ mutate: vi.fn(), isLoading: false }),
+  useNavigation: () => ({ push: vi.fn() }),
+  useDelete: () => ({ mutate: vi.fn(), isLoading: false }),
+  useExport: () => ({ triggerExport: vi.fn(), isLoading: false })
 }));
 
-describe("WhatsAppStatusPage", () => {
+describe("WhatsAppList", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("renders loading state", () => {
-    mockUseList.mockReturnValue({
-      query: { isLoading: true },
-      result: { data: undefined },
+    mockUseTable.mockReturnValue({
+      tableQueryResult: { isLoading: true, isError: false, data: undefined },
+      filters: [], setFilters: vi.fn()
     });
-
-    render(<WhatsAppStatusPage />);
-    expect(screen.getByText("Loading connections…")).toBeInTheDocument();
-  });
-
-  it("renders empty state", () => {
-    mockUseList.mockReturnValue({
-      query: { isLoading: false, isError: false },
-      result: { data: [] },
-    });
-
-    render(<WhatsAppStatusPage />);
-    expect(screen.getByText("No WhatsApp connections registered.")).toBeInTheDocument();
-  });
-
-  it("renders connection list", () => {
-    const connections = [
-      {
-        id: "conn-1",
-        tenant_id: "tenant-1",
-        status: "connected",
-        updated_at: "2023-01-01T00:00:00Z",
-      },
-    ];
-    mockUseList.mockReturnValue({
-      query: { isLoading: false, isError: false },
-      result: { data: connections },
-    });
-
-    render(<WhatsAppStatusPage />);
-    expect(screen.getByText("tenant-1")).toBeInTheDocument();
-    expect(screen.getByText("connected")).toBeInTheDocument();
+    render(<WhatsAppList />);
+    expect(document.querySelector('.loading-spinner')).toBeInTheDocument();
   });
 
   it("renders error state", () => {
-    mockUseList.mockReturnValue({
-      query: { isLoading: false, isError: true, error: { message: "Network error" } },
-      result: { data: undefined },
+    mockUseTable.mockReturnValue({
+      tableQueryResult: { isLoading: false, isError: true, error: new Error("Network error") },
+      filters: [], setFilters: vi.fn()
     });
+    render(<WhatsAppList />);
+    expect(document.querySelector('.error-banner')).toBeInTheDocument();
+  });
 
-    render(<WhatsAppStatusPage />);
-    expect(screen.getByText("Network error")).toBeInTheDocument();
+  it("renders empty state", () => {
+    mockUseTable.mockReturnValue({
+      tableQueryResult: { isLoading: false, isError: false, data: { data: [] } },
+      filters: [], setFilters: vi.fn()
+    });
+    render(<WhatsAppList />);
+    expect(screen.getByText("No WhatsApp sessions found.")).toBeInTheDocument();
+  });
+
+  it("renders connection list", () => {
+    mockUseTable.mockReturnValue({
+      tableQueryResult: { isLoading: false, isError: false, data: { data: [{ tenant_id: "tenant-1", status: "connected", updated_at: new Date().toISOString() }] } },
+      filters: [], setFilters: vi.fn()
+    });
+    render(<WhatsAppList />);
+    expect(screen.getByText("tenant-1")).toBeInTheDocument();
   });
 });
