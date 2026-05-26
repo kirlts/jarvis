@@ -13,6 +13,10 @@ import { TenantCreate } from './pages/tenants/create';
 import { TenantDetail } from './pages/tenants/detail';
 import { JobList } from './pages/jobs/list';
 import { WhatsAppList } from './pages/whatsapp/list';
+import { InboxList } from './pages/inbox/list';
+import { StorageList } from './pages/storage/list';
+import { LogList } from './pages/logs/list';
+import { AuditList } from './pages/audit/list';
 
 import './App.css';
 
@@ -74,10 +78,10 @@ const App = () => {
                         <Route path="/jobs" element={<JobList />} />
                         <Route path="/whatsapp" element={<WhatsAppList />} />
                         {/* Placeholders for others to prevent crashes */}
-                        <Route path="/inbox" element={<div style={{padding:'24px'}}>Inbox coming soon</div>} />
-                        <Route path="/storage" element={<div style={{padding:'24px'}}>Storage coming soon</div>} />
-                        <Route path="/logs" element={<div style={{padding:'24px'}}>Logs coming soon</div>} />
-                        <Route path="/audit" element={<div style={{padding:'24px'}}>Audit coming soon</div>} />
+                        <Route path="/inbox" element={<InboxList />} />
+                        <Route path="/storage" element={<StorageList />} />
+                        <Route path="/logs" element={<LogList />} />
+                        <Route path="/audit" element={<AuditList />} />
                     </Route>
                 </Routes>
             </Refine>
