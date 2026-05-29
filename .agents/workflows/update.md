@@ -67,3 +67,14 @@ The local `kairos-version.txt` is updated with the new version and manifest.
 
 - An entry is added to `docs/CHANGELOG.md` under the `[Kairós]` section.
 - The user is notified if any new rules require action (e.g., new available workflow).
+
+## Step 7: Template Change Detection
+
+After the update is applied, the system scans the diff for modified files within `.agents/templates/`. If ANY template file was added, modified, or deleted:
+
+1. The system emits a notification:
+   > **Template changes detected.** The following templates were modified in this update: [list]. Your project documents in `docs/` may need structural reconciliation. Run `/document` to audit and migrate.
+2. The notification is appended to the CHANGELOG entry created in Step 6.
+
+If no template files were changed, no notification is emitted.
+

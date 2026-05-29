@@ -1,12 +1,11 @@
 # Ops Console: Feature Inventory (Dense Edition)
 
-> **Audience:** Jules (Autonomous Agent).
-> **Purpose:** Exhaustive specification of every feature you must implement for the Ops Console.
-> Each feature is traceable to a concrete source: founder transcripts, PRD, MASTER-SPEC, or existing code.
+> **Purpose:** Especificación exhaustiva de las 51 features requeridas para la Ops Console.
+> Cada feature es trazable a una fuente concreta: transcripciones del fundador, PRD (archivado), MASTER-SPEC o código existente.
 
 ---
 
-## Context for Jules (Autonomous Agent)
+## Contexto Arquitectónico
 
 ### What is Jarvis?
 A multi-tenant B2B SaaS backend (Fastify/Node.js + PostgreSQL 17) with a microkernel plugin architecture. Each tenant is an isolated business client. The system handles messaging (WhatsApp via Baileys), async job processing (pg-boss), file storage (MinIO/S3), and observability (Loki+Grafana). See `docs/MASTER-SPEC.md` for full architecture.
@@ -271,7 +270,7 @@ All endpoints use `withAdminClient()` which runs `SET LOCAL role = 'jarvis_admin
 
 ## Visual & Reactivity Acceptance Criteria
 
-> **Why this section exists:** You, Jules, will implement these features autonomously. AIs tend to produce minimal, flat, visually dead interfaces unless explicitly constrained. Every criterion below is **testable by visual inspection or user interaction**. If a criterion is not met, your implementation of the feature is considered incomplete.
+> **Por qué existe esta sección:** Las IAs tienden a producir interfaces planas y visualmente muertas a menos que se las restrinja explícitamente. Cada criterio a continuación es **testeable por inspección visual o interacción de usuario**. Si un criterio no se cumple, la implementación de la feature se considera incompleta.
 
 ### Global Mandates (apply to EVERY feature)
 

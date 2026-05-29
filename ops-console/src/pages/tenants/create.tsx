@@ -13,7 +13,7 @@ export function TenantCreatePage() {
     setError("");
 
     if (!name.trim()) {
-      setError("Tenant name is required");
+      setError("El nombre es obligatorio");
       return;
     }
 
@@ -25,10 +25,10 @@ export function TenantCreatePage() {
       },
       {
         onSuccess: () => {
-          list("tenants");
+          list("tenants"); // Refine resource name stays in English
         },
         onError: (err) => {
-          setError(err?.message || "Failed to create tenant");
+          setError(err?.message || "Error al crear usuario");
           setIsPending(false);
         },
       }
@@ -39,8 +39,8 @@ export function TenantCreatePage() {
     <>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Create Tenant</h1>
-          <p className="page-subtitle">Register a new tenant in the system</p>
+          <h1 className="page-title">Nuevo Usuario</h1>
+          <p className="page-subtitle">Registrar un nuevo usuario en el sistema</p>
         </div>
       </div>
 
@@ -56,7 +56,7 @@ export function TenantCreatePage() {
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="form-label" htmlFor="tenant-name-input">
-              Tenant Name
+              Nombre del usuario
             </label>
             <input
               id="tenant-name-input"
@@ -64,7 +64,7 @@ export function TenantCreatePage() {
               className="form-input"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Acme Corp"
+              placeholder="Ej: Clínica Salud Integral"
               maxLength={255}
               autoFocus
             />
@@ -82,7 +82,7 @@ export function TenantCreatePage() {
               className="btn btn-ghost"
               onClick={() => list("tenants")}
             >
-              Cancel
+              Cancelar
             </button>
             <button
               type="submit"
@@ -90,7 +90,7 @@ export function TenantCreatePage() {
               disabled={isPending}
               id="submit-tenant-button"
             >
-              {isPending ? "Creating…" : "Create Tenant"}
+              {isPending ? "Creando…" : "Crear usuario"}
             </button>
           </div>
         </form>

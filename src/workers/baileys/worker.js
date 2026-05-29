@@ -1,7 +1,8 @@
-// WhatsApp Baileys Worker
+// WhatsApp Baileys Worker (Dynamic Sandbox Orchestrator)
 // Constraint: §4.3 Isolated Docker Container, no HTTP blocking
 
 import { makeWASocket, DisconnectReason, fetchLatestBaileysVersion, downloadMediaMessage, extractMessageContent, getContentType } from '@whiskeysockets/baileys';
+import { createHash } from 'node:crypto';
 import { v7 as uuidv7 } from 'uuid';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { s3 } from '../../features/storage/s3-client.js';
@@ -10,198 +11,481 @@ import qrcode from 'qrcode-terminal';
 import { PgBoss } from 'pg-boss';
 import pool from '../../db.js';
 import config from '../../config.js';
-import { usePgAuthState } from './auth-state.js';
+import { usePgAuthState, clearAuthCache } from './auth-state.js';
 
-const log = pino({ level: 'info' });
+const log = pino({ level: 'info' }).child({ module: 'baileys-orchestrator' });
 
-// We require tenantId and sessionId from env vars in Docker
-const TENANT_ID = process.env.WAPP_TENANT_ID;
-const SESSION_ID = process.env.WAPP_SESSION_ID;
+export const deps = {
+  makeWASocket,
+  fetchLatestBaileysVersion,
+};
 
-if (!TENANT_ID || !SESSION_ID) {
-  log.fatal('WAPP_TENANT_ID and WAPP_SESSION_ID are required');
-  process.exit(1);
-}
+// Active sessions map: tenantId -> { sock, sessionId, log, qrAttempts, hadCredentials }
+export const activeSessions = new Map();
 
-async function updateSessionStatus(status) {
-  await pool.query(
-    `UPDATE wapp_sessions SET status = $1, updated_at = now() WHERE id = $2 AND tenant_id = $3`,
-    [status, SESSION_ID, TENANT_ID]
-  );
-}
+// Shared pg-boss instance for lifecycle event publishing
+export let sharedBoss = null;
 
-async function startSock() {
-  // Initialize pg-boss before socket so it's ready for incoming messages
-  const boss = new PgBoss(config.boss.connectionString);
-  boss.on('error', (err) => log.error({ err: err.message }, 'pg-boss error in baileys worker'));
-  await boss.start();
-  await boss.createQueue('wapp-send-process', { retryBackoff: true, retryLimit: 5 });
-  await boss.createQueue('sync-inbox-process', { retryBackoff: true, retryLimit: 5 });
+export async function startSession(tenantId, sessionId) {
+  const sessionLog = pino({ level: 'info' }).child({ tenantId, sessionId });
+  sessionLog.info('Starting WhatsApp socket session...');
 
-  const { state, saveCreds } = await usePgAuthState(TENANT_ID, SESSION_ID);
-  const { version, isLatest } = await fetchLatestBaileysVersion();
-  
-  log.info(`Using WA v${version.join('.')}, isLatest: ${isLatest}`);
+  async function updateSessionStatus(status) {
+    await pool.query(
+      `UPDATE wapp_sessions SET status = $1, updated_at = now() WHERE id = $2 AND tenant_id = $3`,
+      [status, sessionId, tenantId]
+    );
+  }
 
-  const sock = makeWASocket({
-    version,
-    logger: log,
-    printQRInTerminal: false, // We'll print it manually to update DB
-    auth: state,
-    markOnlineOnConnect: false, // Prevents presence update hang
-    browser: ['Ubuntu', 'Chrome', '120.0.0.0'], // Prevents generic throttling
-    syncFullHistory: false, // Don't hang on massive history syncs
-    generateHighQualityLinkPreview: false,
-    getMessage: async (key) => {
-      // WAPP.CR.02.LLM: Fallback if Baileys needs to verify a message hash
-      return { conversation: 'hello' };
-    }
-  });
+  try {
+    let { state, saveCreds } = await usePgAuthState(tenantId, sessionId);
+    const { version, isLatest } = await deps.fetchLatestBaileysVersion();
+    
+    sessionLog.info(`Using WA v${version.join('.')}, isLatest: ${isLatest}`);
 
-  sock.ev.on('creds.update', saveCreds);
-
-  sock.ev.on('connection.update', async (update) => {
-    const { connection, lastDisconnect, qr } = update;
-
-    if (qr) {
-      log.info('QR Code generated. Scan it with WhatsApp.');
-      qrcode.generate(qr, { small: true });
-      await updateSessionStatus('qr_pending');
-    }
-
-    if (connection === 'close') {
-      const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
-      log.warn({ reason: lastDisconnect?.error }, 'Connection closed');
-      
-      if (shouldReconnect) {
-        log.info('Reconnecting...');
-        startSock();
-      } else {
-        log.info('Logged out. Disconnected. Clearing session.');
-        await updateSessionStatus('disconnected');
-        await pool.query('DELETE FROM wapp_sessions WHERE id = $1 AND tenant_id = $2', [SESSION_ID, TENANT_ID]);
-        // Clear credentials? Or let the user handle it
+    const sock = deps.makeWASocket({
+      version,
+      logger: sessionLog,
+      printQRInTerminal: false, // We update DB instead
+      auth: state,
+      markOnlineOnConnect: false, // Prevents presence update hang
+      browser: ['Ubuntu', 'Chrome', '120.0.0.0'], // Prevents generic throttling
+      syncFullHistory: false, // Don't hang on massive history syncs
+      generateHighQualityLinkPreview: false,
+      getMessage: async () => {
+        return { conversation: 'hello' };
       }
-    } else if (connection === 'open') {
-      log.info('Connection opened successfully');
-      await updateSessionStatus('connected');
-    }
-  });
+    });
 
-  sock.ev.on('messages.upsert', async (m) => {
-    if (m.type === 'notify') {
-      for (const msg of m.messages) {
-        log.info({
-          fromMe: msg.key.fromMe,
-          remoteJid: msg.key.remoteJid,
-          id: msg.key.id,
-          types: msg.message ? Object.keys(msg.message) : []
-        }, 'Raw message intercepted');
+    sock.ev.on('creds.update', saveCreds);
 
-        if (!msg.key.fromMe) {
-          const from = msg.key.remoteJid;
-          
-          // WAPP.CR.03.LLM: Descarte silencioso de grupos o malformados (soporta LID)
-          if (!from || from.endsWith('@g.us') || from.includes('@broadcast') || from.includes('@newsletter')) {
-            log.info({ from }, 'Silently discarding group/broadcast/malformed message');
-            continue;
+    // Track credential state dynamically: starts as initial check, updates when creds are saved
+    let hadCredentials = state.creds?.me?.id ? true : false;
+    // Track QR attempt count per session to detect expiry
+    let qrAttemptCount = 0;
+    // Track whether pairing was configured (QR scanned, creds exchanged)
+    let pairingConfigured = false;
+
+    // Update credential tracking on every creds save (captures post-pairing state)
+    const originalSaveCreds = saveCreds;
+    saveCreds = async (update) => {
+      if (update) {
+        Object.assign(state.creds, update);
+      }
+      await originalSaveCreds();
+      hadCredentials = true;
+    };
+    sock.ev.removeAllListeners('creds.update');
+    sock.ev.on('creds.update', saveCreds);
+
+    sock.ev.on('connection.update', async (update) => {
+      const { connection, lastDisconnect, qr } = update;
+
+      // Detect pairing event (Baileys emits this after QR scan, before stream restart)
+      if (update.me) {
+        pairingConfigured = true;
+        Object.assign(state.creds, { me: update.me });
+        await saveCreds();
+        sessionLog.info({ me: update.me }, 'Pairing configured, stream restart expected.');
+      }
+
+      if (qr) {
+        qrAttemptCount++;
+        sessionLog.info({ attempt: qrAttemptCount }, 'QR Code generated. Scan it with WhatsApp.');
+        qrcode.generate(qr, { small: true });
+        try {
+          const res = await pool.query(
+            `UPDATE wapp_sessions
+             SET status = 'qr_pending', qr_code = $1, qr_generated_at = now(), updated_at = now()
+             WHERE id = $2 AND tenant_id = $3`,
+            [qr, sessionId, tenantId]
+          );
+          sessionLog.info({ rowCount: res.rowCount, attempt: qrAttemptCount }, 'QR code stored in DB');
+        } catch (dbErr) {
+          sessionLog.error({ err: dbErr.message }, 'Failed to update qr_code in DB');
+        }
+      }
+
+      if (connection === 'close') {
+        const statusCode = (lastDisconnect?.error)?.output?.statusCode;
+        const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+        const isTimedOut = statusCode === DisconnectReason.timedOut || statusCode === 408;
+        const isStreamRestart = statusCode === 515;
+        sessionLog.warn({ statusCode, hadCredentials, pairingConfigured }, 'Connection closed');
+
+        // Emit lifecycle job for visibility in Job Queues
+        try {
+          if (sharedBoss) {
+            await sharedBoss.send('wapp-lifecycle', {
+              event: 'connection_closed',
+              tenantId,
+              sessionId,
+              statusCode,
+              isLoggedOut,
+              hadCredentials,
+              pairingConfigured,
+              qrAttemptCount,
+            });
           }
+        } catch (e) { sessionLog.error({ err: e.message }, 'Failed to emit lifecycle job'); }
 
-          log.info({ from }, 'Received message');
-          
-          // Insert into wapp_incoming (using isolated transaction or SET LOCAL if we want RLS strictly,
-          // though the worker is trusted and already scoped to TENANT_ID).
-          // WAPP.FN.02 / WAPP.CR.01: Store incoming messages
-          try {
-            // Hoist msgId so it's accessible in the media intercept block below
-            const msgId = uuidv7();
+        if (isLoggedOut) {
+          // User logged out from phone: clear everything
+          sessionLog.info('Logged out. Disconnected. Clearing session.');
+          await updateSessionStatus('disconnected');
+          await pool.query(
+            `UPDATE wapp_sessions 
+             SET deleted_at = now(), status = 'disconnected', qr_code = NULL, credentials = '{}' 
+             WHERE id = $1 AND tenant_id = $2`,
+            [sessionId, tenantId]
+          );
+          stopSession(tenantId);
+        } else if (isStreamRestart || pairingConfigured) {
+          // 515 = Baileys stream restart after pairing or protocol negotiation.
+          // This is the EXPECTED flow after QR scan. Always reconnect.
+          sessionLog.info({ statusCode }, 'Stream restart required (expected after pairing). Reconnecting...');
+          stopSession(tenantId);
+          await startSession(tenantId, sessionId);
+        } else if (hadCredentials) {
+          // Had real credentials but lost connection (network, server restart): auto-reconnect
+          sessionLog.info('Had credentials, auto-reconnecting...');
+          stopSession(tenantId);
+          await startSession(tenantId, sessionId);
+        } else if (isTimedOut && qrAttemptCount > 0) {
+          // QR expired without being scanned: mark as expired, do NOT auto-reconnect
+          sessionLog.info('QR timed out without scan. Marking session as qr_expired.');
+          await pool.query(
+            `UPDATE wapp_sessions
+             SET status = 'qr_expired', qr_code = NULL, updated_at = now()
+             WHERE id = $1 AND tenant_id = $2`,
+            [sessionId, tenantId]
+          );
+          stopSession(tenantId);
+        } else {
+          // Unknown scenario: stop but don't auto-reconnect to avoid loops
+          sessionLog.warn({ statusCode, hadCredentials, pairingConfigured, qrAttemptCount }, 'Connection closed in unhandled state. Stopping session.');
+          await updateSessionStatus('disconnected');
+          stopSession(tenantId);
+        }
+      } else if (connection === 'open') {
+        sessionLog.info('Connection opened successfully');
+        await pool.query(
+          `UPDATE wapp_sessions
+           SET status = 'connected', qr_code = NULL, qr_scanned_at = now(), qr_scanned_by = 'user', updated_at = now()
+           WHERE id = $1 AND tenant_id = $2`,
+          [sessionId, tenantId]
+        );
+        // Emit lifecycle job for connection established
+        try {
+          if (sharedBoss) {
+            await sharedBoss.send('wapp-lifecycle', {
+              event: 'connection_opened',
+              tenantId,
+              sessionId,
+            });
+          }
+        } catch (e) { sessionLog.error({ err: e.message }, 'Failed to emit lifecycle job'); }
+      }
+    });
 
-            const client = await pool.connect();
-            try {
-              await client.query('BEGIN');
-              await client.query(`SELECT set_config('request.jwt.claims.tenant_id', $1, true)`, [TENANT_ID]);
+    sock.ev.on('messages.upsert', async (m) => {
+      if (m.type === 'notify') {
+        for (const msg of m.messages) {
+          sessionLog.info({
+            fromMe: msg.key.fromMe,
+            remoteJid: msg.key.remoteJid,
+            id: msg.key.id,
+            types: msg.message ? Object.keys(msg.message) : []
+          }, 'Raw message intercepted');
 
-              await client.query(
-                `INSERT INTO wapp_incoming (id, tenant_id, sender, message) VALUES ($1, $2, $3, $4)`,
-                [msgId, TENANT_ID, msg.key.remoteJid, msg]
-              );
-              await client.query('COMMIT');
-            } catch (err) {
-              await client.query('ROLLBACK');
-              throw err;
-            } finally {
-              client.release();
-            }
+          {
+            const isFromMe = !!msg.key.fromMe;
+            const from = msg.key.remoteJidAlt || msg.key.remoteJid;
             
-            // Media intercept for STUB pipeline
-            const content = extractMessageContent(msg.message);
+            if (!from || from.endsWith('@g.us') || from.includes('@broadcast') || from.includes('@newsletter')) {
+              sessionLog.info({ from }, 'Silently discarding group/broadcast/malformed message');
+              continue;
+            }
+
+            const content = msg.message ? extractMessageContent(msg.message) : null;
             const type = content ? getContentType(content) : null;
             
-            const isAudio = type === 'audioMessage';
-            const isImage = type === 'imageMessage';
-            
-            if (isAudio || isImage) {
-              const mediaType = isAudio ? 'audio' : 'image';
-              log.info({ from, mediaType, type }, 'Media message detected, processing for stub...');
-              try {
-                const buffer = await downloadMediaMessage(msg, 'buffer', {}, { logger: log, reuploadRequest: sock.updateMediaMessage });
-                const key = `inbox/${TENANT_ID}/${msgId}.${isAudio ? 'ogg' : 'jpg'}`;
-                await s3.send(new PutObjectCommand({
-                  Bucket: 'jarvis-private',
-                  Key: key,
-                  Body: buffer,
-                  ContentType: isAudio ? 'audio/ogg' : 'image/jpeg'
-                }));
-                const s3Url = `minio://jarvis-private/${key}`;
-                log.info({ s3Url }, 'Media uploaded to S3, enqueuing to pg-boss');
-                
-                await boss.send('sync-inbox-process', {
-                  inboxId: msgId,
-                  tenantId: TENANT_ID,
-                  payload: {
-                    type: mediaType,
-                    s3_url: s3Url,
-                    sender: from
-                  }
-                });
-              } catch (mediaErr) {
-                log.error({ err: mediaErr.message }, 'Failed to process media message');
-              }
+            // Ignore system/protocol messages (e.g. End-to-End encryption syncs) to avoid spamming 
+            // the activity log when the host connects via QR.
+            if (!content || type === 'protocolMessage' || type === 'senderKeyDistributionMessage') {
+              sessionLog.info({ from, type }, 'Silently discarding system/protocol message');
+              continue;
             }
+
+            sessionLog.info({ from, type, isFromMe }, 'Received valid message');
             
-          } catch (err) {
-            log.error({ err: err.message }, 'Failed to save incoming message');
+            try {
+              const msgId = uuidv7();
+              const textContent = content?.conversation || 
+                                  content?.extendedTextMessage?.text || 
+                                  content?.imageMessage?.caption || 
+                                  content?.videoMessage?.caption || 
+                                  content?.documentMessage?.caption || 
+                                  content?.documentWithCaptionMessage?.message?.documentMessage?.caption || 
+                                  '';
+
+              if (!isFromMe) {
+                const client = await pool.connect();
+                try {
+                  await client.query('BEGIN');
+                  await client.query(`SELECT set_config('request.jwt.claims.tenant_id', $1, true)`, [tenantId]);
+
+                  await client.query(
+                    `INSERT INTO wapp_incoming (id, tenant_id, sender, message) VALUES ($1, $2, $3, $4)`,
+                    [msgId, tenantId, from, msg]
+                  );
+                  await client.query('COMMIT');
+                } catch (err) {
+                  await client.query('ROLLBACK');
+                  throw err;
+                } finally {
+                  client.release();
+                }
+              }
+
+              // Emit lifecycle job for incoming/outgoing message visibility in Job Queues
+              try {
+                if (sharedBoss) {
+                  await sharedBoss.send('wapp-lifecycle', {
+                    event: 'message_received',
+                    tenantId,
+                    sessionId,
+                    sender: from,
+                    messageId: msgId,
+                    isFromMe,
+                    pushName: msg.pushName,
+                    type,
+                    textContent,
+                    message: msg
+                  });
+                }
+              } catch (e) { sessionLog.error({ err: e.message }, 'Failed to emit message lifecycle job'); }
+              
+              if (!isFromMe) {
+                // ── Universal Media Handling ─────────────────────────────────
+                // MASTER-SPEC §7.5: All media types are intercepted, stored in S3,
+                // and tracked in storage_objects with SHA-256 deduplication.
+                const MEDIA_TYPE_MAP = {
+                  audioMessage:    { category: 'audio',    ext: 'ogg',  mime: 'audio/ogg' },
+                  imageMessage:    { category: 'image',    ext: 'jpg',  mime: 'image/jpeg' },
+                  videoMessage:    { category: 'video',    ext: 'mp4',  mime: 'video/mp4' },
+                  stickerMessage:  { category: 'image',    ext: 'webp', mime: 'image/webp' },
+                  documentMessage: { category: 'document', ext: null,   mime: null }, // ext/mime from payload
+                  documentWithCaptionMessage: { category: 'document', ext: null, mime: null },
+                };
+                const mediaMeta = MEDIA_TYPE_MAP[type];
+                
+                if (mediaMeta) {
+                  // For documents, extract actual mimetype and extension from the payload
+                  let ext = mediaMeta.ext;
+                  let mimeType = mediaMeta.mime;
+                  if (mediaMeta.category === 'document') {
+                    const docPayload = content?.documentMessage || content?.documentWithCaptionMessage?.message?.documentMessage;
+                    mimeType = docPayload?.mimetype || 'application/octet-stream';
+                    const docFileName = docPayload?.fileName || '';
+                    const dotIdx = docFileName.lastIndexOf('.');
+                    ext = dotIdx > 0 ? docFileName.substring(dotIdx + 1).toLowerCase() : 'bin';
+                  }
+
+                  sessionLog.info({ from, category: mediaMeta.category, type, ext }, 'Media message detected, downloading...');
+                  try {
+                    const buffer = await downloadMediaMessage(msg, 'buffer', {}, { logger: sessionLog, reuploadRequest: sock.updateMediaMessage });
+                    
+                    // SHA-256 dedup: skip upload if identical content already exists for this tenant
+                    const sha256 = createHash('sha256').update(buffer).digest('hex');
+                    const client = await pool.connect();
+                    try {
+                      const dupCheck = await client.query(
+                        `SELECT id, file_name, storage_key FROM storage_objects WHERE tenant_id = $1 AND sha256 = $2 AND deleted_at IS NULL`,
+                        [tenantId, sha256]
+                      );
+                      if (dupCheck.rows.length > 0) {
+                        sessionLog.info({ sha256, existingFile: dupCheck.rows[0].file_name }, 'Duplicate content detected, skipping S3 upload');
+                        const s3Url = `minio://jarvis-private/${dupCheck.rows[0].storage_key}`;
+                        await client.query('BEGIN');
+                        await client.query(`SELECT set_config('request.jwt.claims.tenant_id', $1, true)`, [tenantId]);
+                        await client.query(
+                          `INSERT INTO sync_inbox (id, tenant_id, payload, status)
+                           VALUES ($1, $2, $3, 'pending')
+                           ON CONFLICT (id) DO NOTHING`,
+                          [msgId, tenantId, JSON.stringify({ type: mediaMeta.category, s3_url: s3Url, sender: from, message: textContent })]
+                        );
+                        await client.query('COMMIT');
+                        client.release();
+                        // Still emit sync-inbox-process with the existing s3_url
+                        const boss = new PgBoss(config.boss.connectionString);
+                        await boss.start();
+                        await boss.send('sync-inbox-process', {
+                          inboxId: msgId, tenantId,
+                          payload: { type: mediaMeta.category, s3_url: s3Url, sender: from, message: textContent }
+                        });
+                        await boss.stop();
+                      } else {
+                        // Upload to S3 and register in storage_objects
+                        const key = `inbox/${tenantId}/${msgId}.${ext}`;
+                        await s3.send(new PutObjectCommand({
+                          Bucket: 'jarvis-private',
+                          Key: key,
+                          Body: buffer,
+                          ContentType: mimeType
+                        }));
+                        
+                        const fileId = uuidv7();
+                        const fileName = `${msgId}.${ext}`;
+                        
+                        await client.query('BEGIN');
+                        await client.query(`SELECT set_config('request.jwt.claims.tenant_id', $1, true)`, [tenantId]);
+                        await client.query(
+                          `INSERT INTO storage_objects (id, tenant_id, file_name, size, mime_type, storage_key, status, sha256)
+                           VALUES ($1, $2, $3, $4, $5, $6, 'uploaded', $7)`,
+                          [fileId, tenantId, fileName, buffer.length, mimeType, key, sha256]
+                        );
+                        const s3Url = `minio://jarvis-private/${key}`;
+                        await client.query(
+                          `INSERT INTO sync_inbox (id, tenant_id, payload, status)
+                           VALUES ($1, $2, $3, 'pending')
+                           ON CONFLICT (id) DO NOTHING`,
+                          [msgId, tenantId, JSON.stringify({ type: mediaMeta.category, s3_url: s3Url, sender: from, message: textContent })]
+                        );
+                        await client.query('COMMIT');
+                        client.release();
+                        sessionLog.info({ s3Url, fileId, sha256, category: mediaMeta.category }, 'Media uploaded to S3 with dedup tracking');
+                        
+                        const boss = new PgBoss(config.boss.connectionString);
+                        await boss.start();
+                        await boss.send('sync-inbox-process', {
+                          inboxId: msgId, tenantId,
+                          payload: { type: mediaMeta.category, s3_url: s3Url, sender: from, message: textContent }
+                        });
+                        await boss.stop();
+                      }
+                    } catch (err) {
+                      await client.query('ROLLBACK').catch(() => {});
+                      client.release();
+                      throw err;
+                    }
+                  } catch (mediaErr) {
+                    sessionLog.error({ err: mediaErr.message, type }, 'Failed to process media message');
+                  }
+                }
+              }
+              
+            } catch (err) {
+              sessionLog.error({ err: err.message }, 'Failed to save incoming message');
+            }
           }
         }
       }
-    }
-  });
+    });
 
-  log.info('pg-boss started in baileys worker, subscribing to wapp-send-process');
-  // WAPP.RS.04.LLM: Backoff dinámico
-  const workOptions = { teamSize: 5, teamConcurrency: 5, newJobCheckInterval: 2000 };
-  await boss.work('wapp-send-process', workOptions, async (jobs) => {
+    activeSessions.set(tenantId, { sock, sessionId, log: sessionLog, qrAttempts: qrAttemptCount, hadCredentials });
+  } catch (err) {
+    sessionLog.error({ err: err.message }, 'Failed to initialize session socket');
+  }
+}
+
+export function stopSession(tenantId) {
+  const session = activeSessions.get(tenantId);
+  if (session) {
+    session.log.info('Stopping WhatsApp session...');
+    try {
+      session.sock.end();
+    } catch (e) {
+      // Ignore socket end errors
+    }
+    activeSessions.delete(tenantId);
+  }
+}
+
+export async function runOrchestrator() {
+  log.info('Starting Asynchronous Event-Driven Baileys Worker...');
+
+  const boss = new PgBoss(config.boss.connectionString);
+  boss.on('error', (err) => log.error({ err: err.message }, 'pg-boss error in baileys worker'));
+  await boss.start();
+  sharedBoss = boss;
+  
+  // Explicitly register queues with retry policies
+  await boss.createQueue('wapp-send-process', { retryBackoff: true, retryLimit: 5 });
+  await boss.createQueue('wapp-session-control', { retryBackoff: true, retryLimit: 5 });
+  await boss.createQueue('wapp-lifecycle', { retryBackoff: false, retryLimit: 0 });
+
+  // Sink worker: auto-completes lifecycle jobs so they show as 'completed' in Job Queues.
+  // These jobs exist purely for observability — no processing logic needed.
+  await boss.work('wapp-lifecycle', { teamSize: 5, teamConcurrency: 5 }, async () => {});
+
+  // 1. Startup Bootstrap (Single Run): Recover previously active sessions
+  try {
+    const { rows } = await pool.query(
+      "SELECT id, tenant_id FROM wapp_sessions WHERE deleted_at IS NULL AND status IN ('connected', 'qr_pending')"
+    );
+    log.info({ count: rows.length }, 'Restoring active WhatsApp sessions on startup...');
+    for (const row of rows) {
+      await startSession(row.tenant_id, row.id);
+    }
+  } catch (err) {
+    log.error({ err: err.message }, 'Failed to restore active sessions on startup bootstrap');
+  }
+
+  // 2. Consume Outgoing WhatsApp Messages queue
+  const sendOptions = { teamSize: 5, teamConcurrency: 5, newJobCheckInterval: 2000 };
+  await boss.work('wapp-send-process', sendOptions, async (jobs) => {
     for (const job of jobs) {
       const { to, text, tenantId } = job.data;
-      if (tenantId !== TENANT_ID) {
-        log.warn({ jobId: job.id, tenantId }, 'Job tenant does not match worker tenant, skipping');
-        throw new Error('Tenant mismatch');
+      const session = activeSessions.get(tenantId);
+      if (!session) {
+        log.warn({ jobId: job.id, tenantId }, 'No active WhatsApp session found for this tenant, skipping');
+        throw new Error('No active connection');
       }
 
-      log.info({ jobId: job.id, to }, 'Sending outgoing WhatsApp message');
+      session.log.info({ jobId: job.id, to }, 'Sending outgoing WhatsApp message');
       try {
-        await sock.sendMessage(to, { text });
+        await session.sock.sendMessage(to, { text });
       } catch (err) {
-        log.error({ err: err.message, to }, 'Failed to send WhatsApp message');
-        // Lanzar error permite a pg-boss reintentar con backoff configurado a nivel de cola
+        session.log.error({ err: err.message, to }, 'Failed to send WhatsApp message');
         throw err;
       }
     }
   });
 
+  // 3. Consume Session Control Event Queue (Event-Driven Onboarding/Teardown)
+  const controlOptions = { teamSize: 5, teamConcurrency: 5, newJobCheckInterval: 1000 };
+  await boss.work('wapp-session-control', controlOptions, async (jobs) => {
+    for (const job of jobs) {
+      const { action, tenantId, sessionId } = job.data;
+      log.info({ action, tenantId, sessionId }, 'Processing WhatsApp session control job');
+
+      if (action === 'reconnect') {
+        log.info({ tenantId }, 'Triggering reconnection / credentials reset via pg-boss...');
+        stopSession(tenantId);
+        await pool.query(
+          "UPDATE wapp_sessions SET credentials = '{}', status = 'waiting_qr', qr_code = NULL WHERE id = $1 AND tenant_id = $2",
+          [sessionId, tenantId]
+        );
+        clearAuthCache(sessionId);
+        await startSession(tenantId, sessionId);
+      } else if (action === 'disconnect') {
+        log.info({ tenantId }, 'Triggering soft-delete and socket termination via pg-boss...');
+        stopSession(tenantId);
+        await pool.query(
+          `UPDATE wapp_sessions 
+           SET deleted_at = now(), status = 'disconnected', qr_code = NULL, credentials = '{}' 
+           WHERE id = $1 AND tenant_id = $2`,
+          [sessionId, tenantId]
+        );
+      }
+    }
+  });
 }
 
-startSock().catch(err => {
-  log.fatal({ err }, 'Worker failed to start');
-  process.exit(1);
-});
+if (process.env.NODE_ENV !== 'test') {
+  runOrchestrator().catch(err => {
+    log.fatal({ err }, 'Asynchronous orchestrator failed to start');
+    process.exit(1);
+  });
+}

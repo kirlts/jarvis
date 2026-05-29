@@ -17,10 +17,13 @@ async function fetchWithAuth(
   options: RequestInit = {}
 ): Promise<Response> {
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
     ...getAuthHeader(),
     ...(options.headers as Record<string, string>),
   };
+
+  if (options.body) {
+    headers["Content-Type"] = "application/json";
+  }
 
   const response = await fetch(url, { ...options, headers });
 
@@ -42,6 +45,12 @@ function getResourcePath(resource: string): string {
     tenants: "/admin/tenants",
     jobs: "/admin/jobs",
     whatsapp: "/admin/whatsapp/status",
+    audit: "/admin/audit",
+    storage: "/admin/storage",
+    config: "/admin/config",
+    logs: "/admin/logs",
+    tokens: "/admin/tokens/revoked",
+    health: "/admin/health",
   };
   return map[resource] || `/admin/${resource}`;
 }
@@ -115,10 +124,13 @@ export const dataProvider: DataProvider = {
     return { data };
   },
 
-  deleteOne: async ({ resource, id }) => {
+  deleteOne: async ({ resource, id, meta }) => {
     const path = getResourcePath(resource);
     // Admin API requires ?confirm=true for destructive operations
-    const url = `${API_URL}${path}/${id}?confirm=true`;
+    let url = `${API_URL}${path}/${id}?confirm=true`;
+    if (meta?.purge) {
+      url += "&purge=true";
+    }
     const response = await fetchWithAuth(url, { method: "DELETE" });
     const data = await response.json();
     return { data };
@@ -141,5 +153,26 @@ export const dataProvider: DataProvider = {
   createMany: undefined as never,
   updateMany: undefined as never,
   deleteMany: undefined as never,
-  custom: undefined as never,
+
+  custom: async ({ url, method, meta, payload, query }) => {
+    // Use meta.rawUrl for non-CRUD endpoints (e.g., /admin/dashboard/summary)
+    const targetUrl = meta?.rawUrl
+      ? `${API_URL}${meta.rawUrl}`
+      : url;
+
+    const params = query ? `?${new URLSearchParams(query as Record<string, string>).toString()}` : '';
+    const fullUrl = `${targetUrl}${params}`;
+
+    const options: RequestInit = {
+      method: (method || 'get').toUpperCase(),
+    };
+
+    if (payload && method !== 'get') {
+      options.body = JSON.stringify(payload);
+    }
+
+    const response = await fetchWithAuth(fullUrl, options);
+    const data = await response.json();
+    return { data };
+  },
 };

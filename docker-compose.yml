@@ -71,6 +71,8 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin_sandbox
     command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
     volumes:
       - storage_data:/data
     healthcheck:
@@ -174,6 +176,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    ports:
+      - "3000:3000"
     networks:
       - jarvis-net
 

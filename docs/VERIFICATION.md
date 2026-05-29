@@ -116,7 +116,7 @@ Implementation format (with mandatory timestamp):
 - ✅ 🤖 `[WAPP.IN.01.LLM]` Inyectar ráfaga de 1,000 eventos `messages.upsert` → Fastify mantiene rendimiento intacto gracias a orquestación desacoplada. *(🤖 Verified by tool; 2026-04-26 11:37)*
 - ✅ 🤖 `[WAPP.AV.01.LLM]` Confirmar red Docker Compose → Existe contenedor de servicio discreto dedicado exclusivamente a lógicas de Sock. *(🤖 Verified by tool; 2026-04-26 11:37)*
 - ✅ 🤖 `[WAPP.IN.02.LLM]` Borrar volumen efimero de contenedor WAPP, verificar que la sesion no se corrompe gracias al storage `usePgAuthState` persistido en PostgreSQL JSONB. *(🤖 Verified by tool; 2026-04-26 11:37)*
-- ✅ 🤖 `[WAPP.CR.03.LLM]` Recibir mensaje entrante de número malformado o grupo no-admitido → Worker lo descarta silente en base a lógicas, sin saturar PG. *(🤖 Verified by tool; 2026-04-26 11:37)*
+- ✅ 🤖 `[WAPP.CR.03.LLM]` Recibir mensaje entrante de número malformado o grupo no-admitido → Worker lo descarta silente en base a lógicas de exclusión de JID (discard `@g.us`, `@broadcast`, `@newsletter`) y admite correctamente `@s.whatsapp.net` y `@lid`. *(🤖 Verified by tool; 2026-05-27 13:21)*
 - ✅ 🤖 `[WAPP.IN.03.LLM]` Monitoreo Docker stats en WAPP 24h → Curva de RAM permanece <512MB previniendo Node OOM en encripciones masivas de Baileys. *(🤖 Verified by tool; 2026-04-26 11:37)*
 - ✅ 🤖 `[WAPP.RS.04.LLM]` Provocar rate-limit WhatsApp (spam de mensajes simulado) → Worker Baileys lee el error y retrasa la cola con backoff dinámico sin banear socket permanentemente. *(🤖 Verified by tool; 2026-04-26 11:37)*
 
@@ -145,6 +145,7 @@ Implementation format (with mandatory timestamp):
 - ✅ 🤖 `[STOR.CR.03.LLM]` Solicitar binario de bucket restringido sin credenciales en la petición (anon) → Storage emite HTTP 403. *(🤖 Verified by tool; 2026-04-26 12:15)*
 - ✅ 🤖 `[STOR.IN.01.LLM]` Subir archivo con llave homónima ya existente en el bucket → El emulador o Fastify aplican control de versiones lógico o colisión sin truncar datos aleatoriamente. *(🤖 Verified by tool; 2026-04-26 12:15)*
 - ✅ 🤖 `[STOR.IN.02.LLM]` Borrar archivo en Storage S3 sin actualizar la BD → Test programático de inconsistencias huérfanas (auditoría eventual debe detectarlo). *(🤖 Verified by tool; 2026-04-26 12:15)*
+- ✅ 🤖 `[STOR.IN.03.LLM]` Soft-deletar un tenant con objetos de almacenamiento registrados → El worker de pg-boss intercepta el evento `tenant_deleted` y elimina físicamente todos los binarios asociados de MinIO/S3 transaccionalmente. *(🤖 Verified by tool; 2026-05-27 13:21)*
 - ✅ 🤖 `[STOR.RS.01.LLM]` Cortar subida Multipart Upload en el byte 15 de 50MB → Partes incompletas se desechan asíncronamente post-timeout en el backend S3. *(🤖 Verified by tool; 2026-04-27 01:50)*
 - ✅ 🤖 `[STOR.RS.02.LLM]` Subir archivo que supera el umbral explícito del emulador (ej 20MB) → Fastify proxy o Storage retornan estrictamente 413 Payload Too Large. *(🤖 Verified by tool; 2026-04-27 01:50)*
 - ✅ 🤖 `[STOR.RS.03.LLM]` Generar 50 uploads concurrentes en milisegundos hacia el contenedor emulado → El contenedor local sobrevive sin lanzar descriptores de archivo exhaustos (EMFILE). *(🤖 Verified by tool; 2026-04-27 01:50)*
@@ -320,7 +321,7 @@ Implementation format (with mandatory timestamp):
 | BOSS | 13 | 0 | 0 | 13 | ✅ Complete |
 | WAPP | 9 | 3 | 1 | 13 | ✅ Complete |
 | DB | 14 | 0 | 0 | 14 | ✅ Complete |
-| STOR | 12 | 0 | 0 | 12 | ✅ Complete |
+| STOR | 13 | 0 | 0 | 13 | ✅ Complete |
 | CADDY | 12 | 0 | 0 | 12 | ✅ Complete |
 | ADMIN | 31 | 0 | 1 | 32 | ✅ Complete |
 | OBSRV | 11 | 0 | 2 | 13 | ✅ Complete |
@@ -331,5 +332,5 @@ Implementation format (with mandatory timestamp):
 | REFN | 11 | 0 | 0 | 11 | ✅ Complete |
 | CDDY | 10 | 0 | 0 | 10 | ✅ Complete |
 | ~~OPSUI~~ | ~~4~~ | ~~3~~ | ~~5~~ | ~~12~~ | Archived (UD-007) |
-| **Total** | **196** | **3** | **4** | **203** |
+| **Total** | **197** | **3** | **4** | **204** |
 

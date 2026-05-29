@@ -144,6 +144,27 @@ async function runTests() {
     console.error('Test failed:', err);
     process.exit(1);
   } finally {
+    console.log('\n--- Cleaning up test data ---');
+    try {
+      await pool.query('ALTER TABLE wapp_sessions DISABLE TRIGGER trg_wapp_sessions_prevent_delete');
+      await pool.query('ALTER TABLE wapp_incoming DISABLE TRIGGER trg_wapp_incoming_prevent_delete');
+      await pool.query('ALTER TABLE sync_inbox DISABLE TRIGGER trg_sync_inbox_prevent_delete');
+      await pool.query('ALTER TABLE tenants DISABLE TRIGGER trg_tenants_prevent_delete');
+
+      await pool.query('DELETE FROM wapp_sessions WHERE tenant_id IN ($1, $2)', [tenantA, tenantB]);
+      await pool.query('DELETE FROM wapp_incoming WHERE tenant_id IN ($1, $2)', [tenantA, tenantB]);
+      await pool.query('DELETE FROM sync_inbox WHERE tenant_id IN ($1, $2)', [tenantA, tenantB]);
+      await pool.query('DELETE FROM storage_objects WHERE tenant_id IN ($1, $2)', [tenantA, tenantB]);
+      await pool.query('DELETE FROM tenants WHERE id IN ($1, $2)', [tenantA, tenantB]);
+
+      await pool.query('ALTER TABLE wapp_sessions ENABLE TRIGGER trg_wapp_sessions_prevent_delete');
+      await pool.query('ALTER TABLE wapp_incoming ENABLE TRIGGER trg_wapp_incoming_prevent_delete');
+      await pool.query('ALTER TABLE sync_inbox ENABLE TRIGGER trg_sync_inbox_prevent_delete');
+      await pool.query('ALTER TABLE tenants ENABLE TRIGGER trg_tenants_prevent_delete');
+      console.log('✅ Sandbox database cleaned successfully!');
+    } catch (cleanErr) {
+      console.error('⚠️ Cleanup failed:', cleanErr.message);
+    }
     await pool.end();
   }
 }

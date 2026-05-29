@@ -56,6 +56,7 @@ MIIEowIBAAKCAQEAkQ/s4htokfmaO6OtSiVlv7U5wbWtdCUPDQZEpVocx0alH06U
     try {
       await request.adminJwtVerify();
     } catch (err) {
+      request.log.error({ err }, 'JWT adminAuthenticate failed');
       reply.status(401).send({ error: 'Unauthorized Admin' });
     }
   });

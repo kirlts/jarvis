@@ -116,3 +116,45 @@ RULES:
 **Pattern:** Librerías como pg-boss crean su propio schema (`pgboss`) al primer `boss.start()`. Si una migración SQL intenta otorgar permisos sobre ese schema durante la inicialización de PG (`/docker-entrypoint-initdb.d/`), el schema no existe todavía porque el worker arranca después de PG. Esto causa un error silencioso que deja al rol sin permisos, rompiendo funcionalidad (ej. `GET /admin/jobs` retorna error de acceso).
 **Lesson:** Pre-crear el schema con `CREATE SCHEMA IF NOT EXISTS` en la propia migración, antes de los GRANTs. Las librerías bien diseñadas usan `IF NOT EXISTS` internamente, por lo que pre-crear es seguro e idempotente. Nunca depender de scripts post-arranque manuales para completar permisos de base de datos.
 **Source:** https://github.com/timgit/pg-boss (documentación oficial confirma que pg-boss reutiliza schemas existentes)
+
+## [HEU-012] Aislamiento de Acciones Anidadas en Tablas React (stopPropagation)
+
+**Date:** 2026-05-26
+**Origin:** Ops Console JobListPage tenant link integration
+**Pattern:** En tablas interactivas de React donde el clic en la fila (`tr`) dispara un evento global (ej. abrir modal de detalles), cualquier elemento interactivo anidado en las celdas (como enlaces `Link` o botones de acción) propagará el evento por burbujeo hacia el contenedor padre. Esto causa colisiones en el estado visual (ej. abrir el modal al mismo tiempo que se navega a otra pantalla).
+**Lesson:** Utilizar de manera preventiva `onClick={(e) => e.stopPropagation()}` en todos los enlaces, botones y elementos interactivos anidados dentro de contenedores con eventos de clic propios. Esto aísla el comportamiento interactivo a nivel de componente sin ensuciar el control de estado de React.
+**Source:** [Confirmed by user - no external source]
+
+## [HEU-013] Cobertura Completa de Mocks en Frameworks Declarativos (Refine / Vitest)
+
+**Date:** 2026-05-26
+**Origin:** Consolidación de Vitest en la Ops Console
+**Pattern:** Al probar componentes que consumen frameworks de interfaz declarativa (como Refine), omitir el mock de un solo hook de mutación o consulta que el componente utiliza (ej. `useUpdate` o `useDelete`) provoca un fallo fatal inmediato de renderizado durante las pruebas de Testing Library, al no estar instanciados los proveedores de contexto correspondientes.
+**Lesson:** Asegurar que los mocks de frameworks headless y declarativos cubran el 100% de los hooks consumidos por las vistas bajo prueba. Al modificar vistas para introducir nuevas capacidades relacionales o de edición, verificar e incorporar de inmediato los mocks necesarios en sus suites de tests.
+**Source:** [Confirmed by user - no external source]
+
+## [HEU-014] Hoisting de Imports en ES Modules y Aislamiento de Variables de Entorno en Testing
+
+**Date:** 2026-05-27
+**Origin:** Pruebas unitarias de pg-boss worker (`boss-worker.test.js`)
+**Pattern:** En ES Modules (ESM), todas las sentencias estáticas `import` son hoisted (elevadas) al inicio de la carga del archivo y ejecutadas *antes* de cualquier sentencia de asignación sincrónica local. Si un test setea `process.env.NODE_ENV = 'test'` de forma sincrónica e importa estáticamente un módulo que lee esta variable al inicio de su código para auto-iniciar tareas en segundo plano, la variable se lee como `undefined`, provocando que el worker intente conectarse prematuramente a la base de datos de producción o sandbox local.
+**Lesson:** Utilizar `await import('./modulo.js')` de forma dinámica después de realizar asignaciones sincrónicas a variables de entorno globales en los archivos de test para garantizar que el módulo se evalúe con el entorno correcto ya configurado.
+**Source:** Especificación oficial de ECMAScript (hoisting de imports estáticos en ESM).
+
+## [HEU-015] Cierre Explicito de Pools de Conexión en Suites de Pruebas de Node.js
+
+**Date:** 2026-05-27
+**Origin:** Proceso de test colgado en `npm test`
+**Pattern:** Al ejecutar pruebas unitarias con el runner nativo `node --test`, si el módulo importado (o el test mismo) instancia un pool de conexiones persistentes de PostgreSQL (`new Pool(...)`), el bucle de eventos (event loop) de Node mantiene descriptores de socket de red y temporizadores de inactividad activos. Esto evita que el proceso de Node.js finalice de forma limpia al terminar de ejecutar los tests de la suite, dejando la terminal colgada indefinidamente.
+**Lesson:** Es obligatorio registrar un hook `after(async () => { await pool.end(); })` al final de cada suite de pruebas unitarias que cierre explícitamente cualquier pool de conexiones instanciado por los módulos importados, permitiendo una liberación limpia del bucle de eventos.
+**Source:** Comportamiento nativo de sockets y temporizadores de pg.Pool en Node.js.
+
+
+
+## [HEU-016] Simulación Criptográfica y Trampas de Testeo E2E Cero-Latencia
+
+**Date:** 2026-05-27
+**Origin:** Fallo de sincronización E2E en Pairing QR de Baileys
+**Pattern:** Al simular y bypassear un protocolo que interactúa con hardware o cifrado real (mocking the handshake) para inyectar credenciales directamente a la memoria, los tests de integración adquieren latencia `0ms`. Esto ciega al desarrollador sobre "race conditions" del mundo real, como acumulaciones asíncronas de promesas que encolan 5+ segundos e inducen timeouts en dispositivos físicos reales.
+**Lesson:** Nunca declarar un handshake de hardware/red E2E como "100% estabilizado" basándose exclusivamente en un script unitario con inyección directa de estado; requiere validación empírica física o el uso de arquitecturas estables Lock-Free (ej. Mutex de loteado) probadas en concurrencia real.
+**Source:** Implementación de Batching Mutex Lock en `auth-state.js`.

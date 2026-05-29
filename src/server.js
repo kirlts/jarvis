@@ -60,7 +60,11 @@ async function buildApp() {
 
   // ── Security ──────────────────────────────────────────────────────
   await app.register(helmet);
-  await app.register(cors);
+  await app.register(cors, {
+    origin: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    credentials: true,
+  });
   await app.register(sensible);
 
   // Constraint: CORE.IN.02, CORE.FN.03 – JWT authentication

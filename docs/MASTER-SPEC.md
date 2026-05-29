@@ -157,6 +157,8 @@ SPA → Admin API (POST /admin/*, GET /admin/*)
 
 ### Admin API Endpoints (Contract: `specs/admin-api.yaml`)
 
+**Tenant CRUD & Lifecycle:**
+
 | Método | Ruta | Descripción | Query Params | Status |
 |---|---|---|---|---|
 | GET | `/admin/tenants` | Listar tenants activos (paginado) | `?page=1&limit=10` | Implementado |
@@ -164,8 +166,62 @@ SPA → Admin API (POST /admin/*, GET /admin/*)
 | GET | `/admin/tenants/:id` | Detalle de tenant | — | Implementado |
 | PATCH | `/admin/tenants/:id` | Editar tenant (parcial, solo activos) | — | Implementado |
 | DELETE | `/admin/tenants/:id` | Soft-delete tenant (SET deleted_at) | `?confirm=true` (obligatorio) | Implementado |
-| GET | `/admin/jobs` | Listar cola pg-boss (filtrable) | `?state=&tenant_id=&limit=` | Implementado |
+| PATCH | `/admin/tenants/:id/status` | Cambiar estado de tenant | — | Implementado |
+| POST | `/admin/tenants/:id/restore` | Restaurar tenant soft-deleted | — | Implementado |
+| GET | `/admin/tenants/:id/stats` | Estadísticas del tenant (jobs, mensajes) | — | Implementado |
+| POST | `/admin/tenants/:id/token` | Generar token JWT para tenant | — | Implementado |
+
+**WhatsApp Session Management:**
+
+| Método | Ruta | Descripción | Query Params | Status |
+|---|---|---|---|---|
 | GET | `/admin/whatsapp/status` | Estado conexiones WhatsApp | — | Implementado |
+| GET | `/admin/whatsapp/status/stream` | SSE real-time status updates (PG LISTEN/NOTIFY) | `?token=` (JWT via query param; EventSource no soporta headers) | Implementado |
+| POST | `/admin/whatsapp/status/:tenant_id/reconnect` | Reconectar/regenerar QR | — | Implementado |
+| DELETE | `/admin/whatsapp/status/:tenant_id` | Desconectar sesión WhatsApp | — | Implementado |
+| GET | `/admin/whatsapp/status/:tenant_id/audit` | Audit log de sesión WhatsApp | — | Implementado |
+
+**Observability & System:**
+
+| Método | Ruta | Descripción | Query Params | Status |
+|---|---|---|---|---|
+| GET | `/admin/jobs` | Listar cola pg-boss (filtrable) | `?state=&search=&limit=` | Implementado |
+| DELETE | `/admin/jobs` | Purgar jobs finalizados de la cola | `?state=&confirm=true` (obligatorio) | Implementado |
+| GET | `/admin/audit` | Trail de auditoría admin | `?page=&limit=` | Implementado |
+| GET | `/admin/dashboard/summary` | Métricas agregadas del dashboard | — | Implementado |
+| GET | `/admin/logs` | Proxy a Loki (consultas LogQL) | `?query=&start=&end=&limit=` | Implementado |
+| GET | `/admin/logs/labels` | Labels disponibles en Loki | — | Implementado |
+| GET | `/admin/health` | Health check del sistema | — | Implementado |
+
+**Storage:**
+
+| Método | Ruta | Descripción | Query Params | Status |
+|---|---|---|---|---|
+| GET | `/admin/storage` | Listar objetos S3 (paginado) | `?prefix=&limit=&cursor=` | Implementado |
+| GET | `/admin/storage/summary` | Estadísticas de almacenamiento | — | Implementado |
+
+**Configuration & Tokens:**
+
+| Método | Ruta | Descripción | Query Params | Status |
+|---|---|---|---|---|
+| GET | `/admin/config` | Leer configuración del sistema | — | Implementado |
+| PATCH | `/admin/config/:key` | Actualizar parámetro de configuración | — | Implementado |
+| GET | `/admin/tokens/revoked` | Listar tokens revocados | `?page=&limit=` | Implementado |
+| POST | `/admin/tokens/revoke` | Revocar token de tenant | — | Implementado |
+
+**Inbox:**
+
+| Método | Ruta | Descripción | Query Params | Status |
+|---|---|---|---|---|
+| GET | `/admin/inbox` | Listar entradas del inbox (paginado) | `?page=&limit=&status=` | Implementado |
+| GET | `/admin/inbox/:id` | Detalle de entrada del inbox | — | Implementado |
+| POST | `/admin/inbox/:id/reprocess` | Reprocesar entrada del inbox | — | Implementado |
+
+**Authentication (Dev Only):**
+
+| Método | Ruta | Descripción | Query Params | Status |
+|---|---|---|---|---|
+| POST | `/admin/dev-login` | Login dev sin credenciales (NODE_ENV=development) | — | Fase 1 only |
 
 **Restricciones de implementación:**
 - Schema validation estricto en POST/PATCH (`additionalProperties: false`)
@@ -241,26 +297,52 @@ pg-boss     → PostgreSQL :5432 (directo, sin pooler)
 
 ### 7.5. Multimedia Transduction Pipeline (Stub)
 
-**Purpose:** Interceptar mensajes multimedia (audio, imagen) desde WhatsApp, almacenarlos en S3 y procesarlos asincronamente. En Fase 1, el procesamiento es un stub simulado. En produccion, se conecta a APIs de LLM (Whisper, GPT-4o, etc.).
+**Purpose:** Interceptar TODOS los mensajes multimedia desde WhatsApp, almacenarlos en S3 y procesarlos asíncronamente. En Fase 1, el procesamiento es un stub simulado. En producción, se conecta a APIs de LLM (Whisper, GPT-4o, etc.).
+
+**Supported Media Types:**
+
+| Baileys Type | Category | Extension | MIME |
+|---|---|---|---|
+| `audioMessage` | audio | .ogg | audio/ogg |
+| `imageMessage` | image | .jpg | image/jpeg |
+| `videoMessage` | video | .mp4 | video/mp4 |
+| `stickerMessage` | image | .webp | image/webp |
+| `documentMessage` | document | (from payload) | (from payload) |
+| `documentWithCaptionMessage` | document | (from payload) | (from payload) |
+
+**File Classification (Ops Console):**
+
+| Categoría | Ejemplos | Resolución Visual |
+|---|---|---|
+| **Imagen** | image/jpeg, image/png, image/webp | `<img>` inline |
+| **Audio** | audio/ogg, audio/mpeg | `<audio>` player |
+| **Video** | video/mp4, video/webm | `<video>` player |
+| **Documento** | application/pdf, .docx, .txt, .md | Google Docs viewer (PDF), descarga directa (otros) |
+| **Archivo** | Todo lo que no sea imagen, audio, video o documento | Descarga directa |
+
+**Deduplication:** SHA-256 content hash almacenado en `storage_objects.sha256`. Unique constraint parcial `(tenant_id, sha256) WHERE sha256 IS NOT NULL AND deleted_at IS NULL` previene re-subida de contenido idéntico por tenant.
 
 **Data Flow:**
 ```
-Baileys intercepta audioMessage/imageMessage
+Baileys intercepta audioMessage/imageMessage/videoMessage/documentMessage/stickerMessage
   → downloadMediaMessage (buffer)
-  → PutObjectCommand a MinIO bucket jarvis-private
+  → SHA-256 hash check contra storage_objects
+    → Si duplicado: skip upload, emit job con referencia existente
+    → Si nuevo: PutObjectCommand a MinIO bucket jarvis-private
+  → INSERT storage_objects (id, tenant_id, file_name, size, mime_type, storage_key, sha256)
   → pg-boss.send('sync-inbox-process', { type, s3_url, sender })
-  → Core Worker extrae payload, ejecuta stub de transcripcion/OCR
+  → Core Worker extrae payload, ejecuta stub de transcripción/OCR
   → pg-boss.send('wapp-send-process', { to, text })
   → Baileys sock.sendMessage al remitente original
 ```
 
-**Dependencies:** Baileys, @aws-sdk/client-s3, pg-boss 12.x, MinIO (jarvis-private bucket)
+**Dependencies:** Baileys, @aws-sdk/client-s3, pg-boss 12.x, MinIO (jarvis-private bucket), node:crypto (SHA-256)
 
 ### 7.4. Fases de Ejecución
 
 **FASE 1: Validación Local (Sandbox)**
 
-Fase iterativa. No se cierra hasta la aprobación explícita del Arquitecto Principal (TASK-008).
+Fase iterativa. No se cierra hasta la aprobación explícita del Arquitecto Principal (TASK-008). **Estado Actual:** EN PROGRESO (La consola de administración Ops Console y la Fase 1 AUN NO están listas ni cerca de ser aprobadas. Se encuentra a la espera de que el Arquitecto Principal, Martín, realice pruebas reales de forma interactiva e itere sobre esta interfaz utilizando el entorno agentico de Antigravity IDE).
 
 - Orquestación en `localhost` con Docker Compose.
 - PostgreSQL 17 vanilla (`postgres:17-alpine`). El schema y las políticas RLS son estrictamente idénticos al entorno de producción.
@@ -282,3 +364,6 @@ Fase iterativa. No se cierra hasta la aprobación explícita del Arquitecto Prin
 - Caddy en producción con TLS automático (Let's Encrypt).
 - SPA persistente conectada al Admin API.
 - Uptime Kuma desplegado en VPS externo independiente para protección SPOF.
+- Segregación de Conexiones Core: Soporte para `READ_REPLICA_URL` y pools separados para consultas de lectura pesadas y analíticas de administración (Mitigación SPOF Postgres).
+- Pipeline de Performance RLS: Scripts de auditoría automatizada en el entorno agéntico/CI que corran `EXPLAIN` contra consultas bajo RLS para prevenir escaneos secuenciales y garantizar índices compuestos que lideren con `tenant_id` (Mitigación Rendimiento RLS).
+

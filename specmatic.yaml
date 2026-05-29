@@ -1,0 +1,36 @@
+# Specmatic Configuration
+# Run: npx specmatic test --host localhost --port 3000 specs/admin-api.yaml specs/tenant-api.yaml
+#
+# NOTE: Specmatic v2.44.1 config v3 requires filesystem.directory under sources.
+# Auth-protected endpoints return 401 without a valid JWT.
+# Use --examples with tenant-api_examples.json for authenticated test runs.
+#
+# Current v3 config is intentionally minimal. Contract paths are passed
+# as positional CLI arguments for simplicity in sandbox phase.
+
+version: 3
+
+components:
+  sources:
+    localSpecs:
+      filesystem:
+        directory: specs
+
+  services:
+    tenantApi:
+      description: Jarvis Tenant API (sync inbox, storage, health)
+      definitions:
+        - definition:
+            source:
+              $ref: "#/components/sources/localSpecs"
+            specs:
+              - tenant-api.yaml
+
+    adminApi:
+      description: Jarvis Admin API (Ops Console backend)
+      definitions:
+        - definition:
+            source:
+              $ref: "#/components/sources/localSpecs"
+            specs:
+              - admin-api.yaml

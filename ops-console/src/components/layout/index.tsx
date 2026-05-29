@@ -1,4 +1,5 @@
 import type { PropsWithChildren } from "react";
+import { useState } from "react";
 import { useGetIdentity, useLogout } from "@refinedev/core";
 import { Menu } from "../menu";
 
@@ -11,17 +12,29 @@ interface Identity {
 export const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   const { data: identity } = useGetIdentity<Identity>();
   const { mutate: logout } = useLogout();
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
-    <div className="app-layout">
+    <div className={`app-layout ${isCollapsed ? 'collapsed' : ''}`}>
       <aside className="sidebar">
-        <div className="sidebar-brand">
-          <div className="sidebar-brand-icon">J</div>
-          <span className="sidebar-brand-text">Jarvis Console</span>
+        <div className="sidebar-brand" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {!isCollapsed && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+              <div className="sidebar-brand-icon">J</div>
+              <span className="sidebar-brand-text">Jarvis</span>
+            </div>
+          )}
+          <button 
+            className="btn btn-ghost btn-sm" 
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            style={{ padding: '0 4px' }}
+            title={isCollapsed ? "Expandir menú" : "Colapsar menú"}
+          >
+            {isCollapsed ? "◧" : "◨"}
+          </button>
         </div>
 
-        <span className="sidebar-section-label">Management</span>
-        <Menu />
+        <Menu collapsed={isCollapsed} />
 
         <div className="sidebar-footer">
           <div className="sidebar-user">
@@ -41,7 +54,7 @@ export const Layout: React.FC<PropsWithChildren> = ({ children }) => {
             style={{ marginTop: "var(--sp-3)", width: "100%" }}
             id="logout-button"
           >
-            Sign out
+            Cerrar sesión
           </button>
         </div>
       </aside>

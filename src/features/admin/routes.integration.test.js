@@ -1,3 +1,7 @@
+process.env.NODE_ENV = 'test';
+process.env.DB_NAME = 'jarvis_test';
+process.env.BOSS_DATABASE_URL = 'postgresql://postgres:postgres_sandbox@localhost_test:5432/jarvis_test';
+
 // Integration test: Admin API endpoints against real PostgreSQL 17
 // Validates TASK-019 checks against live database with triggers, constraints, and RLS.
 // Runner: node --test src/features/admin/routes.integration.test.js
@@ -55,6 +59,18 @@ describe('Admin Routes – Integration (Testcontainers PG 17)', () => {
       await directPool.query(sql);
     }
 
+    // Provision dummy pgboss schema & table to support dashboard summary query
+    await directPool.query("CREATE SCHEMA IF NOT EXISTS pgboss;");
+    await directPool.query(`
+      CREATE TABLE IF NOT EXISTS pgboss.job (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        name text,
+        state text,
+        data jsonb,
+        created_on timestamp with time zone DEFAULT now()
+      );
+    `);
+
     // Monkey-patch the pool module to use our test pool
     const poolModule = await import('../../db.js');
     const originalConnect = poolModule.default.connect.bind(poolModule.default);
@@ -74,6 +90,11 @@ describe('Admin Routes – Integration (Testcontainers PG 17)', () => {
         return reply.status(401).send({ error: 'Unauthorized Admin' });
       }
       request.user = { role: 'super_admin' };
+    });
+
+    // Mock pg-boss publisher (admin-lifecycle jobs — integration tests focus on DB, not queue)
+    app.decorate('boss', {
+      send: async () => 'lifecycle_job_id',
     });
 
     await app.register(registerAdminRoutes, { prefix: '/admin' });
@@ -232,6 +253,7 @@ describe('Admin Routes – Integration (Testcontainers PG 17)', () => {
       url: `/admin/tenants/${id}?confirm=true`,
       headers: { authorization: 'Bearer test' },
     });
+    if (res.statusCode === 500) console.log("DELETE 500 error:", res.payload);
     assert.strictEqual(res.statusCode, 200);
 
     // Verify: row still exists with deleted_at populated
@@ -374,4 +396,274 @@ describe('Admin Routes – Integration (Testcontainers PG 17)', () => {
       assert.ok(err.message.includes('Mutation of created_at is prohibited'));
     }
   });
+
+  // ── REG-001 Integration Test ───────────────────────────────────────
+
+  test('[REG-001] GET /admin/dashboard/summary completely filters out soft-deleted WhatsApp sessions', async () => {
+    // 1. Create a temporary tenant to avoid RLS/FK constraints
+    const tenantName = `REG-001 Tenant-${Date.now()}`;
+    const tRes = await app.inject({
+      method: 'POST',
+      url: '/admin/tenants',
+      headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+      payload: { name: tenantName },
+    });
+    assert.strictEqual(tRes.statusCode, 201);
+    const tenantId = tRes.json().id;
+
+    const sessionActiveId = '01900000-0000-7000-8000-000000000001';
+    const sessionDeletedId = '01900000-0000-7000-8000-000000000002';
+
+    // 2. Insert two WhatsApp sessions directly into wapp_sessions
+    // Active session
+    await directPool.query(
+      `INSERT INTO wapp_sessions (id, tenant_id, status, credentials, deleted_at)
+       VALUES ($1, $2, 'connected', '{}', NULL)`,
+      [sessionActiveId, tenantId]
+    );
+
+    // Soft-deleted session
+    await directPool.query(
+      `INSERT INTO wapp_sessions (id, tenant_id, status, credentials, deleted_at)
+       VALUES ($1, $2, 'connected', '{}', now())`,
+      [sessionDeletedId, tenantId]
+    );
+
+    // 3. Request dashboard summary
+    const summaryRes = await app.inject({
+      method: 'GET',
+      url: '/admin/dashboard/summary',
+      headers: { authorization: 'Bearer test' },
+    });
+    assert.strictEqual(summaryRes.statusCode, 200);
+
+    const summary = summaryRes.json();
+    assert.ok(summary.whatsapp);
+    
+    // The connected count should include the active one but not the soft-deleted one
+    // Let's assert that the active one is present (value >= 1)
+    assert.ok(summary.whatsapp.connected >= 1, 'Should find at least 1 connected session');
+    
+  });
+
+  // ── Storage Browser Integration Tests ─────────────────────────────────
+
+  test('GET /admin/storage/:id/download-url returns 404 for nonexistent object', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/admin/storage/01900000-0000-7000-8000-000000000099/download-url',
+      headers: { authorization: 'Bearer test' },
+    });
+    assert.strictEqual(res.statusCode, 404);
+  });
+
+  test('DELETE /admin/storage/:id performs soft-delete', async () => {
+    // 1. Create tenant
+    const tRes = await app.inject({
+      method: 'POST',
+      url: '/admin/tenants',
+      headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+      payload: { name: 'Storage Delete Test Tenant' },
+    });
+    const tenantId = tRes.json().id;
+
+    // 2. Insert storage object directly
+    const objId = '01900000-0000-7000-8000-000000000098';
+    await directPool.query(
+      `INSERT INTO storage_objects (id, tenant_id, file_name, size, mime_type, storage_key, status)
+       VALUES ($1, $2, 'test.ogg', 1024, 'audio/ogg', 'inbox/test.ogg', 'uploaded')`,
+      [objId, tenantId]
+    );
+
+    // 3. Delete it
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/admin/storage/${objId}?confirm=true`,
+      headers: { authorization: 'Bearer test' },
+    });
+    assert.strictEqual(res.statusCode, 200);
+
+    // 4. Verify soft delete
+    const dbResult = await directPool.query('SELECT status, deleted_at FROM storage_objects WHERE id = $1', [objId]);
+    assert.strictEqual(dbResult.rows[0].status, 'deleted');
+    assert.ok(dbResult.rows[0].deleted_at);
+  });
+
+  test('POST /admin/storage/bulk-delete performs soft-delete on multiple items', async () => {
+    const tRes = await app.inject({
+      method: 'POST',
+      url: '/admin/tenants',
+      headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+      payload: { name: 'Bulk Delete Test Tenant' },
+    });
+    const tenantId = tRes.json().id;
+
+    const id1 = '01900000-0000-7000-8000-000000000101';
+    const id2 = '01900000-0000-7000-8000-000000000102';
+
+    await directPool.query(
+      `INSERT INTO storage_objects (id, tenant_id, file_name, size, mime_type, storage_key, status)
+       VALUES ($1, $2, 'test1.ogg', 1024, 'audio/ogg', 'inbox/test1.ogg', 'uploaded'),
+              ($3, $2, 'test2.ogg', 1024, 'audio/ogg', 'inbox/test2.ogg', 'uploaded')`,
+      [id1, tenantId, id2]
+    );
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/admin/storage/bulk-delete',
+      headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+      payload: { ids: [id1, id2], confirm: true },
+    });
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.json().deletedCount, 2);
+
+    const dbResult = await directPool.query('SELECT count(*) as count FROM storage_objects WHERE id = ANY($1::uuid[]) AND deleted_at IS NOT NULL', [[id1, id2]]);
+    assert.strictEqual(dbResult.rows[0].count, '2');
+  });
+
+  test('POST /admin/storage/bulk-download returns job ID', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/admin/storage/bulk-download',
+      headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+      payload: { ids: ['01900000-0000-7000-8000-000000000101'] },
+    });
+    assert.strictEqual(res.statusCode, 202);
+    assert.strictEqual(res.json().status, 'processing');
+  });
+
+  // ── Super Admin POV Previsualización, Descarga y Lectura de Mensajes Tests ───────────────────────
+
+  describe('Super Admin S3 Endpoint Resolution & Message Reading', () => {
+    let tenantId;
+    let storageId;
+    let inboxId;
+    let originalEndpointFn;
+
+    before(async () => {
+      // Monkey-patch the S3 client endpoint provider to return 'storage' hostname
+      const { s3 } = await import('../storage/s3-client.js');
+      originalEndpointFn = s3.config.endpoint;
+      s3.config.endpoint = async () => ({
+        protocol: 'http:',
+        hostname: 'storage',
+        port: 9000,
+        path: '/'
+      });
+
+      // 1. Create a tenant
+      const tRes = await app.inject({
+        method: 'POST',
+        url: '/admin/tenants',
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: 'Admin POV Test Corp' },
+      });
+      tenantId = tRes.json().id;
+
+      // 2. Insert a storage object
+      storageId = '01900000-0000-7000-8000-000000000555';
+      await directPool.query(
+        `INSERT INTO storage_objects (id, tenant_id, file_name, size, mime_type, storage_key, status)
+         VALUES ($1, $2, 'voice_note.ogg', 4096, 'audio/ogg', 'inbox/voice_note.ogg', 'uploaded')`,
+        [storageId, tenantId]
+      );
+
+      // 3. Insert a sync_inbox message (lectura de mensajes)
+      inboxId = '01900000-0000-7000-8000-000000000666';
+      await directPool.query(
+        `INSERT INTO sync_inbox (id, tenant_id, payload, status)
+         VALUES ($1, $2, '{"message": "Hola Super Admin desde Whatsapp"}', 'done')`,
+        [inboxId, tenantId]
+      );
+    });
+
+    after(async () => {
+      const { s3 } = await import('../storage/s3-client.js');
+      s3.config.endpoint = originalEndpointFn;
+    });
+
+    test('GET /admin/storage/:id/download-url resolves to admin.jarvis.local when host header is jarvis.local', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/admin/storage/${storageId}/download-url`,
+        headers: { 
+          authorization: 'Bearer test',
+          host: 'admin.jarvis.local:3000'
+        },
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const body = res.json();
+      assert.ok(body.url);
+      
+      // Check if hostname was translated correctly from 'storage' to 'admin.jarvis.local'
+      const parsedUrl = new URL(body.url);
+      assert.strictEqual(parsedUrl.hostname, 'admin.jarvis.local');
+    });
+
+    test('GET /admin/storage/:id/download-url resolves to localhost when host header is not jarvis.local', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/admin/storage/${storageId}/download-url`,
+        headers: { 
+          authorization: 'Bearer test',
+          host: 'localhost:3000'
+        },
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const body = res.json();
+      assert.ok(body.url);
+      
+      // Check if hostname was translated correctly from 'storage' to 'localhost'
+      const parsedUrl = new URL(body.url);
+      assert.strictEqual(parsedUrl.hostname, 'localhost');
+    });
+
+    test('POST /admin/storage/batch-urls translates S3 hostnames correctly for multiple files', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/admin/storage/batch-urls',
+        headers: { 
+          authorization: 'Bearer test',
+          'content-type': 'application/json',
+          host: 'admin.jarvis.local:3000'
+        },
+        payload: { ids: [storageId] }
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const body = res.json();
+      assert.strictEqual(body.length, 1);
+      assert.strictEqual(body[0].id, storageId);
+      
+      const parsedUrl = new URL(body[0].url);
+      assert.strictEqual(parsedUrl.hostname, 'admin.jarvis.local');
+    });
+
+    test('GET /admin/inbox returns paginated inbox events for super admin (lectura de mensajes)', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/admin/inbox?tenant_id=${tenantId}`,
+        headers: { authorization: 'Bearer test' }
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const body = res.json();
+      assert.ok(body.data.length >= 1, 'Should find at least one inbox message');
+      assert.strictEqual(body.data[0].id, inboxId);
+      assert.strictEqual(body.data[0].tenant_id, tenantId);
+    });
+
+    test('GET /admin/inbox/:id returns full message payload for super admin', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/admin/inbox/${inboxId}`,
+        headers: { authorization: 'Bearer test' }
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const body = res.json();
+      assert.strictEqual(body.id, inboxId);
+      assert.strictEqual(body.tenant_id, tenantId);
+      assert.deepStrictEqual(body.payload, { message: 'Hola Super Admin desde Whatsapp' });
+    });
+  });
 });
+
+

@@ -349,20 +349,61 @@
 - [x] [ST-007] Disparar 50 fetch concurrentes (POST 1MB buffer) contra MinIO → MinIO sobrevive sin EMFILE (`STOR.RS.03`) `2026-04-27 01:50`
 - [x] [ST-008] docker stop minio + request a endpoint PG-only → Fastify responde 200/202 sin cascada (`STOR.RS.04`) `2026-04-27 01:50`
 
-### 🚧 [TASK-020] Jules Autonomous Sprint (Ops Console Implementation)
+### 🚧 [TASK-020] Ops Console: Implementación Completa (51 Features)
 
-> Ref: MASTER-SPEC §6, docs/ops_console_feature_inventory.md
-> **Execution:** Delegated entirely to Jules (Autonomous Agent) on a separate branch.
-> **Human Intervention:** ZERO during development. The human will review the final PR and test the branch locally post-execution.
+> Ref: MASTER-SPEC §6, `docs/ops_console_feature_inventory.md`
+> **Ejecución:** Iterativa, en sesiones de chat humano+IA. Cada bloque funcional se valida antes de avanzar.
+> **Prerrequisito para:** TASK-008 (Phase 1 Architectural Gate). La Fase 1 NO puede cerrarse sin la Ops Console funcional.
 
-**Covered checks:** Delegated (Ops Console expansion features)
+**Covered checks:** `[OPER.*]`, `[AAPI.*]`, `[REFN.*]`, `[CSPA.*]` (expansión completa)
 
-- [ ] Jules genera y espera aprobación del plan HiTL
-- [ ] Jules ejecuta la totalidad de las 51 features detalladas en el inventario
-- [ ] Jules actualiza el eje documental (USER-DECISIONS, TODO, CHANGELOG)
-- [ ] Jules emite el Pull Request
-- [ ] Humano hace pull de la rama, levanta el sandbox y verifica visual/reactividad
-- [ ] Humano aprueba PR y mergea a main
+- [x] Migraciones SQL: `admin_audit_log`, `revoked_tokens`, columnas `status`/`config` en `tenants` (con RLS estricto) `2026-05-26 14:10`
+- [x] Expansión de `specs/admin-api.yaml`: 26 endpoints nuevos + 3 modificados (contract-first) `2026-05-26 14:15`
+- [x] Backend: Dashboard summary, Tenant lifecycle completo (status, restore, config, stats) `2026-05-26 14:20`
+- [x] Backend: Jobs (retry, cancel, queues, metrics), WhatsApp (reconnect, disconnect, messages, stats) `2026-05-26 14:30`
+- [x] Backend: Inbox monitor, Storage (usage por tenant, objects, orphans), Audit middleware + viewer, Exports, Token management `2026-05-26 16:46`
+- [x] Backend: Loki log proxy (`GET /admin/logs`) `2026-05-26 15:00`
+- [x] Frontend: Dashboard landing page con 7 cards de métricas `2026-05-26 15:30`
+- [x] Frontend: Tenant list (search, filter, export) + Tenant detail (tabs, inline edit, config editor, status toggle, token generation, WhatsApp connection onboarding integration) `2026-05-26 17:35`
+- [x] Frontend: Jobs (filters, retry/cancel, queue overview, metrics cards, date range, detail modal) `2026-05-26 16:45`
+- [x] Frontend: WhatsApp (detail panel, reconnect/disconnect, message history, stats, status dots en tenant list) `2026-05-26 15:10`
+- [x] Frontend: Inbox (filters, reprocess, detail modal, backlog metrics, done rollback and failed reprocess actions) `2026-05-26 17:35`
+- [x] Frontend: Storage (usage por tenant, uploads, orphan detection) `2026-05-26 15:20`
+- [x] Frontend: Logs viewer (Loki proxy, search, auto-refresh, severity colors) `2026-05-26 15:00`
+- [x] Frontend: Audit trail (table con filtros, export CSV/JSON) `2026-05-26 15:40`
+- [x] Frontend: API Key modal (monospace, copy, warning), token revocation table `2026-05-26 16:15`
+- [x] Cumplimiento de los 16 mandatos visuales globales (toasts, modales CSS, optimistic UI, focus rings, responsive, react-router catch-all fallback) `2026-05-26 17:35`
+- [x] Validación Specmatic contra `specs/admin-api.yaml` expandido `2026-05-26 18:00`
+- [x] Frontend & Backend: Aislamiento de tests en base de datos de sandbox, limpieza automática (teardown) via desactivación temporal de triggers, y opciones de Soft-Delete & Permanent Purge integradas de forma intuitiva en la Ops Console (Listado y Detalle de Inquilinos), y opción de Purga intuitiva en el panel de control de Jobs `2026-05-27 17:50`
+- [x] Base de datos: Corregir restricción 'wapp_sessions_status_check' para admitir estados 'waiting_qr', 'qr_expired' y 'connecting', solucionando el problema de reactividad y el retraso en el inicio del canal de WhatsApp `2026-05-27 18:25:00`
+- [x] Backend: Corregir bloqueo de CORS y desconexiones tempranas (`unexpected EOF`) en el EventSource de Server-Sent Events (SSE) para el estado de WhatsApp, inyectando cabeceras CORS manuales y llamando a `reply.hijack()` en Fastify `2026-05-27 18:47:00`
+- [x] Backend: Corregir falso positivo del chequeo de multiplexación de conexiones (pg-boss pre-flight check) en boss-worker.js al arrancar en limpio, evitando ciclos fatales de reinicio `2026-05-27 19:07:30`
+- [x] Backend: Reducir intervalo de latidos (heartbeatInterval) en stream SSE de WhatsApp a 10 segundos para sobrevivir a timeouts de inactividad de proxy (Caddy) y navegadores `2026-05-27 19:07:30`
+- [x] Backend/Baileys: Implementar Batching Mutex Lock sin delay artificial en `auth-state.js` para resolver timeout criptográfico de WhatsApp Web y corregir race condition en la inyección de la credencial `me` durante el evento `515` (stream restart) permitiendo estabilización del handshake E2E `2026-05-27 20:40:00`
+- [ ] Aprobación visual del operador humano (EN PROGRESO - Martín probará e iterará de forma directa en la interfaz de administración junto a Antigravity IDE. La Fase 1 AUN NO está cerca de ser aprobada.)
+
+### 🚧 [TASK-022] Ops Console UI/UX Iteration 1
+> Ref: MASTER-SPEC §6
+> **Ejecución:** Refinamiento visual y de usabilidad de alta densidad basado en feedback del operador.
+
+**Covered checks:** Transversal governance
+
+- [x] Eliminar renderización de UUIDs ininteligibles a favor de etiquetas contextuales en encabezados de inquilino.
+- [x] Ocultar JSON de metadatos técnicos en un desplegable de auditoría con botón copiar en la vista detalle.
+- [x] Implementar edición de descripción de inquilino "en línea" vía doble clic con guardado automático al desenfoque (`onBlur`/`Enter`).
+- [x] Corregir caché de Refine `GET /admin/tenants/:id` para prevenir pérdida visual de la configuración al mutar.
+- [x] Forzar formateo de fechas a estándar militar de 24 horas (`es-CL`) globalmente.
+- [x] Mejorar separación de responsabilidades visuales (layout en dos columnas: perfil principal vs métricas de métricas laterales).
+- [x] Corregir la previsualización de documentos PDF en la vista detalle del historial de actividades y el navegador de storage usando renderizado de iframe local nativo `2026-05-29 07:05:00`
+- [x] Implementar visualización y etiquetas de descripción específicas para mensajes con multimedia + texto en el historial y vista detalle (ej. "Imagen + Texto") `2026-05-29 07:12:00`
+- [x] Corregir la desaparición del desplegable multimedia para mensajes duplicados (SHA-256 deduplicados) en el historial de actividades de inquilinos implementando inserción directa en `sync_inbox` desde el worker de Baileys y fallback local de búsqueda en React `2026-05-29 07:30:00`
+- [x] Agrupar mensajes multimedia contiguos del mismo remitente recibidos dentro de un umbral de 5 segundos en un único evento de actividad en el timeline del historial `2026-05-29 07:35:00`
+- [x] Ocultar por defecto los reproductores y previsualizaciones multimedia (imágenes, audios, videos, documentos) bajo un estado colapsado inicial, requiriendo click manual para expandir `2026-05-29 07:35:00`
+- [x] Implementar fallback de extracción de texto de la ráfaga (primer caption de acompañamiento del grupo WhatsApp) para mostrar el texto ("Isfilsbf") de forma destacada sobre el card de detalle `2026-05-29 07:35:00`
+- [x] Generalizar el algoritmo de agrupamiento del timeline para fusionar automáticamente ráfagas de operaciones salientes (ej. `wapp-send-process` hacia un mismo destinatario en <5s) e iterar diseño de múltiples mensajes consolidados en la vista de detalle `2026-05-29 15:30:00`
+- [x] Refinar renderizado del detalle de mensajes para extraer todos los captions únicos, mostrar etiquetas diferenciadas entre "Transcripción de IA (Whisper)" y "Análisis OCR de IA", y proveer un botón de copia individual y resiliente `2026-05-29 15:30:00`
+- [x] Corregir trigger de base de datos en la partición `pgboss.job_common` que impedía el envío de NOTIFY para disparar actualizaciones SSE (auto-refresh) en tiempo real para procesos salientes `2026-05-29 15:30:00`
+- [ ] Validar flujos depurados con el Arquitecto Principal (EN PROGRESO - Martín probará e iterará de forma directa en la interfaz de administración junto a Antigravity IDE. La Fase 1 AUN NO está cerca de ser aprobada.)
 
 ### 🚨 [TASK-008] Phase 1 Architectural Gate (Principal Architect Approval)
 
@@ -370,7 +411,29 @@
 
 **Covered checks:** Transversal governance
 
-- [ ] Aprobación explícita del Arquitecto Principal para cierre formal de Fase 1
+- [ ] Aprobación explícita del Arquitecto Principal (Martín) para cierre formal de la Fase 1 (EN PROGRESO - La Fase 1 AUN NO ESTA APROBADA)
+
+## [EPIC-002] Phase 2 Production MVP Roadmap
+
+> Ref: MASTER-SPEC §7.4 FASE 2
+
+### 🔲 [TASK-023] Read/Write Connection Pool Segregation; 2026-05-29
+
+> Ref: MASTER-SPEC §7.4 FASE 2 (Mitigación SPOF Postgres)
+
+**Covered checks:** Transversal governance
+
+- [ ] Modificar el plugin de base de datos de Fastify para instanciar pools separados de lectura (`READ_REPLICA_URL`) y escritura.
+- [ ] Enrutar consultas no mutativas de administración (dashboards, listados, logs) al pool de lectura.
+
+### 🔲 [TASK-024] Automated RLS EXPLAIN/Performance Gate; 2026-05-29
+
+> Ref: MASTER-SPEC §7.4 FASE 2 (Mitigación Rendimiento RLS)
+
+**Covered checks:** Transversal governance
+
+- [ ] Implementar script de auditoría automatizado (`scripts/audit-rls-explain.js`) que corra EXPLAIN ANALYZE sobre queries con RLS.
+- [ ] Integrar el script en el entorno de desarrollo agéntico/CI para rechazar tablas expuestas a RLS sin índices compuestos que lideren con `tenant_id`.
 
 <!-- 
 COMPLETION TIMESTAMP FORMAT:
@@ -397,6 +460,6 @@ GENERAL RULES:
 
 | Epic | Tasks | Status | 🤖 .LLM | 🧑 .HUM | 🤖🧑 .MIX | Total Checks |
 | --- | --- | --- | --- | --- | --- | --- |
-| EPIC-001 | TASK-001 a TASK-019 | 🚨 Blocked (11 Ops Console + Human Approval) | 186/196 | 3/3 | 1/4 | 190/203 |
-
+| EPIC-001 | TASK-001 a TASK-022, TASK-008 | 🚧 In Progress (La aprobación de la consola está EN PROGRESO; a la espera de que Martín pruebe e itere junto a Antigravity. La Fase 1 AUN NO está cerca de ser aprobada.) | 197/197 | 3/3 | 4/4 | 204/204 |
+| EPIC-002 | TASK-023, TASK-024 | 🔲 Pending | 0/0 | 0/0 | 0/0 | 0/0 |
 

@@ -23,8 +23,8 @@
 # Primary runner (unit + integration)
 node --test src/**/*.test.js
 
-# Specmatic (contract validation)
-specmatic test --host localhost --port 3000
+# Specmatic (contract validation — 29 auto-generated tests from specs)
+specmatic test --host localhost --port 3000 specs/admin-api.yaml specs/tenant-api.yaml
 
 # Stryker (mutation audit)
 npx stryker run
@@ -39,7 +39,7 @@ k6 run --out dashboard scripts/stress/*.js
 |---|---|
 | **Pact** | Sequential consumer-first workflow is an anti-pattern for solo-dev with AI assistance. Specmatic inverts this by using OpenAPI spec as source of truth. |
 | **Jest** | CJS-first, requires transforms for ESM. `node:test` is native to Node 24 and zero-config. |
-| **Playwright / E2E** | Jarvis is a headless API backend. No browser UI to test. Appsmith (Ops Console) is a third-party tool; its UI is not our testing responsibility. |
+| **Playwright / E2E** | Not yet integrated. The Ops Console SPA is tested via Vitest (pure-function + JSDOM component tests). A Playwright E2E smoke layer covering login → timeline → media is planned but not yet implemented. |
 | **Artillery** | Single-threaded, commercial for distributed load. K6 is Go-native, free, and supports 30K+ VUs from a laptop. |
 
 ---
@@ -88,6 +88,7 @@ The traditional pyramid (many unit tests → few integration → fewer E2E) is *
 | Modification of `src/workers/boss-worker.js` | Integration (Testcontainers pg-boss lifecycle) |
 | Modification of `src/workers/baileys/*` | Integration (Testcontainers PG JSONB auth state) |
 | Modification of `src/db.js` or `src/config.js` | Full suite (all layers affected) |
+| Modification of SSE endpoints or LISTEN/NOTIFY triggers | Integration (PG direct pool ≠ pooler assertion) |
 | Closing any TASK in EPIC-001 | Stryker mutation audit on affected test files |
 | Pre-merge / pre-deploy gate | Full suite + K6 stress scenario (baseline) |
 
@@ -136,15 +137,74 @@ The traditional pyramid (many unit tests → few integration → fewer E2E) is *
 
 | ID | Original Bug | Regression Test | Date |
 |---|---|---|---|
-| *(empty - populated organically during development)* | | | |
+| `REG-001` | `GET /admin/dashboard/summary` counted soft-deleted WhatsApp sessions, causing false positive counts on the dashboard metrics cards. | Integration test asserting that `/admin/dashboard/summary` excludes records where `deleted_at IS NOT NULL`. | 2026-05-26 |
+| `REG-002` | `GET /admin/tenants/:id` failed to include `config` and `status` fields in its SELECT query, causing frontend cache invalidation to silently clear descriptions from the UI. | Integration test asserting that `GET /admin/tenants/:id` returns a payload including `config` and `status`. | 2026-05-28 |
+| `REG-002` | Baileys statusCode 515 (stream restart after QR pairing) treated as "unknown state", stopping session instead of reconnecting. Root cause: `hadCredentials` was static (`const`) instead of dynamic (`let` updated by `creds.update`). | Integration test: simulate `connection.update` with statusCode=515 after `pairingConfigured=true`, assert `startSession` is called (not `stopSession`). | 2026-05-27 |
+| `REG-003` | SSE endpoint (`GET /admin/whatsapp/status/stream`) used PgBouncer pool (`:6543`) for `LISTEN`, which requires session-level persistence incompatible with transaction pooling (§4.7). | Unit test: assert `directPool` connection string resolves to port 5432 (direct PG), not 6543 (pooler). | 2026-05-27 |
+| `REG-004` | `wapp-lifecycle` message_received logs incorrectly labelled recipient numbers with the Host's `pushName` on outgoing messages (`isFromMe: true`). Also, the activity table formatting broke the UI width constraint by forcing complex JSX in the cell instead of moving it to the modal detail view. | UI test (Vitest) asserting `detail.tsx` mapping correctly uses `formatJid` exclusively for outgoing messages, and only uses `pushName` for incoming ones. | 2026-05-29 |
+| `REG-005` | Copy-to-clipboard button failed in non-HTTPS environments because `navigator.clipboard` is undefined in insecure contexts, preventing operators from copying the JSON payload. | UI test (Vitest) verifying the `copyToClipboard` function falls back to `document.execCommand('copy')` when `navigator.clipboard` is unavailable. | 2026-05-29 |
+| `REG-006` | S3 presigned URLs generated with internal Docker hostname (`storage:9000`) caused `SignatureDoesNotMatch` when browsers accessed MinIO via external hostname (`admin.jarvis.local:9000`). The HMAC signature is tied to the hostname used during generation. | Backend fix: `getPresigningS3Client(request)` generates presigned URLs with the browser-facing hostname derived from the request's `Host` header. Frontend: `resolveBrowserUrl` no longer rewrites presigned URL hostnames. | 2026-05-29 |
+| `REG-007` | Detail view showed "Multimedia/Documento/Evento de Sistema" for image messages because `textContent` was an empty string (falsy) and the fallback text was hardcoded. Also, image previews never loaded because the media resolution logic only checked for `s3_url` in payloads, but `wapp-lifecycle` events store the `messageId` linking to `storage_objects` via `inbox/{tenantId}/{messageId}.ext`. | UI fix: detail view now renders type-specific labels (🖼️ Imagen, 🎵 Nota de voz, etc.) and resolves presigned URLs via `messageId` search against the storage API. | 2026-05-29 |
+| `REG-008` | Activity feed in tenant detail didn't update in real-time. SSE endpoint only listened to `wapp_status_change` (connection status), not new messages or jobs. Frontend `useInvalidate` didn't reliably refetch active queries. | Backend: PG triggers (`notify_tenant_activity`) on `pgboss.job` INSERT and `wapp_incoming` INSERT fire `NOTIFY tenant_activity`. SSE endpoint listens on both channels. Frontend SSE hook forwards `activity_update` events, triggering `.refetch()` on activity queries. | 2026-05-29 |
+| `REG-009` | Media previews in tenant detail never rendered because `POST /admin/storage/batch-urls` returns a **raw array** `[{id, url}]`, but the frontend destructured it as `urlData.data` (expecting `{ data: [...] }`). This silently produced an empty URL map, so `mediaItems` was always empty. | Frontend fix: `Array.isArray(urlData) ? urlData : urlData.data || []` handles both response shapes. Test mocks updated to return raw arrays matching the real API contract. | 2026-05-29 |
+| `REG-010` | Baileys worker only intercepted `audioMessage` and `imageMessage`. Videos, documents (PDF, docx), and stickers were silently ignored, never stored in S3. No deduplication existed — re-sending the same image created duplicate storage objects. | Worker extended with `MEDIA_TYPE_MAP` covering 6 media types. SHA-256 dedup via `storage_objects.sha256` column with partial unique index `(tenant_id, sha256) WHERE deleted_at IS NULL`. Boss-worker stubs extended for video/document types. | 2026-05-29 |
+| `REG-011` | Storage page did not auto-update when new files were uploaded. The `useList` query was not connected to SSE events. No PG trigger existed on `storage_objects` to fire `NOTIFY tenant_activity`. | PG trigger `trg_storage_objects_activity` added on INSERT. `notify_tenant_activity()` function updated to handle `storage_objects` table. Storage page wired to `useWhatsAppSSE` hook with `query.refetch()` on `activity_update` events. | 2026-05-29 |
+| `REG-012` | Each incoming WhatsApp message produced two events in the Admin Console timeline: one from `sync_inbox` (type `whatsapp`) and one from `pgboss.job` `wapp-lifecycle message_received` (type `operación`). Baileys synthetic `albumMessage` events inflated counts further (1 image → "2 imágenes"). | `buildTimelineEvents` filters `wapp-lifecycle message_received` from jobs feed. `sync_inbox` is the single source of truth for incoming messages. PG trigger `trg_sync_inbox_activity` added for SSE auto-refresh. Pure-function tests in `detail.test.tsx` assert single-image = 1 event. | 2026-05-29 |
 
 ---
 
 ## E2E Policy
 
-- **Activate when:** Never. Jarvis is a headless API backend. There is no browser UI to test.
-- **Ops Console (SPA Propietaria):** The Admin API endpoints consumed by the SPA are covered by contract tests (Specmatic) and integration tests (Testcontainers). The SPA itself will be tested via its own Refine/React test suite when implemented (TASK-018).
+- **Activate when:** When changes to the Ops Console SPA affect timeline rendering, SSE auto-refresh, multimedia grouping, or media preview flows that cannot be fully validated by pure-function unit tests alone.
+- **Ops Console (SPA Propietaria):** The SPA is tested at two layers: (1) Pure-function tests for `timeline-utils.ts` (deduplication, grouping, `formatJid`, `extractSearchTerm`) via Vitest without JSDOM; (2) Component-level tests for individual pages via Vitest + JSDOM. A future Playwright E2E smoke test should cover the full login → timeline → media preview flow.
 - **WhatsApp (Baileys):** Manual verification via `.HUM` checks in VERIFICATION.md. Automated testing of WhatsApp WebSocket protocol is blocked by Meta's anti-automation policies.
+
+---
+
+## Test Isolation and Anti-Pollution Policy
+
+To prevent test suites, stress testing scripts, and validation routines from polluting the live development/production environments (specifically the sandbox database `jarvis` running on `localhost:5432`):
+
+1. **Active Default Shifting (Dynamic Config Protection):**
+   - Inside `src/config.js`, the system detects if it is running in a test environment (`process.env.NODE_ENV === 'test'` or Node native test runner's thread context `process.env.NODE_TEST_CONTEXT`).
+   - In any test environment, all default PostgreSQL and pg-boss connections are automatically redirected from the active development database `jarvis` to `jarvis_test`.
+
+2. **Hard Block Guard (Infranqueable Protection):**
+   - Inside both `src/db.js` and `src/workers/boss-worker.js`, there is a strict connection guard.
+   - If a test context is active and a connection is initiated targeting the default `jarvis` database on `localhost` (without a dynamic override from Testcontainers), the pool initialization immediately throws a fatal `[SECURITY/ISOLATION]` error, preventing any test from touching the live database.
+   - To bypass the guard legitimately, integration tests must connect to dynamic ephemeral Testcontainers ports or explicitly isolated databases.
+
+3. **Ephemeral Containers (Integration Tests):**
+   - High-rigor integration tests (`node --test`) must exclusively run against isolated PostgreSQL and S3 containers managed by **Testcontainers**.
+   - These containers are created on-the-fly and destroyed immediately after execution, leaving zero footprint.
+
+4. **Self-Cleaning Validation Scripts (Teardowns):**
+   - Any script running directly on the development sandbox database (such as scripts in `scripts/test_task_*.js` or stress scripts) **MUST** implement a strict, self-cleaning `finally` block or tear-down phase.
+   - Because PostgreSQL triggers like `trg_tenants_prevent_delete` block physical `DELETE` statements on multi-tenant tables, validation scripts must connect as a database superuser (e.g. `postgres`) and temporarily disable these triggers before deleting their seeded test data.
+   - The exact pattern for physical teardown is:
+     ```sql
+     BEGIN;
+     ALTER TABLE wapp_sessions DISABLE TRIGGER trg_wapp_sessions_prevent_delete;
+     ALTER TABLE wapp_incoming DISABLE TRIGGER trg_wapp_incoming_prevent_delete;
+     ALTER TABLE sync_inbox DISABLE TRIGGER trg_sync_inbox_prevent_delete;
+     ALTER TABLE tenants DISABLE TRIGGER trg_tenants_prevent_delete;
+
+     DELETE FROM wapp_sessions WHERE tenant_id = ANY($1);
+     DELETE FROM wapp_incoming WHERE tenant_id = ANY($1);
+     DELETE FROM sync_inbox WHERE tenant_id = ANY($1);
+     DELETE FROM storage_objects WHERE tenant_id = ANY($1);
+     DELETE FROM tenants WHERE id = ANY($1);
+
+     ALTER TABLE wapp_sessions ENABLE TRIGGER trg_wapp_sessions_prevent_delete;
+     ALTER TABLE wapp_incoming ENABLE TRIGGER trg_wapp_incoming_prevent_delete;
+     ALTER TABLE sync_inbox ENABLE TRIGGER trg_sync_inbox_prevent_delete;
+     ALTER TABLE tenants ENABLE TRIGGER trg_tenants_prevent_delete;
+     COMMIT;
+     ```
+
+5. **Strict Naming Conventions:**
+   - All test-created tenants, sessions, and storage objects must have easily identifiable names/prefixes (e.g., `Tenant A`, `Tenant B`, `Storage Tenant`).
+   - If a script crashes before cleaning up, the system administrator can safely purge these records from the Ops Console or via a manual cleanup script using the same trigger-bypass technique.
 
 ---
 
@@ -155,7 +215,7 @@ Specmatic requires an OpenAPI 3.x spec as its source of truth. The following spe
 | Spec | Covers | Location |
 |---|---|---|
 | `specs/tenant-api.yaml` | `/api/v1/sync/inbox`, `/api/v1/storage/presign`, `/health` | Created (v0.1.0) |
-| `specs/admin-api.yaml` | `/admin/tenants` (CRUD), `/admin/jobs`, `/admin/whatsapp/status` | Created (v0.2.0) |
+| `specs/admin-api.yaml` | `/admin/tenants` (CRUD), `/admin/jobs`, `/admin/whatsapp/status`, `/admin/whatsapp/status/stream` (SSE) | Updated (v0.3.0 — SSE added 2026-05-27) |
 
 **Maintenance Guarantees:**
 These specs are the **contracts** between the Core and all consumers (Appsmith, Plugins, WhatsApp workers). Specmatic garantiza facilidad de mantención futura sin afectar operaciones mediante:
@@ -169,12 +229,13 @@ These specs are the **contracts** between the Core and all consumers (Appsmith, 
 
 | Metric | Current Value | Target |
 |---|---|---|
-| Specmatic contract coverage | 24/24 (tenant + admin) | 100% of public endpoints |
+| Specmatic contract coverage | 60 tests generated (1 pass, 59 fail — 401 auth barrier, requires JWT overlay) | 100% of public endpoints |
 | Stryker mutation score | 95.92% (admin routes) | > 80% on business logic |
 | Testcontainers integration coverage | 12 tests (PG 17 real) | All VERIFICATION.md `.LLM` checks |
-| fast-check property coverage | 7 tests (~4000 iterations) | All HP-* invariants |
-| K6 stress scenarios | 9/9 + st-010 (admin) | 9/9 (resolves all false positives) |
-| node:test unit coverage | 55 tests (31 admin + 24 core) | Pure functions only (schema, config, UUID) |
+| fast-check property coverage | 5 tests (~4000 iterations) | All HP-* invariants |
+| K6 stress scenarios | 4/9 core (st-001, st-002, st-003, st-010) | 9/9 (resolves all false positives) |
+| node:test unit coverage | 55 tests (31 admin + 12 integration + 5 property + 4 RLS + 3 inbox) | Pure functions only (schema, config, UUID) |
+| Vitest (Ops Console SPA) | 43 tests (6 suites) | All SPA pages with state logic + timeline-utils pure functions (grouping, dedup, formatting) |
 
 ---
 

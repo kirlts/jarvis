@@ -2,6 +2,9 @@
 // Single source of truth for all service connection strings.
 // Constraint: §4.5 Pooler port 6543 mandatory for workers.
 
+const isTestEnv = process.env.NODE_ENV === 'test' || !!process.env.NODE_TEST_CONTEXT;
+const defaultDbName = isTestEnv ? 'jarvis_test' : 'jarvis';
+
 const config = {
   server: {
     host: process.env.HOST || '0.0.0.0',
@@ -14,7 +17,7 @@ const config = {
     port: parseInt(process.env.DB_PORT || '5432', 10),
     user: process.env.DB_USER || 'postgres',
     password: process.env.DB_PASSWORD || 'postgres_sandbox',
-    database: process.env.DB_NAME || 'jarvis',
+    database: process.env.DB_NAME || defaultDbName,
   },
 
   // Pooler connection (application traffic via Supavisor/PgBouncer)
@@ -24,7 +27,7 @@ const config = {
     port: parseInt(process.env.POOLER_PORT || '6543', 10),
     user: process.env.DB_USER || 'postgres',
     password: process.env.DB_PASSWORD || 'postgres_sandbox',
-    database: process.env.DB_NAME || 'jarvis',
+    database: process.env.DB_NAME || defaultDbName,
   },
 
   // S3-compatible storage (MinIO in sandbox)
@@ -43,7 +46,7 @@ const config = {
   // breaking these locking semantics.
   boss: {
     connectionString: process.env.BOSS_DATABASE_URL ||
-      `postgresql://postgres:postgres_sandbox@localhost:5432/jarvis`,
+      `postgresql://postgres:postgres_sandbox@localhost:5432/${defaultDbName}`,
   },
 };
 

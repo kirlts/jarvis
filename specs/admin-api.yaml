@@ -1,33 +1,33 @@
 openapi: 3.0.3
 info:
   title: Jarvis Admin API
-  version: 0.2.0
-  description: Ops Console API for superadmin operations. Arquitectura Desacoplada (Admin API + Cliente Externo).
+  version: 0.3.0
+  description: Ops Console API for superadmin operations. Arquitectura Desacoplada
+    (Admin API + Cliente Externo).
 servers:
-  - url: http://localhost:3000
-    description: Sandbox Environment
-
+- url: http://localhost:3000
+  description: Sandbox Environment
 paths:
   /admin/tenants:
     get:
       summary: List all tenants (paginated)
       operationId: getTenants
       security:
-        - adminBearerAuth: []
+      - adminBearerAuth: []
       parameters:
-        - name: page
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
       responses:
         '200':
           description: Paginated list of tenants with metadata
@@ -35,7 +35,9 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [data, meta]
+                required:
+                - data
+                - meta
                 properties:
                   data:
                     type: array
@@ -49,19 +51,19 @@ paths:
           description: Missing or invalid Admin JWT
         '403':
           description: Role is not super_admin
-
     post:
       summary: Create a new tenant
       operationId: createTenant
       security:
-        - adminBearerAuth: []
+      - adminBearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [name]
+              required:
+              - name
               properties:
                 name:
                   type: string
@@ -83,15 +85,14 @@ paths:
           description: Role is not super_admin
         '409':
           description: Tenant name already exists (unique constraint)
-
   /admin/tenants/{id}:
     get:
       summary: Get tenant detail by ID
       operationId: getTenantById
       security:
-        - adminBearerAuth: []
+      - adminBearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantId'
+      - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Tenant detail
@@ -107,14 +108,13 @@ paths:
           description: Role is not super_admin
         '404':
           description: Tenant not found
-
     patch:
       summary: Update tenant fields (partial)
       operationId: updateTenant
       security:
-        - adminBearerAuth: []
+      - adminBearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantId'
+      - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -145,20 +145,28 @@ paths:
           description: Tenant not found
         '409':
           description: Tenant name already exists (unique constraint)
-
     delete:
-      summary: Soft-delete a tenant (sets deleted_at timestamp)
+      summary: Soft-delete or permanently purge a tenant
       operationId: deleteTenant
       security:
-        - adminBearerAuth: []
+      - adminBearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantId'
-        - name: confirm
-          in: query
-          required: true
-          schema:
-            type: string
-            enum: ['true']
+      - $ref: '#/components/parameters/TenantId'
+      - name: confirm
+        in: query
+        required: true
+        schema:
+          type: string
+          enum:
+          - 'true'
+      - name: purge
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - 'true'
+          - 'false'
       responses:
         '200':
           description: Tenant deleted
@@ -169,7 +177,8 @@ paths:
                 properties:
                   status:
                     type: string
-                    enum: [deleted]
+                    enum:
+                    - deleted
                   id:
                     type: string
                     format: uuid
@@ -181,29 +190,34 @@ paths:
           description: Role is not super_admin
         '404':
           description: Tenant not found
-
   /admin/jobs:
     get:
       summary: View pg-boss job queues (with filters)
       operationId: getJobs
       security:
-        - adminBearerAuth: []
+      - adminBearerAuth: []
       parameters:
-        - name: state
-          in: query
-          schema:
-            type: string
-        - name: tenant_id
-          in: query
-          schema:
-            type: string
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 50
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: state
+        in: query
+        schema:
+          type: string
+      - name: tenant_id
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
       responses:
         '200':
           description: Filtered jobs list
@@ -217,13 +231,53 @@ paths:
           description: Missing or invalid Admin JWT
         '403':
           description: Role is not super_admin
-
+    delete:
+      summary: Purge completed, failed, or cancelled jobs from pg-boss queues
+      operationId: purgeJobs
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - name: state
+        in: query
+        schema:
+          type: string
+          enum:
+          - completed
+          - failed
+          - cancelled
+          - all_finished
+          default: all_finished
+      - name: confirm
+        in: query
+        required: true
+        schema:
+          type: string
+          enum:
+          - 'true'
+      responses:
+        '200':
+          description: Jobs purged successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  purgedCount:
+                    type: integer
+        '400':
+          description: Missing confirm or invalid state query param
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
   /admin/whatsapp/status:
     get:
       summary: View Baileys WhatsApp connections status
       operationId: getWhatsAppStatus
       security:
-        - adminBearerAuth: []
+      - adminBearerAuth: []
       responses:
         '200':
           description: WhatsApp connections
@@ -246,7 +300,863 @@ paths:
           description: Missing or invalid Admin JWT
         '403':
           description: Role is not super_admin
+  /admin/whatsapp/status/stream:
+    get:
+      summary: SSE stream for real-time WhatsApp session status updates
+      description: "Server-Sent Events endpoint that streams wapp_sessions status\
+        \ changes\nin real-time via PostgreSQL LISTEN/NOTIFY.\n\n**Authentication:**\
+        \ EventSource API cannot set custom headers.\nPass the JWT via `token` query\
+        \ parameter instead of Authorization header.\n\n**Connection:** Uses direct\
+        \ PG pool (:5432), NOT PgBouncer, because\nLISTEN requires session-level persistence\
+        \ (\xA74.7).\n\n**Events:**\n- `heartbeat` \u2014 Sent on connect and every\
+        \ 30s (keep-alive)\n- `status_change` \u2014 Fired when any session's status\
+        \ or qr_code changes\n"
+      operationId: streamWhatsAppStatus
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - name: token
+        in: query
+        required: true
+        description: Admin JWT token (EventSource cannot set Authorization header)
+        schema:
+          type: string
+      responses:
+        '200':
+          description: SSE event stream (text/event-stream)
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: 'SSE events in format:
 
+                  event: status_change
+
+                  data: {"tenant_id":"...","session_id":"...","status":"...","qr_code":null,"updated_at":"..."}
+
+                  '
+        '401':
+          description: Missing or invalid Admin JWT
+        '403':
+          description: Role is not super_admin
+  /admin/tenants/{id}/status:
+    patch:
+      summary: Change tenant lifecycle status
+      operationId: updateTenantStatus
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - status
+              properties:
+                status:
+                  type: string
+                  enum:
+                  - active
+                  - suspended
+                  - trial
+              additionalProperties: false
+      responses:
+        '200':
+          description: Tenant status updated
+        '400':
+          description: Invalid UUID or payload
+        '401':
+          description: Missing or invalid Admin JWT
+        '404':
+          description: Tenant not found
+  /admin/tenants/{id}/restore:
+    post:
+      summary: Restore a soft-deleted tenant
+      operationId: restoreTenant
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Tenant restored
+        '400':
+          description: Invalid UUID format
+        '401':
+          description: Missing or invalid Admin JWT
+        '404':
+          description: Tenant not found or not deleted
+  /admin/tenants/{id}/stats:
+    get:
+      summary: Aggregated stats for a single tenant
+      operationId: getTenantStats
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Tenant stats (sessions, inbox, storage)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: integer
+                  inbox:
+                    type: object
+                  storage:
+                    type: object
+        '400':
+          description: Invalid UUID format
+        '401':
+          description: Missing or invalid Admin JWT
+  /admin/tenants/{id}/token:
+    post:
+      summary: Generate an API key (JWT) for a tenant
+      operationId: generateTenantToken
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Token generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+        '400':
+          description: Invalid UUID format
+        '401':
+          description: Missing or invalid Admin JWT
+        '404':
+          description: Tenant not found or deleted
+  /admin/whatsapp/status/{tenant_id}/reconnect:
+    post:
+      summary: Force WhatsApp reconnection and QR regeneration
+      operationId: reconnectWhatsApp
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Reconnection initiated
+        '400':
+          description: Invalid UUID format
+        '401':
+          description: Missing or invalid Admin JWT
+  /admin/whatsapp/status/{tenant_id}:
+    delete:
+      summary: Disconnect and soft-delete WhatsApp session
+      operationId: disconnectWhatsApp
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: confirm
+        in: query
+        required: true
+        schema:
+          type: string
+          enum:
+          - 'true'
+      responses:
+        '200':
+          description: Disconnection initiated
+        '400':
+          description: Invalid UUID or missing confirm
+        '401':
+          description: Missing or invalid Admin JWT
+  /admin/whatsapp/status/{tenant_id}/audit:
+    get:
+      summary: Audit log for a specific WhatsApp channel
+      operationId: getWhatsAppAudit
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Audit entries for the channel
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditEntry'
+        '400':
+          description: Invalid UUID format
+        '401':
+          description: Missing or invalid Admin JWT
+  /admin/audit:
+    get:
+      summary: Paginated admin audit trail
+      operationId: getAuditTrail
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 50
+      - name: action
+        in: query
+        schema:
+          type: string
+      - name: resource
+        in: query
+        schema:
+          type: string
+      - name: resource_id
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Paginated audit entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditEntry'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Missing or invalid Admin JWT
+  /admin/dashboard/summary:
+    get:
+      summary: Aggregated dashboard metrics
+      operationId: getDashboardSummary
+      security:
+      - adminBearerAuth: []
+      responses:
+        '200':
+          description: Dashboard metrics (tenants, jobs, whatsapp, storage, inbox)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tenants:
+                    type: object
+                  jobs:
+                    type: object
+                  whatsapp:
+                    type: object
+                  storage:
+                    type: object
+                  inbox:
+                    type: object
+        '401':
+          description: Missing or invalid Admin JWT
+  /admin/health:
+    get:
+      summary: Aggregated health status of all services
+      operationId: getHealth
+      security:
+      - adminBearerAuth: []
+      responses:
+        '200':
+          description: Health check results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum:
+                    - healthy
+                    - degraded
+                    - unhealthy
+                  services:
+                    type: object
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          description: Missing or invalid Admin JWT
+  /admin/logs:
+    get:
+      summary: Query logs via Loki proxy
+      operationId: getLogs
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - name: query
+        in: query
+        schema:
+          type: string
+          default: '{job="jarvis"}'
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 100
+      - name: start
+        in: query
+        schema:
+          type: string
+      - name: end
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Log entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                  meta:
+                    type: object
+        '401':
+          description: Missing or invalid Admin JWT
+        '502':
+          description: Loki unreachable
+  /admin/logs/labels:
+    get:
+      summary: Available Loki label names
+      operationId: getLogLabels
+      security:
+      - adminBearerAuth: []
+      responses:
+        '200':
+          description: Loki labels
+        '401':
+          description: Missing or invalid Admin JWT
+        '502':
+          description: Loki unreachable
+  /admin/storage:
+    get:
+      summary: Paginated storage objects list
+      operationId: getStorageObjects
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 50
+      - name: tenant_id
+        in: query
+        schema:
+          type: string
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - pending
+          - uploaded
+          - deleted
+      - name: search
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Paginated storage objects
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Missing or invalid Admin JWT
+  /admin/storage/summary:
+    get:
+      summary: Aggregated storage statistics
+      operationId: getStorageSummary
+      security:
+      - adminBearerAuth: []
+      responses:
+        '200':
+          description: Storage summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  active_files:
+                    type: integer
+                  pending_files:
+                    type: integer
+                  deleted_files:
+                    type: integer
+                  active_bytes:
+                    type: integer
+                  tenants_with_files:
+                    type: integer
+        '401':
+          description: Missing or invalid Admin JWT
+  /admin/config:
+    get:
+      summary: Read system configuration
+      operationId: getConfig
+      security:
+      - adminBearerAuth: []
+      responses:
+        '200':
+          description: Config entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    key:
+                      type: string
+                    value:
+                      type: object
+                    updated_at:
+                      type: string
+                      format: date-time
+                    updated_by:
+                      type: string
+        '401':
+          description: Missing or invalid Admin JWT
+  /admin/config/{key}:
+    patch:
+      summary: Update a system configuration parameter
+      operationId: updateConfig
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - value
+              properties:
+                value:
+                  type: object
+              additionalProperties: false
+      responses:
+        '200':
+          description: Config updated
+        '401':
+          description: Missing or invalid Admin JWT
+        '404':
+          description: Config key not found
+  /admin/tokens/revoked:
+    get:
+      summary: List revoked tokens
+      operationId: getRevokedTokens
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 50
+      responses:
+        '200':
+          description: Paginated revoked tokens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Missing or invalid Admin JWT
+  /admin/tokens/revoke:
+    post:
+      summary: Revoke a tenant token by JTI
+      operationId: revokeToken
+      security:
+      - adminBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - jti
+              - tenant_id
+              properties:
+                jti:
+                  type: string
+                  format: uuid
+                tenant_id:
+                  type: string
+                  format: uuid
+              additionalProperties: false
+      responses:
+        '201':
+          description: Token revoked
+        '401':
+          description: Missing or invalid Admin JWT
+        '409':
+          description: Token already revoked
+  /admin/inbox:
+    get:
+      summary: Paginated inbox items
+      operationId: getInboxItems
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 50
+      - name: status
+        in: query
+        schema:
+          type: string
+      - name: tenant_id
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Paginated inbox entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Missing or invalid Admin JWT
+  /admin/inbox/{id}:
+    get:
+      summary: Detailed single inbox item
+      operationId: getInboxItem
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Inbox item detail
+        '400':
+          description: Invalid UUID format
+        '401':
+          description: Missing or invalid Admin JWT
+        '404':
+          description: Inbox item not found
+  /admin/inbox/{id}/reprocess:
+    post:
+      summary: Reprocess a failed inbox item
+      operationId: reprocessInboxItem
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Item queued for reprocessing
+        '400':
+          description: Invalid UUID format
+        '401':
+          description: Missing or invalid Admin JWT
+        '404':
+          description: Inbox item not found
+  /admin/dev-login:
+    post:
+      summary: Dev-only login (NODE_ENV=development)
+      operationId: devLogin
+      responses:
+        '200':
+          description: Admin JWT for development
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+  /admin/storage/{id}/download-url:
+    get:
+      summary: Generate presigned GET URL for a single object
+      operationId: getStorageDownloadUrl
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Presigned URL generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    format: uri
+                  expires_in:
+                    type: integer
+        '401':
+          description: Missing or invalid Admin JWT
+        '404':
+          description: Object not found
+    delete:
+      summary: Soft-delete a storage object
+      operationId: deleteStorageObject
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: confirm
+        in: query
+        required: true
+        schema:
+          type: string
+          enum:
+          - 'true'
+      responses:
+        '200':
+          description: Object soft-deleted
+        '400':
+          description: Missing confirm
+        '401':
+          description: Missing or invalid Admin JWT
+        '404':
+          description: Object not found
+  /admin/storage/batch-urls:
+    post:
+      summary: Generate presigned GET URLs for multiple objects
+      operationId: getStorageBatchUrls
+      security:
+      - adminBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - ids
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  maxItems: 100
+              additionalProperties: false
+      responses:
+        '200':
+          description: Array of presigned URLs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    url:
+                      type: string
+                      format: uri
+        '400':
+          description: Invalid payload
+        '401':
+          description: Missing or invalid Admin JWT
+  /admin/storage/bulk-delete:
+    post:
+      summary: Soft-delete multiple storage objects
+      operationId: bulkDeleteStorageObjects
+      security:
+      - adminBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - ids
+              - confirm
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  maxItems: 100
+                confirm:
+                  type: boolean
+              additionalProperties: false
+      responses:
+        '200':
+          description: Objects soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deletedCount:
+                    type: integer
+        '400':
+          description: Invalid payload or missing confirm
+        '401':
+          description: Missing or invalid Admin JWT
+  /admin/storage/bulk-download:
+    post:
+      summary: Enqueue job to generate zip file of selected objects
+      operationId: bulkDownloadStorageObjects
+      security:
+      - adminBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - ids
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  maxItems: 500
+              additionalProperties: false
+      responses:
+        '202':
+          description: Job enqueued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobId:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+        '400':
+          description: Invalid payload
+        '401':
+          description: Missing or invalid Admin JWT
+  /admin/storage/zip/{jobId}/download-url:
+    get:
+      summary: Generate presigned GET URL for generated zip file
+      operationId: getZipDownloadUrl
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - name: jobId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Presigned URL generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    format: uri
+        '401':
+          description: Missing or invalid Admin JWT
+        '404':
+          description: Zip not found
 components:
   parameters:
     TenantId:
@@ -256,7 +1166,6 @@ components:
       schema:
         type: string
         format: uuid
-
   schemas:
     Tenant:
       type: object
@@ -273,7 +1182,12 @@ components:
           type: string
           format: date-time
           nullable: true
-
+        status:
+          type: string
+          enum: [active, suspended, trial]
+        config:
+          type: object
+          additionalProperties: true
     TenantCreated:
       type: object
       properties:
@@ -285,7 +1199,6 @@ components:
         created_at:
           type: string
           format: date-time
-
     PaginationMeta:
       type: object
       properties:
@@ -295,7 +1208,6 @@ components:
           type: integer
         limit:
           type: integer
-
     Job:
       type: object
       properties:
@@ -319,7 +1231,35 @@ components:
           type: string
           format: date-time
           nullable: true
-
+        tenant_id:
+          type: string
+          format: uuid
+          nullable: true
+        tenant_name:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+    AuditEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        actor:
+          type: string
+        action:
+          type: string
+        resource:
+          type: string
+        resource_id:
+          type: string
+        details:
+          type: object
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
   securitySchemes:
     adminBearerAuth:
       type: http

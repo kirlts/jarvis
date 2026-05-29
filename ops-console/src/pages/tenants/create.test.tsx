@@ -22,25 +22,25 @@ describe("TenantCreatePage", () => {
 
   it("renders form correctly", () => {
     render(<TenantCreatePage />);
-    expect(screen.getByLabelText("Tenant Name")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create Tenant" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Nombre del usuario")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Crear usuario" })).toBeInTheDocument();
   });
 
   it("shows validation error on empty submit", () => {
     render(<TenantCreatePage />);
-    fireEvent.click(screen.getByRole("button", { name: "Create Tenant" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear usuario" }));
     
-    expect(screen.getByText("Tenant name is required")).toBeInTheDocument();
+    expect(screen.getByText("El nombre es obligatorio")).toBeInTheDocument();
     expect(mockMutate).not.toHaveBeenCalled();
   });
 
   it("submits valid form", () => {
     render(<TenantCreatePage />);
     
-    const input = screen.getByLabelText("Tenant Name");
+    const input = screen.getByLabelText("Nombre del usuario");
     fireEvent.change(input, { target: { value: "New Tenant" } });
     
-    fireEvent.click(screen.getByRole("button", { name: "Create Tenant" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear usuario" }));
     
     expect(mockMutate).toHaveBeenCalledWith(
       {
@@ -54,10 +54,10 @@ describe("TenantCreatePage", () => {
   it("shows error on failed creation", () => {
     render(<TenantCreatePage />);
     
-    const input = screen.getByLabelText("Tenant Name");
+    const input = screen.getByLabelText("Nombre del usuario");
     fireEvent.change(input, { target: { value: "New Tenant" } });
     
-    fireEvent.click(screen.getByRole("button", { name: "Create Tenant" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear usuario" }));
     
     // Simulate error callback
     const { onError } = mockMutate.mock.calls[0][1];

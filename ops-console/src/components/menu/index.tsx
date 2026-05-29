@@ -1,27 +1,47 @@
-import { useMenu } from "@refinedev/core";
 import { NavLink } from "react-router";
 
-const NAV_ICONS: Record<string, string> = {
-  tenants: "👥",
-  jobs: "⚙️",
-  whatsapp: "💬",
-};
+interface NavItem {
+  path: string;
+  label: string;
+  icon: string;  /* Unicode text character — inherits currentColor via CSS */
+}
 
-export const Menu = () => {
-  const { menuItems } = useMenu();
+const SECCION_OPERACION: NavItem[] = [
+  { path: "/dashboard", label: "Dashboard", icon: "◧" },
+  { path: "/usuarios", label: "Usuarios", icon: "◉" },
+];
 
+const SECCION_SISTEMA: NavItem[] = [
+  { path: "/operaciones", label: "Operaciones", icon: "⚙" },
+  { path: "/storage", label: "Storage", icon: "▤" },
+  { path: "/sistema", label: "Sistema", icon: "⚒" },
+];
+
+export const Menu = ({ collapsed = false }: { collapsed?: boolean }) => {
   return (
-    <ul className="sidebar-nav">
-      {menuItems.map((item) => (
-        <li key={item.key}>
-          <NavLink to={item.route ?? "/"}>
-            <span className="sidebar-nav-icon">
-              {NAV_ICONS[item.key] || "📄"}
-            </span>
-            {item.label}
-          </NavLink>
-        </li>
-      ))}
-    </ul>
+    <nav>
+      {!collapsed && <span className="sidebar-section-label">Operación</span>}
+      <ul className="sidebar-nav">
+        {SECCION_OPERACION.map((item) => (
+          <li key={item.path}>
+            <NavLink to={item.path} title={collapsed ? item.label : undefined}>
+              <span className="sidebar-nav-icon">{item.icon}</span>
+              {!collapsed && item.label}
+            </NavLink>
+          </li>
+        ))}
+      </ul>
+      {!collapsed && <span className="sidebar-section-label">Sistema</span>}
+      <ul className="sidebar-nav">
+        {SECCION_SISTEMA.map((item) => (
+          <li key={item.path}>
+            <NavLink to={item.path} title={collapsed ? item.label : undefined}>
+              <span className="sidebar-nav-icon">{item.icon}</span>
+              {!collapsed && item.label}
+            </NavLink>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 };

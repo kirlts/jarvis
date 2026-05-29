@@ -7,6 +7,21 @@ import config from './config.js';
 
 const { Pool } = pg;
 
+const isTestEnv = process.env.NODE_ENV === 'test' || !!process.env.NODE_TEST_CONTEXT;
+if (isTestEnv) {
+  const isDefaultSandbox =
+    (config.pooler.host === 'localhost' || config.pooler.host === '127.0.0.1' || config.pooler.host === '0.0.0.0') &&
+    config.pooler.database === 'jarvis' &&
+    !process.env.ALLOW_TEST_POLLUTION;
+
+  if (isDefaultSandbox) {
+    throw new Error(
+      `[SECURITY/ISOLATION] Connection blocked: Attempted to connect to the active development/sandbox database ('jarvis' on localhost) during test execution. ` +
+      `To prevent test pollution, tests must exclusively run against isolated ephemeral containers (Testcontainers) or an explicitly isolated test database (e.g. 'jarvis_test').`
+    );
+  }
+}
+
 const pool = new Pool({
   ...config.pooler,
   max: 20,

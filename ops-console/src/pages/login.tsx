@@ -24,16 +24,16 @@ export function LoginPage() {
       const response = await fetch(`${API_URL}/admin/dev-login`, {
         method: "POST",
       });
-      if (!response.ok) throw new Error("Dev login failed. Ensure NODE_ENV=development in backend.");
+      if (!response.ok) throw new Error("Login de desarrollo falló. Asegurar NODE_ENV=development en el backend.");
       const data = await response.json();
       login(
         { token: data.token },
         {
-          onError: (err) => setError(err?.message || "Dev login failed"),
+          onError: (err) => setError(err?.message || "Login de desarrollo falló"),
         }
       );
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError((err as Error).message);
     } finally {
       setIsDevLoginPending(false);
     }
@@ -44,7 +44,7 @@ export function LoginPage() {
     setError("");
 
     if (!token.trim()) {
-      setError("Token is required");
+      setError("El token es obligatorio");
       return;
     }
 
@@ -52,7 +52,7 @@ export function LoginPage() {
       { token: token.trim() },
       {
         onError: (err) => {
-          setError(err?.message || "Authentication failed");
+          setError(err?.message || "Autenticación fallida");
         },
       }
     );
@@ -65,7 +65,7 @@ export function LoginPage() {
         justifyContent: "center",
         alignItems: "center",
         minHeight: "100vh",
-        background: "#0a0a0f",
+        background: "var(--surface-0)",
       }}
     >
       <form
@@ -73,95 +73,69 @@ export function LoginPage() {
         style={{
           display: "flex",
           flexDirection: "column",
-          gap: "1rem",
-          padding: "2rem",
+          gap: "var(--sp-5)",
+          padding: "var(--sp-8)",
           maxWidth: "480px",
           width: "100%",
+          background: "var(--surface-2)",
+          border: "1px solid var(--border-subtle)",
+          borderRadius: "var(--radius-lg)",
         }}
       >
-        <h1
-          style={{
-            color: "#e0e0e8",
-            fontSize: "1.5rem",
-            fontWeight: 600,
-            margin: 0,
-          }}
-        >
-          Jarvis Ops Console
-        </h1>
-        <p style={{ color: "#888", fontSize: "0.875rem", margin: 0 }}>
-          Phase 1: Enter your pre-signed Admin JWT (RS256)
-        </p>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', marginBottom: 'var(--sp-3)' }}>
+            <div className="sidebar-brand-icon">J</div>
+            <h1 className="page-title" style={{ fontSize: 'var(--text-xl)' }}>
+              Jarvis — Consola de Operaciones
+            </h1>
+          </div>
+          <p className="page-subtitle">
+            Fase 1: Ingresa tu JWT de administrador pre-firmado (RS256)
+          </p>
+        </div>
 
-        <textarea
-          id="jwt-token-input"
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-          placeholder="eyJhbGciOiJSUzI1NiIs..."
-          rows={4}
-          style={{
-            padding: "0.75rem",
-            borderRadius: "6px",
-            border: "1px solid #333",
-            background: "#111118",
-            color: "#e0e0e8",
-            fontFamily: "monospace",
-            fontSize: "0.8rem",
-            resize: "vertical",
-          }}
-        />
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label className="form-label" htmlFor="jwt-token-input">Token JWT Admin</label>
+          <textarea
+            id="jwt-token-input"
+            className="form-input"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="eyJhbGciOiJSUzI1NiIs..."
+            rows={3}
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "var(--text-xs)",
+            }}
+          />
+        </div>
 
         {error && (
-          <p
-            style={{
-              color: "#ef4444",
-              fontSize: "0.8rem",
-              margin: 0,
-              padding: "0.5rem",
-              background: "rgba(239, 68, 68, 0.1)",
-              borderRadius: "4px",
-            }}
-          >
+          <div className="error-banner" style={{ marginBottom: 0 }}>
             {error}
-          </p>
+          </div>
         )}
 
-        <div style={{ display: "flex", gap: "1rem", marginTop: "1rem" }}>
+        <div style={{ display: "flex", gap: "var(--sp-3)" }}>
           <button
             type="submit"
+            className="btn btn-primary"
             disabled={isPending || isDevLoginPending}
-            style={{
-              padding: "0.75rem",
-              borderRadius: "6px",
-              border: "none",
-              background: "#6366f1",
-              color: "#fff",
-              fontWeight: 600,
-              cursor: isPending ? "not-allowed" : "pointer",
-              opacity: isPending ? 0.7 : 1,
-              flex: 1,
-            }}
+            style={{ flex: 1, justifyContent: 'center' }}
+            id="login-submit-button"
           >
-            {isPending ? "Authenticating..." : "Login with Token"}
+            {isPending ? "Autenticando…" : "Ingresar con token"}
           </button>
-          
+
           <button
             type="button"
+            className="btn btn-ghost"
             onClick={handleDevLogin}
             disabled={isPending || isDevLoginPending}
-            style={{
-              padding: "0.75rem",
-              borderRadius: "6px",
-              border: "1px solid #6366f1",
-              background: "transparent",
-              color: "#6366f1",
-              fontWeight: 600,
-              cursor: isDevLoginPending ? "not-allowed" : "pointer",
-              opacity: isDevLoginPending ? 0.7 : 1,
-              flex: 1,
-            }}
+            style={{ flex: 1, justifyContent: 'center' }}
+            id="dev-login-button"
           >
-            {isDevLoginPending ? "Requesting..." : "Dev Login (1-Click)"}
+            {isDevLoginPending ? "Solicitando…" : "Login Dev (1-Click)"}
           </button>
         </div>
       </form>

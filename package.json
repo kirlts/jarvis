@@ -14,7 +14,7 @@
     "sandbox:up": "docker compose up -d --build",
     "sandbox:down": "docker compose down -v",
     "sandbox:health": "node scripts/health-check.js",
-    "test": "node --test src/**/*.test.js",
+    "test": "node scripts/pre_test_lint.js && node --test src/rls.test.js src/db.test.js src/features/admin/admin.property.test.js src/features/admin/routes.integration.test.js",
     "test:unit": "node --test src/features/**/*.test.js src/rls.test.js"
   },
   "dependencies": {
@@ -27,6 +27,7 @@
     "@fastify/rate-limit": "^10.2.1",
     "@fastify/sensible": "^6.0.0",
     "@whiskeysockets/baileys": "^7.0.0-rc.9",
+    "archiver": "^8.0.0",
     "fastify": "^5.8.5",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.20.0",

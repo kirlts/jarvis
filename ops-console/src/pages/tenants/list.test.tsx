@@ -6,11 +6,22 @@ import { TenantListPage } from "./list";
 const mockUseList = vi.fn();
 const mockUseDelete = vi.fn();
 const mockUseNavigation = vi.fn();
+const mockUseUpdate = vi.fn();
 
 vi.mock("@refinedev/core", () => ({
   useList: () => mockUseList(),
   useDelete: () => mockUseDelete(),
   useNavigation: () => mockUseNavigation(),
+  useUpdate: () => mockUseUpdate(),
+}));
+
+vi.mock("react-router", () => ({
+  useNavigate: () => vi.fn(),
+  Link: ({ children, to }: any) => <a href={to}>{children}</a>,
+}));
+
+vi.mock("../../components/toast", () => ({
+  useToast: () => ({ addToast: vi.fn() }),
 }));
 
 describe("TenantListPage", () => {
@@ -21,6 +32,7 @@ describe("TenantListPage", () => {
     vi.clearAllMocks();
     mockUseNavigation.mockReturnValue({ create: mockCreate });
     mockUseDelete.mockReturnValue({ mutate: mockMutate });
+    mockUseUpdate.mockReturnValue({ mutate: vi.fn() });
   });
 
   it("renders loading state", () => {
@@ -30,7 +42,7 @@ describe("TenantListPage", () => {
     });
 
     render(<TenantListPage />);
-    expect(screen.getByText("Loading tenants…")).toBeInTheDocument();
+    expect(screen.getByText("Cargando usuarios…")).toBeInTheDocument();
   });
 
   it("renders empty state", () => {
@@ -40,7 +52,7 @@ describe("TenantListPage", () => {
     });
 
     render(<TenantListPage />);
-    expect(screen.getByText("No tenants yet. Create one to get started.")).toBeInTheDocument();
+    expect(screen.getByText("Sin usuarios aún. Crea uno para comenzar.")).toBeInTheDocument();
   });
 
   it("renders tenant list and handles deletion", () => {
@@ -56,13 +68,14 @@ describe("TenantListPage", () => {
     expect(screen.getByText("Acme Corp")).toBeInTheDocument();
     
     // Click delete
-    fireEvent.click(screen.getByText("Delete"));
+    fireEvent.click(screen.getByText("Eliminar"));
     
     // Modal should appear
-    expect(screen.getByText(/Are you sure you want to delete/)).toBeInTheDocument();
+    expect(screen.getByText(/¿Eliminar/)).toBeInTheDocument();
     
     // Confirm delete
-    fireEvent.click(screen.getByText("Delete Tenant", { selector: 'button.btn-danger' }));
+    const confirmBtn = document.getElementById("confirm-delete-button");
+    if (confirmBtn) fireEvent.click(confirmBtn);
     
     expect(mockMutate).toHaveBeenCalledWith(
       { resource: "tenants", id: "tenant-1" },

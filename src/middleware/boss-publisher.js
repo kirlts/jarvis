@@ -20,6 +20,11 @@ export async function registerBossPublisher(app) {
 
   await boss.start();
   await boss.createQueue('sync-inbox-process');
+  await boss.createQueue('admin-lifecycle', { retryBackoff: false, retryLimit: 0 });
+
+  // Sink worker: auto-completes admin lifecycle jobs so they show as 'completed' in Job Queues.
+  // These jobs exist purely for observability — no processing logic needed.
+  await boss.work('admin-lifecycle', { teamSize: 5, teamConcurrency: 5 }, async () => {});
 
   // Decorate app so routes can access boss.send()
   app.decorate('boss', boss);

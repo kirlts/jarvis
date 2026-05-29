@@ -8,6 +8,11 @@ vi.mock("@refinedev/core", () => ({
   useList: (args: any) => mockUseList(args),
 }));
 
+vi.mock("../../components/toast", () => ({
+  useToast: () => ({ addToast: vi.fn() }),
+}));
+
+
 describe("JobListPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -74,4 +79,27 @@ describe("JobListPage", () => {
     render(<JobListPage />);
     expect(screen.getByText("Network error")).toBeInTheDocument();
   });
+
+  it("renders purge modal and validates confirmation input", () => {
+    mockUseList.mockReturnValue({
+      query: { isLoading: false, isError: false, refetch: vi.fn() },
+      result: { data: [] },
+    });
+
+    const { container } = render(<JobListPage />);
+
+    // Click "Purge Jobs" button to open modal
+    const purgeButton = container.querySelector("#purge-jobs-button");
+    expect(purgeButton).toBeInTheDocument();
+    fireEvent.click(purgeButton!);
+
+    // Modal should be visible
+    expect(screen.getByText(/Purge Finished Jobs/i)).toBeInTheDocument();
+    
+    // The confirm button in modal should not be disabled
+    const confirmButton = container.querySelector("#confirm-purge-jobs") as HTMLButtonElement;
+    expect(confirmButton).toBeInTheDocument();
+    expect(confirmButton).not.toBeDisabled();
+  });
 });
+
