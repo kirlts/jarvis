@@ -89,6 +89,7 @@ export interface TimelineEvent {
   date: string;
   content: string;
   item: any;
+  channelName?: string;
   additionalItems?: any[];
 }
 
@@ -96,9 +97,12 @@ export interface TimelineEvent {
 export function buildTimelineEvents(
   auditData: any[] | null | undefined,
   jobsData: any[] | null | undefined,
-  inboxData: any[] | null | undefined
+  inboxData: any[] | null | undefined,
+  channels: any[] = []
 ): TimelineEvent[] {
   const evts: TimelineEvent[] = [];
+
+  const getChannelName = (id: string) => channels.find(c => c.id === id)?.name || id;
 
   if (auditData) {
     evts.push(...auditData
@@ -125,7 +129,11 @@ export function buildTimelineEvents(
         } else if (i.name === 'wapp-lifecycle' && i.data?.event === 'connection_opened') {
           content = `✅ Conexión establecida`;
         }
-        return { type: 'operación', id: i.id, date: i.created_on, content, item: i };
+        
+        let channelName;
+        if (i.data?.channelId) channelName = getChannelName(i.data.channelId);
+
+        return { type: 'operación', id: i.id, date: i.created_on, content, item: i, channelName };
       }));
   }
 
@@ -148,7 +156,11 @@ export function buildTimelineEvents(
       } else {
         content = `📥 Mensaje recibido de ${displayName}`;
       }
-      return { type: 'whatsapp', id: i.id, date: i.created_at, content, item: i };
+      
+      let channelName;
+      if (i.payload?.channelId) channelName = getChannelName(i.payload.channelId);
+
+      return { type: 'whatsapp', id: i.id, date: i.created_at, content, item: i, channelName };
     }));
   }
 

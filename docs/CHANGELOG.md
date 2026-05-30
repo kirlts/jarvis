@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- [TASK-025] Migración `020_wapp_multichannel.sql`: tabla `wapp_channels` con RLS, `config JSONB`, soft-delete, y vinculación FK desde `wapp_sessions.channel_id`. Migración automática de datos existentes (1 canal "WhatsApp Principal" por sesión activa).
+- [TASK-025] Endpoints CRUD de canales WhatsApp: `GET|POST /admin/whatsapp/status/:tenant_id/channels`, `GET|PATCH|DELETE /:channel_id`, `POST /:channel_id/reconnect` con validación UUID, verificación de ownership, y audit logging completo.
+- [TASK-025] Componente `ChannelDetailDrawer` (Ops Console): panel deslizable con QR reactivo, metadata de sesión, editor inline de nombre/config, y acciones de ciclo de vida (reconectar/desconectar/eliminar) vía `useCustomMutation`.
+- [TASK-025] Tab multicanalidad en detalle de Tenant (Ops Console): tabla de N canales con estado, nombre, teléfono, config y fecha de creación; formulario inline para crear canales nuevos; SSE-driven refresh automático.
+- [TASK-026] UI Dinámica para Plugins de Multicanalidad (Ops Console): componente `PluginConfigForm` que reemplaza la edición JSON pura por formularios tipados basados en un Manifest Registry en memoria (ej. Antigravity CLI, Whisper STT) con fallback a edición raw JSON.
+
+### Changed
+- [TASK-025] Worker Baileys: `activeSessions` Map reescrito de `tenantId` → `channelId` como clave primaria. `startSession(channelId, tenantId, sessionId)`, `stopSession(channelId)`. Bootstrap via `JOIN wapp_channels`. Consumidores `wapp-send-process` y `wapp-session-control` con resolución por `channelId` + fallback legacy por `tenantId`.
+- [TASK-025] Trigger `cascade_tenant_soft_delete` actualizado para incluir `wapp_channels` en la cascada de eliminación lógica.
+- [TASK-025] Trigger `notify_wapp_status_change` enriquecido con `channel_id` en el payload JSON del NOTIFY para propagación SSE granular.
+- Historial de Actividad (Ops Console): La tabla de timeline de inquilinos ahora extrae y renderiza el nombre del "Canal" asociado a cada evento de la bandeja de entrada o de ciclo de vida (`whatsapp`, `operación`).
+- Worker Baileys: Los eventos de la bandeja de entrada `sync_inbox` y los payloads encolados en pg-boss (`sync-inbox-process`, `wapp-lifecycle`) ahora arrastran el `channelId` lógico de origen a través de todo el flujo, cerrando el gap de trazabilidad de canales.
 - Planificación de la Fase 2: Documentadas en `MASTER-SPEC.md` y `TODO.md` las tareas de mitigación arquitectónica del MVP (Segregación de Conexiones Lectura/Escritura `[TASK-023]` y Pipeline de Auditoría Automatizada RLS `[TASK-024]`).
 - [TASK-022] Ops Console UI/UX Iteration 1: Agrupamiento inteligente de mensajes multimedia contiguos (imágenes, audios, videos, documentos) recibidos en ráfagas del mismo remitente con una separación menor a 5 segundos, presentándose como una única actividad interactiva en el historial de inquilinos.
 - [TASK-022] Ops Console UI/UX Iteration 1: Colapsado por defecto del panel multimedia en la vista de detalle de actividades, manteniendo las previsualizaciones y reproductores ocultos inicialmente bajo un diseño sobrio y limpio que requiere de un clic explícito para su despliegue.

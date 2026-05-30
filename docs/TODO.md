@@ -405,7 +405,62 @@
 - [x] Corregir trigger de base de datos en la partición `pgboss.job_common` que impedía el envío de NOTIFY para disparar actualizaciones SSE (auto-refresh) en tiempo real para procesos salientes `2026-05-29 15:30:00`
 - [ ] Validar flujos depurados con el Arquitecto Principal (EN PROGRESO - Martín probará e iterará de forma directa en la interfaz de administración junto a Antigravity IDE. La Fase 1 AUN NO está cerca de ser aprobada.)
 
-### 🚨 [TASK-008] Phase 1 Architectural Gate (Principal Architect Approval)
+### 🚧 [TASK-025] Soporte Multicanal de WhatsApp (N Canales por Tenant)
+
+> Ref: MASTER-SPEC §2, §7.1, §7.5. Plan de implementación: `implementation_plan_multichannel.md`
+> Depends on: TASK-004, TASK-010, TASK-020
+> Blocks: TASK-008 (la Fase 1 no puede cerrarse sin validar la gestión multicanal)
+
+**Covered checks:** `[WAPP.FN.01.MIX]`, `[WAPP.FN.02.LLM]`, `[WAPP.CR.01.HUM]`, `[ADMIN.FN.04.LLM]`, `[OPER.FN.03.LLM]`, `[DB.FN.01.LLM]`
+
+**Fase 1: Base de Datos**
+- [x] Crear migración `020_wapp_multichannel.sql`: tabla `wapp_channels` con `id` UUIDv7, `tenant_id`, `name`, `phone_number`, `status`, `config JSONB`, `created_at`, `deleted_at`
+- [x] Crear índice compuesto `idx_channels_tenant_deleted` sobre `wapp_channels(tenant_id, deleted_at)`
+- [x] Implementar políticas RLS en `wapp_channels` para aislamiento multi-tenant
+- [x] Alterar `wapp_sessions` para añadir `channel_id` UUID REFERENCES `wapp_channels(id)` ON DELETE CASCADE
+- [x] Migrar registros existentes: auto-crear un canal "WhatsApp Principal" por cada sesión activa
+- [x] Actualizar trigger `cascade_tenant_soft_delete` para marcar `deleted_at` en cascada sobre `wapp_channels`
+- [x] Actualizar trigger `notify_wapp_status_change` para incluir `channel_id` en el payload de NOTIFY
+
+**Fase 2: Worker Baileys**
+- [x] Refactorizar `activeSessions` Map: clave de `tenantId` a `channelId`
+- [x] Refactorizar `startSession(tenantId, sessionId)` a `startSession(channelId, tenantId, sessionId)`
+- [x] Refactorizar `stopSession(tenantId)` a `stopSession(channelId)`
+- [x] Modificar bootstrap para levantar todas las sesiones activas por canal
+- [x] Modificar consumidor `wapp-send-process` para resolver socket por `channelId` del payload
+- [x] Modificar consumidor `wapp-session-control` para recibir `channelId`
+
+**Fase 3: Admin API (Fastify)**
+- [x] Crear `GET /admin/whatsapp/status/:tenant_id/channels` (listado tabular)
+- [x] Crear `POST /admin/whatsapp/status/:tenant_id/channels` (crear canal)
+- [x] Crear `GET /admin/whatsapp/status/:tenant_id/channels/:channel_id` (detalle + QR)
+- [x] Crear `POST /admin/whatsapp/status/:tenant_id/channels/:channel_id/reconnect`
+- [x] Crear `DELETE /admin/whatsapp/status/:tenant_id/channels/:channel_id`
+- [x] Actualizar `specs/admin-api.yaml` con esquemas de sub-recursos de canales
+
+**Fase 4: Ops Console (Refine v5)**
+- [x] Refactorizar tab "Conexión WhatsApp" en detalle de tenant: tabla multicanalidad con `useCustom` y filtros de estado
+- [x] Crear componente `ChannelDetailDrawer` con QR reactivo, telemetría y acciones (reconectar/desconectar/eliminar)
+- [x] Integrar editor de `config` (binding de plugin) en el drawer
+- [x] Conectar acciones a endpoints vía `useCustomMutation` con `meta.rawUrl`
+- [x] Conectar SSE (`wapp_status_change`) al refetch de la lista de canales
+
+**Fase 5: Pruebas (docs/TEST.md)**
+- [x] Actualizar `specs/admin-api.yaml` y ejecutar Specmatic contra las nuevas rutas
+- [x] Tests de integración (Testcontainers): RLS en `wapp_channels`, cascada soft-delete, persistencia paralela de credenciales
+- [x] Tests de propiedades (fast-check): unicidad UUIDv7 de canales, rechazo de payloads con propiedades no declaradas, sortabilidad cronológica, validación de enum de status (12/12 pass, ~3600 iteraciones)
+- [ ] Stryker: puntuación de mutación > 80% en lógica de canales (`npx stryker run` — ejecución asíncrona ~15min)
+- [x] Regresión: React key collision con múltiples canales del mismo tenant (validación visual en Ops Console) `2026-05-29 21:31`
+
+### 🚧 [TASK-026] UI Dinámica para Plugins de Multicanalidad; 2026-05-29 21:31 [🤖 Verified by tool]
+> Ref: MASTER-SPEC §6, §7.1
+
+**Covered checks:** Transversal governance
+
+- [x] Crear un Manifest Registry en memoria (PLUGINS_REGISTRY) para procesadores (Antigravity CLI, Whisper).
+- [x] Desarrollar componente `PluginConfigForm` dinámico que reemplace la edición raw de JSON.
+- [x] Integrar `PluginConfigForm` en `ChannelDetailPanel` renderizando campos según el schema del plugin.
+- [x] Incluir fallback avanzado de edición JSON pura para atributos no documentados en manifest.### 🚨 [TASK-008] Phase 1 Architectural Gate (Principal Architect Approval)
 
 > Ref: MASTER-SPEC §7.4 FASE 1
 

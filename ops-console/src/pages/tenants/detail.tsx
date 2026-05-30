@@ -10,7 +10,7 @@
  * - Integrated WhatsApp Connection tab (C.1 - C.8 onboarding lifecycle)
  * - Monospace audit logging modal.
  */
-import { useOne, useUpdate, useCustom, useList, useDelete, useInvalidate } from "@refinedev/core";
+import { useOne, useUpdate, useCustom, useList, useDelete, useInvalidate, useCustomMutation } from "@refinedev/core";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useToast } from "../../components/toast";
@@ -18,6 +18,7 @@ import { API_URL } from "../../providers/constants";
 import { getAuthHeader } from "../../providers/auth";
 import { useWhatsAppSSE } from "../../hooks/useWhatsAppSSE";
 import { formatJid, resolveBrowserUrl, formatBytes, timeAgo, copyToClipboard as copyToClipboardUtil, buildTimelineEvents, groupTimelineEvents, extractSearchTerm } from "./timeline-utils";
+import { ChannelDetailPanel } from "../../components/ChannelDetailPanel";
 
 interface Tenant {
   id: string;
@@ -36,15 +37,21 @@ interface TenantStats {
   storage: { files: number; bytes: string };
 }
 
-interface WhatsAppConnection {
+interface WappChannel {
   id: string;
   tenant_id: string;
+  name: string;
+  phone_number: string | null;
   status: string;
-  qr_code?: string;
-  qr_generated_at?: string;
-  qr_scanned_at?: string;
-  qr_scanned_by?: string;
-  updated_at: string;
+  config: Record<string, unknown>;
+  created_at: string;
+  session_id: string | null;
+  session_status: string | null;
+  qr_code: string | null;
+  qr_generated_at: string | null;
+  qr_scanned_at: string | null;
+  qr_scanned_by: string | null;
+  session_updated_at: string | null;
 }
 
 interface AuditLog {
@@ -140,11 +147,15 @@ export function TenantDetailPage() {
   const [generating, setGenerating] = useState(false);
   const [ttlValue, setTtlValue] = useState<number>(24);
 
-  // WhatsApp Tab State
+  // WhatsApp Multichannel State
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedChannel, setSelectedChannel] = useState<WappChannel | null>(null);
+  const [showCreateChannel, setShowCreateChannel] = useState(false);
+  const [newChannelName, setNewChannelName] = useState("");
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [audits, setAudits] = useState<AuditLog[]>([]);
   const [isAuditLoading, setIsAuditLoading] = useState(false);
+  const { mutate: createChannelMutate } = useCustomMutation();
 
   // Timeline UI State
   const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
@@ -184,10 +195,23 @@ export function TenantDetailPage() {
   const inboxData = inboxResult?.data;
   const isInboxLoading = inboxQuery.isLoading;
 
+  // Fetch WhatsApp channels via useCustom (sub-resource under tenant, per RULES.md)
+  const { query: wappQuery, result: channelsResult } = useCustom<WappChannel[]>({
+    url: '',
+    method: 'get',
+    meta: { rawUrl: `/admin/whatsapp/status/${id}/channels` },
+    queryOptions: {
+      queryKey: ['tenant-channels', id, refreshKey],
+      enabled: !!id,
+    },
+  });
+
+  const channels: WappChannel[] = Array.isArray(channelsResult?.data) ? channelsResult.data : [];
+
   const allEvents = useMemo(() => {
-    const events = buildTimelineEvents(auditData as any[], jobsData as any[], inboxData as any[]);
+    const events = buildTimelineEvents(auditData as any[], jobsData as any[], inboxData as any[], channels);
     return groupTimelineEvents(events);
-  }, [auditData, jobsData, inboxData]);
+  }, [auditData, jobsData, inboxData, channels]);
 
   const availableTypes = useMemo(() => {
     const types = new Set(allEvents.map(e => e.type));
@@ -249,20 +273,11 @@ export function TenantDetailPage() {
     }).catch(e => console.error("Error finding storage objects:", e));
   }, [selectedEvent, id, inboxData]);
 
-  // Fetch WhatsApp connections
-  const { query: wappQuery, result: wappResult } = useList<WhatsAppConnection>({
-    resource: "whatsapp",
-    queryOptions: {
-      queryKey: ['tenant-whatsapp', id, refreshKey],
-    },
-  });
-
   const tenant = tenantQuery?.data?.data as Tenant | undefined;
   const stats = statsResult?.data as TenantStats | undefined;
   const isLoading = tenantQuery?.isLoading;
 
-  const wappConnection = wappResult?.data?.find(c => c.tenant_id === id);
-  const isQrPending = wappConnection?.status === 'qr_pending';
+  const hasActiveChannel = channels.some(c => c.session_status === 'connected' || c.session_status === 'qr_pending');
 
   // SSE-driven real-time updates for all tenant activity
   const invalidate = useInvalidate();
@@ -479,22 +494,21 @@ export function TenantDetailPage() {
     }
   }
 
-  const handleReconnect = async () => {
-    try {
-      const response = await fetch(`${API_URL}/admin/whatsapp/status/${id}/reconnect`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeader(),
-        },
-        body: JSON.stringify({}),
-      });
-      if (!response.ok) throw new Error("Error al reconectar");
-      addToast("Inicialización / reconexión de canal WhatsApp encolada", "success");
-      setRefreshKey(k => k + 1);
-    } catch (err) {
-      addToast(err instanceof Error ? err.message : "Error al reconectar", "error");
-    }
+  const handleCreateChannel = () => {
+    if (!newChannelName.trim()) return;
+    createChannelMutate({
+      url: `${API_URL}/admin/whatsapp/status/${id}/channels`,
+      method: "post",
+      values: { name: newChannelName.trim() },
+    }, {
+      onSuccess: () => {
+        addToast("Canal creado", "success");
+        setNewChannelName("");
+        setShowCreateChannel(false);
+        setRefreshKey(k => k + 1);
+      },
+      onError: (err) => addToast(`Error: ${err.message}`, "error"),
+    });
   };
 
   const openAudits = async () => {
@@ -502,9 +516,7 @@ export function TenantDetailPage() {
     setIsAuditLoading(true);
     try {
       const response = await fetch(`${API_URL}/admin/whatsapp/status/${id}/audit`, {
-        headers: {
-          ...getAuthHeader(),
-        },
+        headers: { ...getAuthHeader() },
       });
       if (!response.ok) throw new Error("Error al obtener auditoría");
       const data = await response.json();
@@ -700,15 +712,16 @@ export function TenantDetailPage() {
                   <thead style={{ position: 'sticky', top: 0, background: 'var(--surface-1)', zIndex: 1 }}>
                     <tr>
                       <th>Fecha</th>
+                      <th>Canal</th>
                       <th>Tipo</th>
                       <th>Descripción / Contenido</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(isAuditLoadingList || isJobsLoading || isInboxLoading) ? (
-                      <tr><td colSpan={3} style={{ textAlign: 'center', padding: 'var(--sp-4)' }}>Cargando historial...</td></tr>
+                      <tr><td colSpan={4} style={{ textAlign: 'center', padding: 'var(--sp-4)' }}>Cargando historial...</td></tr>
                     ) : filteredEvents.length === 0 ? (
-                      <tr><td colSpan={3} style={{ textAlign: 'center', padding: 'var(--sp-4)' }}>No hay eventos para mostrar.</td></tr>
+                      <tr><td colSpan={4} style={{ textAlign: 'center', padding: 'var(--sp-4)' }}>No hay eventos para mostrar.</td></tr>
                     ) : (
                       filteredEvents.slice(0, 50).map(evt => (
                         <tr 
@@ -721,6 +734,9 @@ export function TenantDetailPage() {
                           }}
                         >
                           <td style={{ whiteSpace: 'nowrap' }}>{new Date(evt.date).toLocaleString("es-CL", { hour12: false, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
+                          <td style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+                            {evt.channelName || '—'}
+                          </td>
                           <td>
                             <span className={`badge badge-${evt.type === 'operación' ? 'success' : evt.type === 'whatsapp' ? 'warning' : 'neutral'}`}>
                               {evt.type}
@@ -1039,209 +1055,106 @@ export function TenantDetailPage() {
 
       {activeTab === 'whatsapp' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
+          {/* Header with Create button */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+              <h3 style={{ margin: 0 }}>Canales WhatsApp</h3>
+              <span className="badge badge-neutral">{channels.length}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
+              <button className="btn btn-ghost btn-sm" onClick={openAudits}>Ver auditoría</button>
+              <button className="btn btn-primary btn-sm" onClick={() => setShowCreateChannel(true)} id="create-channel-button">
+                + Nuevo canal
+              </button>
+            </div>
+          </div>
+
+          {/* Create Channel Inline Form */}
+          {showCreateChannel && (
+            <div style={{ display: 'flex', gap: 'var(--sp-2)', alignItems: 'center', padding: 'var(--sp-3)', background: 'var(--surface-1)', borderRadius: 'var(--radius-md)' }}>
+              <input className="form-input" placeholder="Nombre del canal (ej: Bot Ventas)" value={newChannelName} onChange={(e) => setNewChannelName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleCreateChannel()} autoFocus style={{ flex: 1 }} />
+              <button className="btn btn-primary btn-sm" onClick={handleCreateChannel} disabled={!newChannelName.trim()}>Crear</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => { setShowCreateChannel(false); setNewChannelName(''); }}>Cancelar</button>
+            </div>
+          )}
+
+          {/* Master-Detail Split Layout */}
           {wappQuery.isLoading ? (
             <div className="data-table-wrapper" style={{ padding: 'var(--sp-5)' }}>
               <span className="skeleton skeleton-line" style={{ width: '60%', marginBottom: 'var(--sp-3)' }} />
               <span className="skeleton skeleton-line" style={{ width: '40%' }} />
             </div>
-          ) : !wappConnection ? (
-            /* Onboarding empty state (Zero-CLI onboarding bridge!) */
+          ) : channels.length === 0 ? (
             <div className="empty-state" style={{ padding: 'var(--sp-8)' }}>
               <div className="empty-state-icon">🔌</div>
-              <h2 style={{ margin: 'var(--sp-3) 0 var(--sp-2) 0', color: 'oklch(var(--text))' }}>Sin canal WhatsApp inicializado</h2>
-              <p style={{ maxWidth: '480px', margin: '0 auto var(--sp-5) auto', fontSize: '0.9rem', color: 'color-mix(in oklch, var(--text) 60%, transparent)' }}>
-                Para conectar un número de WhatsApp a {tenant.name}, necesitas inicializar una sesión.
-                Esto levantará un worker Baileys dedicado y generará un código QR de conexión.
+              <h2 style={{ margin: 'var(--sp-3) 0 var(--sp-2) 0' }}>Sin canales WhatsApp</h2>
+              <p style={{ maxWidth: '480px', margin: '0 auto var(--sp-5) auto', fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
+                Crea un canal para conectar un número de WhatsApp a {tenant.name}.
               </p>
-              <button 
-                className="btn btn-primary"
-                onClick={handleReconnect}
-                id="initialize-wapp-button"
-              >
-                Inicializar canal WhatsApp
-              </button>
+              <button className="btn btn-primary" onClick={() => setShowCreateChannel(true)}>+ Crear primer canal</button>
             </div>
           ) : (
-            <div className="dashboard-card" style={{ cursor: 'default', padding: 'var(--sp-5)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--sp-4)' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', marginBottom: 'var(--sp-2)' }}>
-                    <span className={`dashboard-dot ${STATUS_DOT[wappConnection.status] || 'dashboard-dot-neutral'}`} />
-                    <span className="cell-mono" style={{ fontSize: '1.1rem', fontWeight: 6 }}>
-                      Sesión del canal
-                    </span>
-                    <span className={`badge ${STATUS_BADGE[wappConnection.status] || "badge-neutral"}`}>
-                      {wappConnection.status.replace(/_/g, ' ')}
-                    </span>
-                  </div>
-                  <p style={{ margin: 0, fontSize: '0.9rem', color: 'color-mix(in oklch, var(--text) 70%, transparent)' }}>
-                    Último heartbeat: {wappConnection.updated_at ? timeAgo(wappConnection.updated_at) : '—'}
-                  </p>
-                  
-                  {/* QR Audit Metadata */}
-                  {(wappConnection.qr_scanned_at || wappConnection.qr_generated_at) && (
-                    <div style={{ marginTop: 'var(--sp-3)', display: 'flex', flexDirection: 'column', gap: 'var(--sp-1)', fontSize: '0.85rem' }}>
-                      {wappConnection.qr_generated_at && (
-                        <span>QR Generado: <strong className="cell-mono">{new Date(wappConnection.qr_generated_at).toLocaleString("es-CL", { hour12: false, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</strong></span>
-                      )}
-                      {wappConnection.qr_scanned_at && (
-                        <span>QR Escaneado: <strong className="cell-mono">{new Date(wappConnection.qr_scanned_at).toLocaleString("es-CL", { hour12: false, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</strong> por <span className="badge badge-neutral">{wappConnection.qr_scanned_by}</span></span>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
-                  <button
-                    className="btn btn-secondary btn-sm"
-                    onClick={openAudits}
-                  >
-                    Ver auditoría QR
-                  </button>
-                  {/* Regenerate QR: shows for expired, pending, waiting, or disconnected */}
-                  {(wappConnection.status === 'qr_expired' || wappConnection.status === 'qr_pending' || wappConnection.status === 'waiting_qr' || wappConnection.status === 'disconnected') && (
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      onClick={handleReconnect}
-                    >
-                      Regenerar QR
-                    </button>
-                  )}
-                  {/* Reconnect: only for connected sessions (has credentials) */}
-                  {wappConnection.status === 'connected' && (
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      onClick={handleReconnect}
-                    >
-                      Reconectar
-                    </button>
-                  )}
-                  {wappConnection.status === 'qr_pending' || wappConnection.status === 'waiting_qr' ? (
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      style={{ color: 'oklch(0.65 0.15 80)', borderColor: 'oklch(0.65 0.15 80 / 0.3)' }}
-                      onClick={() => {
-                        if (confirm("¿Cancelar esta solicitud de conexión pendiente?")) {
-                          deleteSession({
-                            resource: "whatsapp",
-                            id: wappConnection.tenant_id,
-                          }, {
-                            onSuccess: () => {
-                              addToast("Solicitud de conexión cancelada", "success");
-                              setRefreshKey(k => k + 1);
-                            }
-                          });
-                        }
-                      }}
-                    >
-                      Cancelar solicitud
-                    </button>
-                  ) : wappConnection.status === 'connected' ? (
-                    <button
-                      className="btn btn-danger btn-sm"
-                      onClick={() => {
-                        if (confirm("¿Desconectar este canal WhatsApp? Se eliminarán las credenciales de sesión.")) {
-                          deleteSession({
-                            resource: "whatsapp",
-                            id: wappConnection.tenant_id,
-                          }, {
-                            onSuccess: () => {
-                              addToast("Canal WhatsApp desconectado", "success");
-                              setRefreshKey(k => k + 1);
-                            }
-                          });
-                        }
-                      }}
-                    >
-                      Desconectar
-                    </button>
-                  ) : null}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: selectedChannel ? '1fr 1.2fr' : '1fr',
+              gap: 'var(--sp-4)',
+              transition: 'grid-template-columns var(--duration-normal) ease',
+              minHeight: '360px',
+            }}>
+              {/* LEFT: Channel List */}
+              <div className="data-table-wrapper" style={{ overflowY: 'auto', maxHeight: '520px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {channels.map((ch) => {
+                    const status = ch.session_status || ch.status;
+                    const isSelected = selectedChannel?.id === ch.id;
+                    return (
+                      <div
+                        key={ch.id}
+                        onClick={() => setSelectedChannel(isSelected ? null : ch)}
+                        className="channel-list-item"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 'var(--sp-3)',
+                          padding: 'var(--sp-3) var(--sp-4)',
+                          cursor: 'pointer',
+                          background: isSelected ? 'var(--surface-2)' : 'transparent',
+                          borderLeft: isSelected ? '3px solid var(--accent)' : '3px solid transparent',
+                          transition: 'all var(--duration-fast) ease',
+                        }}
+                      >
+                        <span className={`dashboard-dot ${STATUS_DOT[status] || 'dashboard-dot-neutral'}`} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 500, fontSize: 'var(--text-sm)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {ch.name}
+                          </div>
+                          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                            {ch.phone_number || 'Sin número'} · {status.replace(/_/g, ' ')}
+                          </div>
+                        </div>
+                        <span className={`badge ${STATUS_BADGE[status] || 'badge-neutral'}`} style={{ fontSize: 'var(--text-xs)', flexShrink: 0 }}>
+                          {status.replace(/_/g, ' ')}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* QR Code Visualizer inside Tenant Detail */}
-              {wappConnection.status === 'qr_pending' && wappConnection.qr_code && (
-                <div style={{ 
-                  marginTop: 'var(--sp-5)', 
-                  padding: 'var(--sp-5)', 
-                  borderRadius: 'var(--radius)', 
-                  background: 'color-mix(in oklch, var(--surface-bg) 60%, transparent)', 
-                  border: '1px dashed color-mix(in oklch, var(--text) 20%, transparent)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--sp-6)',
-                  flexWrap: 'wrap'
+              {/* RIGHT: Channel Detail (inline, no overlay) */}
+              {selectedChannel && (
+                <div style={{
+                  background: 'var(--surface-0)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: 'var(--sp-4)',
+                  overflowY: 'auto',
+                  maxHeight: '520px',
                 }}>
-                  <div style={{ 
-                    padding: 'var(--sp-3)', 
-                    background: '#fff', 
-                    borderRadius: '8px', 
-                    display: 'flex', 
-                    justifyContent: 'center', 
-                    alignItems: 'center'
-                  }}>
-                    <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(wappConnection.qr_code)}`}
-                      alt="WhatsApp QR Code"
-                      style={{ width: '200px', height: '200px' }}
-                    />
-                  </div>
-                  <div style={{ flex: 1, minWidth: '280px' }}>
-                    <h3 style={{ margin: '0 0 var(--sp-2) 0', color: 'oklch(var(--text))' }}>Escanea el código QR con WhatsApp</h3>
-                    <p style={{ margin: '0 0 var(--sp-4) 0', fontSize: '0.9rem', color: 'color-mix(in oklch, var(--text) 70%, transparent)' }}>
-                      Abre WhatsApp en tu teléfono, ve a Dispositivos Vinculados, y escanea este código.
-                      La página se actualizará automáticamente al conectarse.
-                    </p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Código QR (raw):</span>
-                      <pre className="monospace-block" style={{ margin: 0, fontSize: '0.8rem', overflowX: 'auto', whiteSpace: 'pre' }}>
-                        {wappConnection.qr_code}
-                      </pre>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* QR Expired State */}
-              {wappConnection.status === 'qr_expired' && (
-                <div style={{ 
-                  marginTop: 'var(--sp-5)', 
-                  padding: 'var(--sp-5)', 
-                  borderRadius: 'var(--radius)', 
-                  background: 'color-mix(in oklch, oklch(0.65 0.15 80) 10%, transparent)', 
-                  border: '1px dashed oklch(0.65 0.15 80 / 0.4)',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '2.5rem', marginBottom: 'var(--sp-3)' }}>⏰</div>
-                  <h3 style={{ margin: '0 0 var(--sp-2) 0' }}>Código QR expirado</h3>
-                  <p style={{ margin: '0 0 var(--sp-4) 0', fontSize: '0.9rem', color: 'color-mix(in oklch, var(--text) 70%, transparent)' }}>
-                    El código QR no fue escaneado a tiempo. Haz clic en "Regenerar QR" para generar uno nuevo.
-                  </p>
-                </div>
-              )}
-
-              {/* Initializing / waiting_qr State */}
-              {wappConnection.status === 'waiting_qr' && (
-                <div style={{ 
-                  marginTop: 'var(--sp-5)', 
-                  padding: 'var(--sp-5)', 
-                  borderRadius: 'var(--radius)', 
-                  background: 'color-mix(in oklch, var(--surface-bg) 60%, transparent)', 
-                  border: '1px dashed color-mix(in oklch, var(--text) 20%, transparent)',
-                  textAlign: 'center',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 'var(--sp-3)'
-                }}>
-                  <div className="loading-spinner" style={{ width: '24px', height: '24px', borderWidth: '3px' }} />
-                  <h3 style={{ margin: '0 0 var(--sp-1) 0', color: 'oklch(var(--text))' }}>Inicializando canal WhatsApp</h3>
-                  <p style={{ margin: 0, fontSize: '0.9rem', color: 'color-mix(in oklch, var(--text) 70%, transparent)' }}>
-                    Levantando worker Baileys, generando sesión de autenticación y preparando código QR.
-                  </p>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'color-mix(in oklch, var(--text) 50%, transparent)', fontStyle: 'italic' }}>
-                    Esto toma normalmente 5-10 segundos. La página se actualizará automáticamente.
-                  </p>
+                  <ChannelDetailPanel
+                    channel={selectedChannel}
+                    onRefresh={() => setRefreshKey(k => k + 1)}
+                  />
                 </div>
               )}
             </div>
