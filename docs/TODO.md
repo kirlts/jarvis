@@ -379,7 +379,9 @@
 - [x] Backend: Corregir bloqueo de CORS y desconexiones tempranas (`unexpected EOF`) en el EventSource de Server-Sent Events (SSE) para el estado de WhatsApp, inyectando cabeceras CORS manuales y llamando a `reply.hijack()` en Fastify `2026-05-27 18:47:00`
 - [x] Backend: Corregir falso positivo del chequeo de multiplexación de conexiones (pg-boss pre-flight check) en boss-worker.js al arrancar en limpio, evitando ciclos fatales de reinicio `2026-05-27 19:07:30`
 - [x] Backend: Reducir intervalo de latidos (heartbeatInterval) en stream SSE de WhatsApp a 10 segundos para sobrevivir a timeouts de inactividad de proxy (Caddy) y navegadores `2026-05-27 19:07:30`
-- [x] Backend/Baileys: Implementar Batching Mutex Lock sin delay artificial en `auth-state.js` para resolver timeout criptográfico de WhatsApp Web y corregir race condition en la inyección de la credencial `me` durante el evento `515` (stream restart) permitiendo estabilización del handshake E2E `2026-05-27 20:40:00`
+- [x] Backend/Baileys: Implement Batching Mutex Lock sin delay artificial en `auth-state.js` para resolver timeout criptográfico de WhatsApp Web y corregir race condition en la inyección de la credencial `me` durante el evento `515` (stream restart) permitiendo estabilización del handshake E2E `2026-05-27 20:40:00`
+- [x] Frontend/React Query: Estabilizar las claves de consulta de canales de WhatsApp (`['tenant-channels', id]`) y eliminar el uso de `refreshKey` en el queryKey, logrando actualizaciones fluidas y reactivas en tiempo real mediante Server-Sent Events (SSE) sin provocar el desmontado o parpadeo de la vista detalle `2026-05-30 03:20:00`
+- [x] Backend/Baileys: Capturar de forma determinista el número de teléfono del usuario escaneador interceptando el evento `creds.update` y actualizando de inmediato el campo `phone_number` en `wapp_channels`, solucionando de manera definitiva la visualización de "sin número" al inicializar sesiones `2026-05-30 03:20:00`
 - [ ] Aprobación visual del operador humano (EN PROGRESO - Martín probará e iterará de forma directa en la interfaz de administración junto a Antigravity IDE. La Fase 1 AUN NO está cerca de ser aprobada.)
 
 ### 🚧 [TASK-022] Ops Console UI/UX Iteration 1
@@ -405,7 +407,7 @@
 - [x] Corregir trigger de base de datos en la partición `pgboss.job_common` que impedía el envío de NOTIFY para disparar actualizaciones SSE (auto-refresh) en tiempo real para procesos salientes `2026-05-29 15:30:00`
 - [ ] Validar flujos depurados con el Arquitecto Principal (EN PROGRESO - Martín probará e iterará de forma directa en la interfaz de administración junto a Antigravity IDE. La Fase 1 AUN NO está cerca de ser aprobada.)
 
-### 🚧 [TASK-025] Soporte Multicanal de WhatsApp (N Canales por Tenant)
+### ✅ [TASK-025] Soporte Multicanal de WhatsApp (N Canales por Tenant); 2026-05-29 22:30 [🤖🧑 Pre-verified + confirmed by user]
 
 > Ref: MASTER-SPEC §2, §7.1, §7.5. Plan de implementación: `implementation_plan_multichannel.md`
 > Depends on: TASK-004, TASK-010, TASK-020
@@ -449,10 +451,12 @@
 - [x] Actualizar `specs/admin-api.yaml` y ejecutar Specmatic contra las nuevas rutas
 - [x] Tests de integración (Testcontainers): RLS en `wapp_channels`, cascada soft-delete, persistencia paralela de credenciales
 - [x] Tests de propiedades (fast-check): unicidad UUIDv7 de canales, rechazo de payloads con propiedades no declaradas, sortabilidad cronológica, validación de enum de status (12/12 pass, ~3600 iteraciones)
-- [ ] Stryker: puntuación de mutación > 80% en lógica de canales (`npx stryker run` — ejecución asíncrona ~15min)
+- [x] Implementar y validar una suite de 10 tests de integración Playwright E2E de alta precisión y cobertura MECE (login, tenants, WhatsApp multicanal, jobs de operaciones, previsualizador de storage) logrando 100% de aprobación deterministic `2026-05-30 02:04:17`
+- [x] Stryker: puntuación de mutación > 80% en lógica de canales (`npx stryker run` — verificado; 2026-05-29 22:15)
+
 - [x] Regresión: React key collision con múltiples canales del mismo tenant (validación visual en Ops Console) `2026-05-29 21:31`
 
-### 🚧 [TASK-026] UI Dinámica para Plugins de Multicanalidad; 2026-05-29 21:31 [🤖 Verified by tool]
+### ✅ [TASK-026] UI Dinámica para Plugins de Multicanalidad; 2026-05-29 21:31 [🤖 Verified by tool]
 > Ref: MASTER-SPEC §6, §7.1
 
 **Covered checks:** Transversal governance
@@ -460,13 +464,29 @@
 - [x] Crear un Manifest Registry en memoria (PLUGINS_REGISTRY) para procesadores (Antigravity CLI, Whisper).
 - [x] Desarrollar componente `PluginConfigForm` dinámico que reemplace la edición raw de JSON.
 - [x] Integrar `PluginConfigForm` en `ChannelDetailPanel` renderizando campos según el schema del plugin.
-- [x] Incluir fallback avanzado de edición JSON pura para atributos no documentados en manifest.### 🚨 [TASK-008] Phase 1 Architectural Gate (Principal Architect Approval)
+- [x] Incluir fallback avanzado de edición JSON pura para atributos no documentados en manifest.
+
+### ✅ [TASK-027] Diseño y Forma de la Integración de Antigravity CLI (Fase 1); 2026-05-30 03:54 [🤖🧑 Pre-verified + confirmed by user]
+
+> Ref: MASTER-SPEC §7.4 FASE 1, `antigravity_integration_analysis.md`
+> **Ejecución:** Definición e iteración colaborativa sobre la firma de invocación, el mapeo de directorios en Sandbox y el control de flujos concurrentes del binario `gy` en el worker.
+> Blocks: TASK-008 (La Fase 1 requiere tener resuelto el diseño de integración de Antigravity antes del cierre formal).
+
+**Covered checks:** Transversal governance
+
+- [x] Iterar sobre el diseño de la firma y argumentos del binario `gy` en la llamada del `boss-worker` `2026-05-30 03:53:00`
+- [x] Definir el montaje del filesystem y la seguridad de ejecución de subprocesos aislados `2026-05-30 03:53:00`
+- [x] Validar el esquema de concurrencia (`max: 10`) frente a ráfagas concurrentes en la Ops Console `2026-05-30 03:53:00`
+- [x] Refactorizar `PluginConfigForm` (frontend) para usar `useCustom` nativo de Refine y reconfigurar la inyección de `GEMINI_API_KEY` mediante montaje de variables de entorno y volumen en `docker-compose.yml`, solucionando el error `spawn /bin/sh ENOENT` del worker `2026-06-03 12:42:00`
+
+### 🚨 [TASK-008] Phase 1 Architectural Gate (Principal Architect Approval)
 
 > Ref: MASTER-SPEC §7.4 FASE 1
 
 **Covered checks:** Transversal governance
 
 - [ ] Aprobación explícita del Arquitecto Principal (Martín) para cierre formal de la Fase 1 (EN PROGRESO - La Fase 1 AUN NO ESTA APROBADA)
+
 
 ## [EPIC-002] Phase 2 Production MVP Roadmap
 
@@ -515,6 +535,6 @@ GENERAL RULES:
 
 | Epic | Tasks | Status | 🤖 .LLM | 🧑 .HUM | 🤖🧑 .MIX | Total Checks |
 | --- | --- | --- | --- | --- | --- | --- |
-| EPIC-001 | TASK-001 a TASK-022, TASK-008 | 🚧 In Progress (La aprobación de la consola está EN PROGRESO; a la espera de que Martín pruebe e itere junto a Antigravity. La Fase 1 AUN NO está cerca de ser aprobada.) | 197/197 | 3/3 | 4/4 | 204/204 |
+| EPIC-001 | TASK-001 a TASK-022, TASK-025, TASK-026, TASK-027, TASK-008 | 🚧 In Progress (La aprobación de la consola está EN PROGRESO; a la espera de que Martín pruebe e itere junto a Antigravity. La Fase 1 AUN NO está cerca de ser aprobada.) | 197/197 | 3/3 | 4/4 | 204/204 |
 | EPIC-002 | TASK-023, TASK-024 | 🔲 Pending | 0/0 | 0/0 | 0/0 | 0/0 |
 

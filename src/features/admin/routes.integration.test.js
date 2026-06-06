@@ -664,6 +664,324 @@ describe('Admin Routes – Integration (Testcontainers PG 17)', () => {
       assert.deepStrictEqual(body.payload, { message: 'Hola Super Admin desde Whatsapp' });
     });
   });
+
+  // ── TASK-025: Multichannel WhatsApp Integration Tests ───────────────
+
+  describe('Multichannel WhatsApp Channels (TASK-025)', () => {
+    let tenantId;
+
+    before(async () => {
+      const tRes = await app.inject({
+        method: 'POST',
+        url: '/admin/tenants',
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: `Multichannel Tenant ${Date.now()}` },
+      });
+      tenantId = tRes.json().id;
+    });
+
+    test('POST /channels creates a new channel and returns 201 with UUIDv7', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/admin/whatsapp/status/${tenantId}/channels`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: 'Bot Ventas' },
+      });
+      assert.strictEqual(res.statusCode, 201);
+      const body = res.json();
+      assert.ok(body.id, 'Must return channel id');
+      assert.strictEqual(body.name, 'Bot Ventas');
+      assert.strictEqual(body.tenant_id, tenantId);
+
+      // Verify directly in DB (including created_at which is DB-generated)
+      const dbResult = await directPool.query('SELECT id, name, tenant_id, created_at FROM wapp_channels WHERE id = $1', [body.id]);
+      assert.strictEqual(dbResult.rows.length, 1);
+      assert.strictEqual(dbResult.rows[0].name, 'Bot Ventas');
+      assert.ok(dbResult.rows[0].created_at, 'created_at must be populated by DB default');
+    });
+
+    test('POST /channels with config JSONB persists correctly', async () => {
+      const config = { target_plugin: 'ocr-worker', llm_model: 'gemini-2.5-flash' };
+      const res = await app.inject({
+        method: 'POST',
+        url: `/admin/whatsapp/status/${tenantId}/channels`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: 'Bot OCR', config },
+      });
+      assert.strictEqual(res.statusCode, 201);
+      const body = res.json();
+      assert.deepStrictEqual(body.config, config);
+    });
+
+    test('GET /channels lists all channels for the tenant', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/admin/whatsapp/status/${tenantId}/channels`,
+        headers: { authorization: 'Bearer test' },
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const channels = res.json();
+      assert.ok(Array.isArray(channels));
+      assert.ok(channels.length >= 2, 'Must have at least 2 channels created above');
+      // All channels must belong to this tenant
+      for (const ch of channels) {
+        assert.strictEqual(ch.tenant_id, tenantId);
+      }
+    });
+
+    test('GET /channels/:id returns channel detail with session data', async () => {
+      // Create a channel first
+      const createRes = await app.inject({
+        method: 'POST',
+        url: `/admin/whatsapp/status/${tenantId}/channels`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: 'Detail Channel' },
+      });
+      const channelId = createRes.json().id;
+
+      const res = await app.inject({
+        method: 'GET',
+        url: `/admin/whatsapp/status/${tenantId}/channels/${channelId}`,
+        headers: { authorization: 'Bearer test' },
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const body = res.json();
+      assert.strictEqual(body.id, channelId);
+      assert.strictEqual(body.name, 'Detail Channel');
+      // session fields should be null (no session linked)
+      assert.strictEqual(body.session_id, null);
+    });
+
+    test('PATCH /channels/:id updates name and config', async () => {
+      const createRes = await app.inject({
+        method: 'POST',
+        url: `/admin/whatsapp/status/${tenantId}/channels`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: 'Original Name' },
+      });
+      const channelId = createRes.json().id;
+
+      const res = await app.inject({
+        method: 'PATCH',
+        url: `/admin/whatsapp/status/${tenantId}/channels/${channelId}`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: 'Updated Name', config: { priority: 'high' } },
+      });
+      assert.strictEqual(res.statusCode, 200);
+
+      // Verify in DB
+      const dbResult = await directPool.query('SELECT name, config FROM wapp_channels WHERE id = $1', [channelId]);
+      assert.strictEqual(dbResult.rows[0].name, 'Updated Name');
+      assert.deepStrictEqual(dbResult.rows[0].config, { priority: 'high' });
+    });
+
+    test('GET /channels/:id returns 404 for wrong tenant_id (RLS cross-tenant isolation)', async () => {
+      // Create channel under tenantId
+      const createRes = await app.inject({
+        method: 'POST',
+        url: `/admin/whatsapp/status/${tenantId}/channels`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: 'Isolated Channel' },
+      });
+      const channelId = createRes.json().id;
+
+      // Create a different tenant
+      const otherTenantRes = await app.inject({
+        method: 'POST',
+        url: '/admin/tenants',
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: `Other Tenant ${Date.now()}` },
+      });
+      const otherTenantId = otherTenantRes.json().id;
+
+      // Try to access the channel via the other tenant's path — should 404
+      const res = await app.inject({
+        method: 'GET',
+        url: `/admin/whatsapp/status/${otherTenantId}/channels/${channelId}`,
+        headers: { authorization: 'Bearer test' },
+      });
+      assert.strictEqual(res.statusCode, 404);
+    });
+
+    test('DELETE /channels/:id soft-deletes the channel', async () => {
+      const createRes = await app.inject({
+        method: 'POST',
+        url: `/admin/whatsapp/status/${tenantId}/channels`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: 'To Be Deleted' },
+      });
+      const channelId = createRes.json().id;
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/admin/whatsapp/status/${tenantId}/channels/${channelId}?confirm=true`,
+        headers: { authorization: 'Bearer test' },
+      });
+      assert.strictEqual(res.statusCode, 200);
+
+      // Verify: row still exists with deleted_at
+      const dbResult = await directPool.query('SELECT deleted_at FROM wapp_channels WHERE id = $1', [channelId]);
+      assert.strictEqual(dbResult.rows.length, 1);
+      assert.ok(dbResult.rows[0].deleted_at, 'deleted_at must be populated');
+    });
+
+    test('Deleted channel does not appear in GET /channels listing', async () => {
+      const createRes = await app.inject({
+        method: 'POST',
+        url: `/admin/whatsapp/status/${tenantId}/channels`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: 'Vanishing Channel' },
+      });
+      const channelId = createRes.json().id;
+
+      // Delete
+      await app.inject({
+        method: 'DELETE',
+        url: `/admin/whatsapp/status/${tenantId}/channels/${channelId}?confirm=true`,
+        headers: { authorization: 'Bearer test' },
+      });
+
+      // List
+      const listRes = await app.inject({
+        method: 'GET',
+        url: `/admin/whatsapp/status/${tenantId}/channels`,
+        headers: { authorization: 'Bearer test' },
+      });
+      const found = listRes.json().find(ch => ch.id === channelId);
+      assert.strictEqual(found, undefined, 'Deleted channel must not appear in listing');
+    });
+
+    test('Cascade soft-delete: deleting tenant marks its channels as deleted', async () => {
+      // Create a separate tenant with channels
+      const tRes = await app.inject({
+        method: 'POST',
+        url: '/admin/tenants',
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: `Cascade Delete Tenant ${Date.now()}` },
+      });
+      const cascadeTenantId = tRes.json().id;
+
+      // Create two channels
+      const ch1Res = await app.inject({
+        method: 'POST',
+        url: `/admin/whatsapp/status/${cascadeTenantId}/channels`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: 'Cascade Ch 1' },
+      });
+      const ch2Res = await app.inject({
+        method: 'POST',
+        url: `/admin/whatsapp/status/${cascadeTenantId}/channels`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: 'Cascade Ch 2' },
+      });
+      const ch1Id = ch1Res.json().id;
+      const ch2Id = ch2Res.json().id;
+
+      // Soft-delete the tenant
+      await app.inject({
+        method: 'DELETE',
+        url: `/admin/tenants/${cascadeTenantId}?confirm=true`,
+        headers: { authorization: 'Bearer test' },
+      });
+
+      // Verify: both channels must have deleted_at populated
+      const dbResult = await directPool.query(
+        'SELECT id, deleted_at FROM wapp_channels WHERE id = ANY($1::uuid[])',
+        [[ch1Id, ch2Id]]
+      );
+      assert.strictEqual(dbResult.rows.length, 2);
+      for (const row of dbResult.rows) {
+        assert.ok(row.deleted_at, `Channel ${row.id} must be cascade-deleted`);
+      }
+    });
+
+    test('POST /channels/:id/reconnect creates session and returns 200', async () => {
+      const createRes = await app.inject({
+        method: 'POST',
+        url: `/admin/whatsapp/status/${tenantId}/channels`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: 'Reconnect Test Channel' },
+      });
+      const channelId = createRes.json().id;
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/admin/whatsapp/status/${tenantId}/channels/${channelId}/reconnect`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: {},
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const body = res.json();
+      assert.ok(body.sessionId, 'Must return a sessionId');
+      assert.strictEqual(body.channelId, channelId);
+
+      // Verify session exists in DB linked to channel
+      const dbResult = await directPool.query(
+        'SELECT channel_id, status FROM wapp_sessions WHERE id = $1',
+        [body.sessionId]
+      );
+      assert.strictEqual(dbResult.rows.length, 1);
+      assert.strictEqual(dbResult.rows[0].channel_id, channelId);
+      assert.strictEqual(dbResult.rows[0].status, 'waiting_qr');
+    });
+
+    test('Multiple channels for same tenant can coexist with independent sessions', async () => {
+      const ch1 = await app.inject({
+        method: 'POST',
+        url: `/admin/whatsapp/status/${tenantId}/channels`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: 'Coexist A' },
+      });
+      const ch2 = await app.inject({
+        method: 'POST',
+        url: `/admin/whatsapp/status/${tenantId}/channels`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: 'Coexist B' },
+      });
+
+      // Reconnect both
+      const r1 = await app.inject({
+        method: 'POST',
+        url: `/admin/whatsapp/status/${tenantId}/channels/${ch1.json().id}/reconnect`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: {},
+      });
+      const r2 = await app.inject({
+        method: 'POST',
+        url: `/admin/whatsapp/status/${tenantId}/channels/${ch2.json().id}/reconnect`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: {},
+      });
+
+      assert.strictEqual(r1.statusCode, 200);
+      assert.strictEqual(r2.statusCode, 200);
+      assert.notStrictEqual(r1.json().sessionId, r2.json().sessionId, 'Sessions must be independent');
+
+      // Both channels should be listed
+      const listRes = await app.inject({
+        method: 'GET',
+        url: `/admin/whatsapp/status/${tenantId}/channels`,
+        headers: { authorization: 'Bearer test' },
+      });
+      const channels = listRes.json();
+      const a = channels.find(c => c.id === ch1.json().id);
+      const b = channels.find(c => c.id === ch2.json().id);
+      assert.ok(a, 'Channel A must exist');
+      assert.ok(b, 'Channel B must exist');
+      assert.ok(a.session_id, 'Channel A must have session');
+      assert.ok(b.session_id, 'Channel B must have session');
+      assert.notStrictEqual(a.session_id, b.session_id, 'Sessions must differ');
+    });
+
+    test('Invalid UUID in tenant_id returns 400', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/admin/whatsapp/status/not-a-uuid/channels',
+        headers: { authorization: 'Bearer test' },
+      });
+      assert.strictEqual(res.statusCode, 400);
+    });
+  });
 });
 
 

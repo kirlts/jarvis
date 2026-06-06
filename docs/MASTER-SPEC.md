@@ -367,3 +367,16 @@ Fase iterativa. No se cierra hasta la aprobación explícita del Arquitecto Prin
 - Segregación de Conexiones Core: Soporte para `READ_REPLICA_URL` y pools separados para consultas de lectura pesadas y analíticas de administración (Mitigación SPOF Postgres).
 - Pipeline de Performance RLS: Scripts de auditoría automatizada en el entorno agéntico/CI que corran `EXPLAIN` contra consultas bajo RLS para prevenir escaneos secuenciales y garantizar índices compuestos que lideren con `tenant_id` (Mitigación Rendimiento RLS).
 
+---
+
+## §8. Operational Rules
+
+> How the AI agent should operate within this repository.
+
+**Rules location:**
+- `docs/RULES.md`
+
+**Scope:**
+- Todas las operaciones del agente en el repositorio, incluyendo integraciones de base de datos, lógica de workers, interfaces React/Refine v5, suites de testing E2E con Playwright e infraestructura de observabilidad.
+
+

@@ -35,12 +35,6 @@ export async function startSession(channelId, tenantId, sessionId) {
       `UPDATE wapp_sessions SET status = $1, updated_at = now() WHERE id = $2 AND tenant_id = $3`,
       [status, sessionId, tenantId]
     );
-    if (channelId) {
-      await pool.query(
-        `UPDATE wapp_channels SET status = $1 WHERE id = $2 AND tenant_id = $3`,
-        [status, channelId, tenantId]
-      );
-    }
   }
 
   try {
@@ -80,24 +74,6 @@ export async function startSession(channelId, tenantId, sessionId) {
       }
       await originalSaveCreds();
       hadCredentials = true;
-
-      // Extract phone number from creds.me dynamically and update the channel phone_number
-      if (state.creds?.me?.id && channelId) {
-        const match = state.creds.me.id.match(/^(\d+)/);
-        if (match) {
-          const phoneNumber = match[1];
-          try {
-            await pool.query(
-              `UPDATE wapp_channels
-               SET phone_number = $1
-               WHERE id = $2 AND tenant_id = $3 AND phone_number IS DISTINCT FROM $1`,
-              [phoneNumber, channelId, tenantId]
-            );
-          } catch (err) {
-            sessionLog.error({ err: err.message }, 'Failed to update phone_number in creds.update');
-          }
-        }
-      }
     };
     sock.ev.removeAllListeners('creds.update');
     sock.ev.on('creds.update', saveCreds);
@@ -124,12 +100,6 @@ export async function startSession(channelId, tenantId, sessionId) {
              WHERE id = $2 AND tenant_id = $3`,
             [qr, sessionId, tenantId]
           );
-          if (channelId) {
-            await pool.query(
-              `UPDATE wapp_channels SET status = 'qr_pending' WHERE id = $1 AND tenant_id = $2`,
-              [channelId, tenantId]
-            );
-          }
           sessionLog.info({ rowCount: res.rowCount, attempt: qrAttemptCount }, 'QR code stored in DB');
         } catch (dbErr) {
           sessionLog.error({ err: dbErr.message }, 'Failed to update qr_code in DB');
@@ -170,12 +140,6 @@ export async function startSession(channelId, tenantId, sessionId) {
              WHERE id = $1 AND tenant_id = $2`,
             [sessionId, tenantId]
           );
-          if (channelId) {
-            await pool.query(
-              `UPDATE wapp_channels SET status = 'disconnected' WHERE id = $1 AND tenant_id = $2`,
-              [channelId, tenantId]
-            );
-          }
           stopSession(channelId);
         } else if (isStreamRestart || pairingConfigured) {
           // 515 = Baileys stream restart after pairing or protocol negotiation.
@@ -197,12 +161,6 @@ export async function startSession(channelId, tenantId, sessionId) {
              WHERE id = $1 AND tenant_id = $2`,
             [sessionId, tenantId]
           );
-          if (channelId) {
-            await pool.query(
-              `UPDATE wapp_channels SET status = 'qr_expired' WHERE id = $1 AND tenant_id = $2`,
-              [channelId, tenantId]
-            );
-          }
           stopSession(channelId);
         } else {
           // Unknown scenario: stop but don't auto-reconnect to avoid loops
@@ -212,27 +170,12 @@ export async function startSession(channelId, tenantId, sessionId) {
         }
       } else if (connection === 'open') {
         sessionLog.info('Connection opened successfully');
-        let phoneNumber = null;
-        if (sock.user && sock.user.id) {
-          const match = sock.user.id.match(/^(\d+)/);
-          if (match) {
-            phoneNumber = match[1];
-          }
-        }
         await pool.query(
           `UPDATE wapp_sessions
            SET status = 'connected', qr_code = NULL, qr_scanned_at = now(), qr_scanned_by = 'user', updated_at = now()
            WHERE id = $1 AND tenant_id = $2`,
           [sessionId, tenantId]
         );
-        if (channelId) {
-          await pool.query(
-            `UPDATE wapp_channels
-             SET status = 'connected', phone_number = COALESCE($1, phone_number)
-             WHERE id = $2 AND tenant_id = $3`,
-            [phoneNumber, channelId, tenantId]
-          );
-        }
         // Emit lifecycle job for connection established
         try {
           if (sharedBoss) {
@@ -288,43 +231,15 @@ export async function startSession(channelId, tenantId, sessionId) {
                                   content?.documentWithCaptionMessage?.message?.documentMessage?.caption || 
                                   '';
 
-              const MEDIA_TYPE_MAP = {
-                audioMessage:    { category: 'audio',    ext: 'ogg',  mime: 'audio/ogg' },
-                imageMessage:    { category: 'image',    ext: 'jpg',  mime: 'image/jpeg' },
-                videoMessage:    { category: 'video',    ext: 'mp4',  mime: 'video/mp4' },
-                stickerMessage:  { category: 'image',    ext: 'webp', mime: 'image/webp' },
-                documentMessage: { category: 'document', ext: null,   mime: null },
-                documentWithCaptionMessage: { category: 'document', ext: null, mime: null },
-              };
-              const mediaMeta = MEDIA_TYPE_MAP[type];
-              const isMedia = !!mediaMeta;
-
-              if (!isMedia) {
+              if (!isFromMe) {
                 const client = await pool.connect();
                 try {
                   await client.query('BEGIN');
                   await client.query(`SELECT set_config('request.jwt.claims.tenant_id', $1, true)`, [tenantId]);
 
-                  const status = isFromMe ? 'done' : 'pending';
-                  const processedAt = isFromMe ? new Date() : null;
-
                   await client.query(
-                    `INSERT INTO sync_inbox (id, tenant_id, payload, status, processed_at)
-                     VALUES ($1, $2, $3, $4, $5)
-                     ON CONFLICT (id) DO NOTHING`,
-                    [
-                      msgId,
-                      tenantId,
-                      JSON.stringify({
-                        type: 'text',
-                        sender: from,
-                        message: textContent,
-                        channelId,
-                        isFromMe
-                      }),
-                      status,
-                      processedAt
-                    ]
+                    `INSERT INTO wapp_incoming (id, tenant_id, sender, message) VALUES ($1, $2, $3, $4)`,
+                    [msgId, tenantId, from, msg]
                   );
                   await client.query('COMMIT');
                 } catch (err) {
@@ -332,14 +247,6 @@ export async function startSession(channelId, tenantId, sessionId) {
                   throw err;
                 } finally {
                   client.release();
-                }
-
-                if (!isFromMe && sharedBoss) {
-                  await sharedBoss.send('sync-inbox-process', {
-                    inboxId: msgId,
-                    tenantId,
-                    payload: { type: 'text', sender: from, message: textContent, channelId }
-                  });
                 }
               }
 
@@ -362,139 +269,117 @@ export async function startSession(channelId, tenantId, sessionId) {
                 }
               } catch (e) { sessionLog.error({ err: e.message }, 'Failed to emit message lifecycle job'); }
               
-              if (isMedia) {
+              if (!isFromMe) {
                 // ── Universal Media Handling ─────────────────────────────────
                 // MASTER-SPEC §7.5: All media types are intercepted, stored in S3,
                 // and tracked in storage_objects with SHA-256 deduplication.
-                // For documents, extract actual mimetype and extension from the payload
-                let ext = mediaMeta.ext;
-                let mimeType = mediaMeta.mime;
-                if (mediaMeta.category === 'document') {
-                  const docPayload = content?.documentMessage || content?.documentWithCaptionMessage?.message?.documentMessage;
-                  mimeType = docPayload?.mimetype || 'application/octet-stream';
-                  const docFileName = docPayload?.fileName || '';
-                  const dotIdx = docFileName.lastIndexOf('.');
-                  ext = dotIdx > 0 ? docFileName.substring(dotIdx + 1).toLowerCase() : 'bin';
-                }
-
-                sessionLog.info({ from, category: mediaMeta.category, type, ext }, 'Media message detected, downloading...');
-                try {
-                  const buffer = await downloadMediaMessage(msg, 'buffer', {}, { logger: sessionLog, reuploadRequest: sock.updateMediaMessage });
-                  
-                  // SHA-256 dedup: skip upload if identical content already exists for this tenant
-                  const sha256 = createHash('sha256').update(buffer).digest('hex');
-                  const client = await pool.connect();
-                  try {
-                    const dupCheck = await client.query(
-                      `SELECT id, file_name, storage_key FROM storage_objects WHERE tenant_id = $1 AND sha256 = $2 AND deleted_at IS NULL`,
-                      [tenantId, sha256]
-                    );
-
-                    const status = isFromMe ? 'done' : 'pending';
-                    const processedAt = isFromMe ? new Date() : null;
-
-                    if (dupCheck.rows.length > 0) {
-                      sessionLog.info({ sha256, existingFile: dupCheck.rows[0].file_name }, 'Duplicate content detected, skipping S3 upload');
-                      const s3Url = `minio://jarvis-private/${dupCheck.rows[0].storage_key}`;
-                      await client.query('BEGIN');
-                      await client.query(`SELECT set_config('request.jwt.claims.tenant_id', $1, true)`, [tenantId]);
-                      await client.query(
-                        `INSERT INTO sync_inbox (id, tenant_id, payload, status, processed_at)
-                         VALUES ($1, $2, $3, $4, $5)
-                         ON CONFLICT (id) DO NOTHING`,
-                        [
-                          msgId,
-                          tenantId,
-                          JSON.stringify({
-                            type: mediaMeta.category,
-                            s3_url: s3Url,
-                            sender: from,
-                            message: textContent,
-                            channelId,
-                            isFromMe
-                          }),
-                          status,
-                          processedAt
-                        ]
-                      );
-                      await client.query('COMMIT');
-                      client.release();
-
-                      if (!isFromMe && sharedBoss) {
-                        const boss = new PgBoss(config.boss.connectionString);
-                        await boss.start();
-                        await boss.send('sync-inbox-process', {
-                          inboxId: msgId, tenantId,
-                          payload: { type: mediaMeta.category, s3_url: s3Url, sender: from, message: textContent, channelId }
-                        });
-                        await boss.stop();
-                      }
-                    } else {
-                      // Upload to S3 and register in storage_objects
-                      const key = `inbox/${tenantId}/${msgId}.${ext}`;
-                      await s3.send(new PutObjectCommand({
-                        Bucket: 'jarvis-private',
-                        Key: key,
-                        Body: buffer,
-                        ContentType: mimeType
-                      }));
-                      
-                      const fileId = uuidv7();
-                      const fileName = `${msgId}.${ext}`;
-                      
-                      await client.query('BEGIN');
-                      await client.query(`SELECT set_config('request.jwt.claims.tenant_id', $1, true)`, [tenantId]);
-                      await client.query(
-                        `INSERT INTO storage_objects (id, tenant_id, file_name, size, mime_type, storage_key, status, sha256)
-                         VALUES ($1, $2, $3, $4, $5, $6, 'uploaded', $7)`,
-                        [fileId, tenantId, fileName, buffer.length, mimeType, key, sha256]
-                      );
-                      const s3Url = `minio://jarvis-private/${key}`;
-                      await client.query(
-                        `INSERT INTO sync_inbox (id, tenant_id, payload, status, processed_at)
-                         VALUES ($1, $2, $3, $4, $5)
-                         ON CONFLICT (id) DO NOTHING`,
-                        [
-                          msgId,
-                          tenantId,
-                          JSON.stringify({
-                            type: mediaMeta.category,
-                            s3_url: s3Url,
-                            sender: from,
-                            message: textContent,
-                            channelId,
-                            isFromMe
-                          }),
-                          status,
-                          processedAt
-                        ]
-                      );
-                      await client.query('COMMIT');
-                      client.release();
-                      sessionLog.info({ s3Url, fileId, sha256, category: mediaMeta.category }, 'Media uploaded to S3 with dedup tracking');
-                      
-                      if (!isFromMe && sharedBoss) {
-                        const boss = new PgBoss(config.boss.connectionString);
-                        await boss.start();
-                        await boss.send('sync-inbox-process', {
-                          inboxId: msgId, tenantId,
-                          payload: { type: mediaMeta.category, s3_url: s3Url, sender: from, message: textContent, channelId }
-                        });
-                        await boss.stop();
-                      }
-                    }
-                  } catch (err) {
-                    await client.query('ROLLBACK').catch(() => {});
-                    client.release();
-                    throw err;
+                const MEDIA_TYPE_MAP = {
+                  audioMessage:    { category: 'audio',    ext: 'ogg',  mime: 'audio/ogg' },
+                  imageMessage:    { category: 'image',    ext: 'jpg',  mime: 'image/jpeg' },
+                  videoMessage:    { category: 'video',    ext: 'mp4',  mime: 'video/mp4' },
+                  stickerMessage:  { category: 'image',    ext: 'webp', mime: 'image/webp' },
+                  documentMessage: { category: 'document', ext: null,   mime: null }, // ext/mime from payload
+                  documentWithCaptionMessage: { category: 'document', ext: null, mime: null },
+                };
+                const mediaMeta = MEDIA_TYPE_MAP[type];
+                
+                if (mediaMeta) {
+                  // For documents, extract actual mimetype and extension from the payload
+                  let ext = mediaMeta.ext;
+                  let mimeType = mediaMeta.mime;
+                  if (mediaMeta.category === 'document') {
+                    const docPayload = content?.documentMessage || content?.documentWithCaptionMessage?.message?.documentMessage;
+                    mimeType = docPayload?.mimetype || 'application/octet-stream';
+                    const docFileName = docPayload?.fileName || '';
+                    const dotIdx = docFileName.lastIndexOf('.');
+                    ext = dotIdx > 0 ? docFileName.substring(dotIdx + 1).toLowerCase() : 'bin';
                   }
-                } catch (mediaErr) {
-                  sessionLog.error({ err: mediaErr.message, type }, 'Failed to process media message');
+
+                  sessionLog.info({ from, category: mediaMeta.category, type, ext }, 'Media message detected, downloading...');
+                  try {
+                    const buffer = await downloadMediaMessage(msg, 'buffer', {}, { logger: sessionLog, reuploadRequest: sock.updateMediaMessage });
+                    
+                    // SHA-256 dedup: skip upload if identical content already exists for this tenant
+                    const sha256 = createHash('sha256').update(buffer).digest('hex');
+                    const client = await pool.connect();
+                    try {
+                      const dupCheck = await client.query(
+                        `SELECT id, file_name, storage_key FROM storage_objects WHERE tenant_id = $1 AND sha256 = $2 AND deleted_at IS NULL`,
+                        [tenantId, sha256]
+                      );
+                      if (dupCheck.rows.length > 0) {
+                        sessionLog.info({ sha256, existingFile: dupCheck.rows[0].file_name }, 'Duplicate content detected, skipping S3 upload');
+                        const s3Url = `minio://jarvis-private/${dupCheck.rows[0].storage_key}`;
+                        await client.query('BEGIN');
+                        await client.query(`SELECT set_config('request.jwt.claims.tenant_id', $1, true)`, [tenantId]);
+                        await client.query(
+                          `INSERT INTO sync_inbox (id, tenant_id, payload, status)
+                           VALUES ($1, $2, $3, 'pending')
+                           ON CONFLICT (id) DO NOTHING`,
+                          [msgId, tenantId, JSON.stringify({ type: mediaMeta.category, s3_url: s3Url, sender: from, message: textContent, channelId })]
+                        );
+                        await client.query('COMMIT');
+                        client.release();
+                        // Still emit sync-inbox-process with the existing s3_url
+                        const boss = new PgBoss(config.boss.connectionString);
+                        await boss.start();
+                        await boss.send('sync-inbox-process', {
+                          inboxId: msgId, tenantId,
+                          payload: { type: mediaMeta.category, s3_url: s3Url, sender: from, message: textContent, channelId }
+                        });
+                        await boss.stop();
+                      } else {
+                        // Upload to S3 and register in storage_objects
+                        const key = `inbox/${tenantId}/${msgId}.${ext}`;
+                        await s3.send(new PutObjectCommand({
+                          Bucket: 'jarvis-private',
+                          Key: key,
+                          Body: buffer,
+                          ContentType: mimeType
+                        }));
+                        
+                        const fileId = uuidv7();
+                        const fileName = `${msgId}.${ext}`;
+                        
+                        await client.query('BEGIN');
+                        await client.query(`SELECT set_config('request.jwt.claims.tenant_id', $1, true)`, [tenantId]);
+                        await client.query(
+                          `INSERT INTO storage_objects (id, tenant_id, file_name, size, mime_type, storage_key, status, sha256)
+                           VALUES ($1, $2, $3, $4, $5, $6, 'uploaded', $7)`,
+                          [fileId, tenantId, fileName, buffer.length, mimeType, key, sha256]
+                        );
+                        const s3Url = `minio://jarvis-private/${key}`;
+                        await client.query(
+                          `INSERT INTO sync_inbox (id, tenant_id, payload, status)
+                           VALUES ($1, $2, $3, 'pending')
+                           ON CONFLICT (id) DO NOTHING`,
+                          [msgId, tenantId, JSON.stringify({ type: mediaMeta.category, s3_url: s3Url, sender: from, message: textContent, channelId })]
+                        );
+                        await client.query('COMMIT');
+                        client.release();
+                        sessionLog.info({ s3Url, fileId, sha256, category: mediaMeta.category }, 'Media uploaded to S3 with dedup tracking');
+                        
+                        const boss = new PgBoss(config.boss.connectionString);
+                        await boss.start();
+                        await boss.send('sync-inbox-process', {
+                          inboxId: msgId, tenantId,
+                          payload: { type: mediaMeta.category, s3_url: s3Url, sender: from, message: textContent, channelId }
+                        });
+                        await boss.stop();
+                      }
+                    } catch (err) {
+                      await client.query('ROLLBACK').catch(() => {});
+                      client.release();
+                      throw err;
+                    }
+                  } catch (mediaErr) {
+                    sessionLog.error({ err: mediaErr.message, type }, 'Failed to process media message');
+                  }
                 }
               }
               
             } catch (err) {
-              sessionLog.error({ err: err.message }, 'Failed to save message');
+              sessionLog.error({ err: err.message }, 'Failed to save incoming message');
             }
           }
         }

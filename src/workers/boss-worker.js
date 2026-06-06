@@ -20,6 +20,8 @@ import stream from 'stream';
 import { v7 as uuidv7 } from 'uuid';
 import { s3 } from '../features/storage/s3-client.js';
 import config from '../config.js';
+import { exec } from 'child_process';
+import { join } from 'path';
 
 const log = pino({
   transport: {
@@ -84,26 +86,105 @@ async function handleSyncJob(jobs) {
         [tenantId]
       );
 
+      // Fetch channel config if channelId is provided
+      let channelConfig = {};
+      if (payload?.channelId) {
+        try {
+          const channelRes = await client.query(
+            `SELECT config FROM wapp_channels WHERE id = $1 AND deleted_at IS NULL`,
+            [payload.channelId]
+          );
+          if (channelRes.rows.length > 0) {
+            channelConfig = channelRes.rows[0].config || {};
+          }
+        } catch (dbErr) {
+          log.error({ err: dbErr.message, channelId: payload.channelId }, 'Failed to fetch channel config');
+        }
+      }
+
       // Mark inbox entry as processing
       await client.query(
         `UPDATE sync_inbox SET status = 'processing' WHERE id = $1`,
         [inboxId]
       );
 
-      // The Stub (Simulated Transducer)
+      // The Stub (Simulated Transducer) or Antigravity Real CLI
       let finalPayload = payload;
-      if (payload?.type === 'audio') {
-        log.info({ inboxId, tenantId, url: payload.s3_url }, 'Executing Audio Stub (Transducer)');
-        finalPayload = { ...payload, transcription: `[MOCK_AUDIO_TRANSCRIPTION: Audio recibido]` };
-      } else if (payload?.type === 'image') {
-        log.info({ inboxId, tenantId, url: payload.s3_url }, 'Executing Image Stub (Transducer)');
-        finalPayload = { ...payload, transcription: `[MOCK_IMAGE_OCR: Imagen analizada]` };
-      } else if (payload?.type === 'video') {
-        log.info({ inboxId, tenantId, url: payload.s3_url }, 'Executing Video Stub (Transducer)');
-        finalPayload = { ...payload, transcription: `[MOCK_VIDEO: Video recibido y almacenado]` };
-      } else if (payload?.type === 'document') {
-        log.info({ inboxId, tenantId, url: payload.s3_url }, 'Executing Document Stub (Transducer)');
-        finalPayload = { ...payload, transcription: `[MOCK_DOCUMENT: Documento recibido y almacenado]` };
+      const isAntigravity = channelConfig.processor === 'antigravity';
+
+      if (isAntigravity) {
+        const targetProject = channelConfig.target_project || '/home/kirlts/jarvis';
+        const timeoutSec = Number(channelConfig.timeout_sec) || 120;
+        const handlerPath = join(targetProject, 'antigravity-handler.js');
+
+        log.info({ inboxId, tenantId, targetProject, handlerPath }, 'Executing Antigravity CLI Processor');
+
+        // We run the CLI script using Node.js exec within a Promise
+        const executionResult = await new Promise((resolve) => {
+          const childEnv = {
+            ...process.env,
+            JARVIS_SENDER: payload.sender || '',
+            JARVIS_MESSAGE: payload.message || '',
+            JARVIS_MEDIA_TYPE: payload.type || 'text',
+            JARVIS_S3_URL: payload.s3_url || ''
+          };
+
+          const child = exec(
+            `node "${handlerPath}"`,
+            {
+              cwd: targetProject,
+              timeout: timeoutSec * 1000,
+              maxBuffer: 1024 * 1024, // 1MB buffer
+              env: childEnv
+            },
+            (error, stdout, stderr) => {
+              if (error) {
+                log.error({ err: error.message, stderr }, 'Antigravity CLI execution error');
+                resolve({
+                  success: false,
+                  output: `[Antigravity CLI Error]: ${error.message}${stderr ? `\nStderr: ${stderr}` : ''}`
+                });
+              } else {
+                resolve({
+                  success: true,
+                  output: stdout.trim()
+                });
+              }
+            }
+          );
+
+          // Write payload to stdin
+          child.stdin.write(JSON.stringify({
+            inboxId,
+            tenantId,
+            channelId: payload.channelId,
+            channelConfig: channelConfig,
+            sender: payload.sender,
+            message: payload.message,
+            type: payload.type,
+            s3_url: payload.s3_url
+          }));
+          child.stdin.end();
+        });
+
+        finalPayload = {
+          ...payload,
+          transcription: executionResult.output
+        };
+      } else {
+        if (payload?.type === 'audio') {
+          log.info({ inboxId, tenantId, url: payload.s3_url }, 'Executing Audio Stub (Transducer)');
+          finalPayload = { ...payload, transcription: `[MOCK_AUDIO_TRANSCRIPTION: Audio recibido]` };
+        } else if (payload?.type === 'image') {
+          log.info({ inboxId, tenantId, url: payload.s3_url }, 'Executing Image Stub (Transducer)');
+          finalPayload = { ...payload, transcription: `[MOCK_IMAGE_OCR: Imagen analizada]` };
+        } else if (payload?.type === 'video') {
+          log.info({ inboxId, tenantId, url: payload.s3_url }, 'Executing Video Stub (Transducer)');
+          finalPayload = { ...payload, transcription: `[MOCK_VIDEO: Video recibido y almacenado]` };
+        } else if (payload?.type === 'document') {
+          log.info({ inboxId, tenantId, url: payload.s3_url }, 'Executing Document Stub (Transducer)');
+          finalPayload = { ...payload, transcription: `[MOCK_DOCUMENT: Documento recibido y almacenado]` };
+        }
       }
 
       // Enqueue reply back to WhatsApp if we have a sender

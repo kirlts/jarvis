@@ -158,3 +158,12 @@ RULES:
 **Pattern:** Al simular y bypassear un protocolo que interactúa con hardware o cifrado real (mocking the handshake) para inyectar credenciales directamente a la memoria, los tests de integración adquieren latencia `0ms`. Esto ciega al desarrollador sobre "race conditions" del mundo real, como acumulaciones asíncronas de promesas que encolan 5+ segundos e inducen timeouts en dispositivos físicos reales.
 **Lesson:** Nunca declarar un handshake de hardware/red E2E como "100% estabilizado" basándose exclusivamente en un script unitario con inyección directa de estado; requiere validación empírica física o el uso de arquitecturas estables Lock-Free (ej. Mutex de loteado) probadas en concurrencia real.
 **Source:** Implementación de Batching Mutex Lock en `auth-state.js`.
+
+## [HEU-017] Playwright Glob Wildcard '?': Literal Query Parameter Interception Pitfall
+
+**Date:** 2026-05-30
+**Origin:** Playwright E2E routing mock failures for operations jobs and WhatsApp channels
+**Pattern:** En Playwright `page.route()`, utilizar patrones glob como `**/admin/jobs?**` pensando en capturar el separador literal de query parameters `?` provoca fallas silenciosas. En la sintaxis glob, el caracter `?` es un comodín comodín que coincide con exactamente un solo caracter de cualquier tipo (como `.` en regex o `_` en SQL) en lugar de un signo de interrogación literal. Esto causa que la ruta falle en interceptar las llamadas del dataProvider cliente, invocando servicios reales ausentes en el entorno E2E.
+**Lesson:** Evitar el uso de comodines de texto glob para URLs con query parameters en Playwright. Utilizar patrones de expresión regular (ej. `/\/admin\/jobs/` o `/\/admin\/whatsapp\/status\/.*\/channels/`) que son 1000% más robustos, independientes del puerto o protocolo, e integran métodos cruzados (GET/DELETE/PATCH) de forma limpia y centralizada.
+**Source:** [Confirmed by user - no external source]
+

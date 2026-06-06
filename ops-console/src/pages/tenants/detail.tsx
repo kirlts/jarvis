@@ -149,7 +149,7 @@ export function TenantDetailPage() {
 
   // WhatsApp Multichannel State
   const [refreshKey, setRefreshKey] = useState(0);
-  const [selectedChannel, setSelectedChannel] = useState<WappChannel | null>(null);
+  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
   const [showAuditModal, setShowAuditModal] = useState(false);
@@ -201,12 +201,16 @@ export function TenantDetailPage() {
     method: 'get',
     meta: { rawUrl: `/admin/whatsapp/status/${id}/channels` },
     queryOptions: {
-      queryKey: ['tenant-channels', id, refreshKey],
+      queryKey: ['tenant-channels', id],
       enabled: !!id,
     },
   });
 
   const channels: WappChannel[] = Array.isArray(channelsResult?.data) ? channelsResult.data : [];
+
+  const selectedChannel = useMemo(() => {
+    return channels.find(c => c.id === selectedChannelId) || null;
+  }, [channels, selectedChannelId]);
 
   const allEvents = useMemo(() => {
     const events = buildTimelineEvents(auditData as any[], jobsData as any[], inboxData as any[], channels);
@@ -284,14 +288,14 @@ export function TenantDetailPage() {
   useWhatsAppSSE(
     useCallback((event) => {
       if (event.tenant_id === id) {
-        setRefreshKey(k => k + 1);
+        wappQuery?.refetch?.();
         auditQuery?.refetch?.();
         jobsQuery?.refetch?.();
         inboxQuery?.refetch?.();
         tenantQuery?.refetch?.();
       }
-    }, [id, auditQuery, jobsQuery, inboxQuery, tenantQuery]),
-    true // Always enabled to auto-refresh background activity (inbox, jobs, audits)
+    }, [id, wappQuery, auditQuery, jobsQuery, inboxQuery, tenantQuery]),
+    true // Always enabled to auto-refresh background activity (inbox, jobs, audits, channels)
   );
 
   const handleDelete = useCallback(() => {
@@ -505,7 +509,7 @@ export function TenantDetailPage() {
         addToast("Canal creado", "success");
         setNewChannelName("");
         setShowCreateChannel(false);
-        setRefreshKey(k => k + 1);
+        wappQuery?.refetch?.();
       },
       onError: (err) => addToast(`Error: ${err.message}`, "error"),
     });
@@ -764,7 +768,10 @@ export function TenantDetailPage() {
                   <div style={{ background: 'var(--surface-0)', padding: 'var(--sp-4)', borderRadius: 'var(--radius-md)', borderLeft: '4px solid var(--accent)' }}>
                     {selectedEvent.type === 'whatsapp' && (
                       <>
-                         <h4 style={{ margin: '0 0 var(--sp-2) 0', color: 'var(--text-tertiary)', fontSize: 'var(--text-xs)', textTransform: 'uppercase' }}>Contenido Recibido de {formatJid(selectedEvent.item.payload?.sender || selectedEvent.item.sender)}</h4>
+                         <h4 style={{ margin: '0 0 var(--sp-2) 0', color: 'var(--text-tertiary)', fontSize: 'var(--text-xs)', textTransform: 'uppercase' }}>
+                           {selectedEvent.item.payload?.isFromMe ? 'Contenido Enviado A ' : 'Contenido Recibido de '}
+                           {formatJid(selectedEvent.item.payload?.sender || selectedEvent.item.sender)}
+                         </h4>
                          <div style={{ fontSize: 'var(--text-base)', fontWeight: 500, color: 'var(--text-primary)', display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
                            {selectedEvent.item.payload?.type && selectedEvent.item.payload.type !== 'text' && (() => {
                              const totalCount = 1 + (selectedEvent.additionalItems?.length || 0);
@@ -1106,11 +1113,11 @@ export function TenantDetailPage() {
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   {channels.map((ch) => {
                     const status = ch.session_status || ch.status;
-                    const isSelected = selectedChannel?.id === ch.id;
+                    const isSelected = selectedChannelId === ch.id;
                     return (
                       <div
                         key={ch.id}
-                        onClick={() => setSelectedChannel(isSelected ? null : ch)}
+                        onClick={() => setSelectedChannelId(isSelected ? null : ch.id)}
                         className="channel-list-item"
                         style={{
                           display: 'flex',
@@ -1153,7 +1160,7 @@ export function TenantDetailPage() {
                 }}>
                   <ChannelDetailPanel
                     channel={selectedChannel}
-                    onRefresh={() => setRefreshKey(k => k + 1)}
+                    onRefresh={() => wappQuery?.refetch?.()}
                   />
                 </div>
               )}

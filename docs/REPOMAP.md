@@ -1,6 +1,6 @@
 # REPOMAP: Jarvis
 
-> Generated: 2026-05-29 02:56:00 (Kairós v3.4.1)  
+> Generated: 2026-05-30 03:54:00 (Kairós v3.4.1)  
 > Purpose: Routing matrix. Defines when the AI is authorized to read each directory or file.
 
 ## Authoring Constraints (Read Before Populating)

@@ -603,5 +603,35 @@ Reducir el intervalo de latidos (`heartbeatInterval`) del endpoint Server-Sent E
 - Martín probará e iterará sobre la interfaz de forma independiente antes de dar el "ok" definitivo.
 **Reversion conditions:** Aprobación formal del operador en una sesión de chat futura tras completar sus pruebas empíricas.
 
+## [UD-034] Estrategia de Pruebas E2E Exhaustivas con Playwright e Intercepción por Expresiones Regulares en la Ops Console
+
+**Date:** 2026-05-30
+**Context:** En cumplimiento con la doctrina de pruebas de Kairós (`docs/TEST.md`), se requería establecer una suite robusta de pruebas automatizadas E2E que valide el 100% de los flujos de la Ops Console. Se requería evitar la contaminación de la base de datos de producción y resolver fallos espurios de enrutamiento glob en Playwright al interceptar endpoints con query parameters.
+**Decision:** Implementar una suite de 10 pruebas integrales de Playwright (`ops-console/e2e/`) que asertan de forma robusta la seguridad, el ciclo de vida de Tenants, las colas de operaciones, el aprovisionamiento de canales de WhatsApp con UI dinámica para plugins y la previsualización de storage multimedia, logrando 100% de ejecución exitosa determinista. Se adoptó el uso exclusivo de expresiones regulares (`/\/admin\/tenants/`) para interceptar rutas de API, y se implementó la inyección de JWT RS256 pre-firmado directamente en la sesión del navegador para bypass seguro y determinista de la pantalla de login.
+**Discarded alternatives:**
+- Usar comodines de texto glob como `**/admin/jobs?**` (descartado por el comportamiento del comodín `?` en glob, que coincide con un único carácter y no con el signo de interrogación literal, provocando fallas silenciosas de interceptación).
+- Ejecutar tests interactuando con una base de datos real sin mocks en local (descartado para prevenir la contaminación de datos y asegurar la velocidad y reproducibilidad offline de los tests).
+**Consequences:**
+- Ejecución determinista, rápida (100% offline) de toda la suite de pruebas E2E con Playwright.
+- Eliminación de falsos positivos y de interferencias de red en entornos locales de desarrollo.
+- Coherencia absoluta con la directriz de pruebas automáticas e integrales del proyecto.
+**Reversion conditions:** Ninguna. Esta estrategia de testeo E2E con mocks estables y regex routing es definitiva para el desarrollo ágil de la interfaz.
+
+## [UD-035] Ejecución de Procesadores CLI Locales en Contenedores Aislados y Configuración Dinámica de Plugins
+
+**Date:** 2026-06-03
+**Context:** Al integrar el procesador local `antigravity-handler.js` en el `core-worker`, se produjo el error de subproceso `spawn /bin/sh ENOENT` debido a que el contenedor aislado de pg-boss no tenía acceso al volumen del repositorio ni a la variable de entorno `GEMINI_API_KEY` del host. Simultáneamente, en el frontend, el componente `PluginConfigForm` fallaba al recuperar claves dinámicas porque utilizaba un `fetch` impuro que no inyectaba el JWT del `authProvider` de Refine.
+**Decision:**
+1. **Montaje de Volumen en Worker:** Modificar `docker-compose.yml` para mapear el volumen del código fuente al contenedor `core-worker` (`- /home/kirlts/jarvis:/home/kirlts/jarvis`) de modo que pueda ejecutar de manera nativa los subprocesos del procesador, junto a la herencia directa de la variable de entorno `GEMINI_API_KEY`.
+2. **Refactorización Strict Refine:** Migrar `PluginConfigForm` para usar exclusivamente el hook `useCustom` nativo de Refine. El `dataProvider` gestiona ahora la inyección del token JWT y el manejo de errores.
+**Discarded alternatives:**
+- Desplegar el script de Antigravity dentro de la imagen de Docker (descartado porque dificulta la iteración rápida de desarrollo local y la edición en caliente del script `antigravity-handler.js`).
+- Mantener `fetch` manual con `sessionStorage` (descartado por violar los mandatos arquitectónicos del proyecto en `docs/RULES.md`).
+**Consequences:**
+- Ejecución determinista del procesador Antigravity en entorno local sin comprometer el aislamiento del contenedor.
+- Interfaz de plugins 100% robusta y acoplada a las directivas de seguridad de Refine.
+**Reversion conditions:** Ninguna.
+
+
 
 

@@ -64,48 +64,24 @@ export const authProvider: AuthProvider = {
     // Phase 1: Accept a pre-signed JWT directly.
     // Phase 2: This will be replaced by a POST /admin/auth/login flow.
     if (!token) {
-      return {
-        success: false,
-        error: {
-          name: "LoginError",
-          message: "No token provided",
-        },
-      };
+      throw new Error("No token provided");
     }
 
     // Validate JWT structure (3 dot-separated parts)
     const parts = token.split(".");
     if (parts.length !== 3) {
-      return {
-        success: false,
-        error: {
-          name: "LoginError",
-          message: "Invalid JWT format",
-        },
-      };
+      throw new Error("Invalid JWT format");
     }
 
     // Decode and verify the algorithm claim is RS256
     const header = JSON.parse(atob(parts[0]));
     if (header.alg !== "RS256") {
-      return {
-        success: false,
-        error: {
-          name: "LoginError",
-          message: `Unsupported algorithm: ${header.alg}. Only RS256 is accepted.`,
-        },
-      };
+      throw new Error(`Unsupported algorithm: ${header.alg}. Only RS256 is accepted.`);
     }
 
     // Verify token is not expired
     if (isTokenExpired(token)) {
-      return {
-        success: false,
-        error: {
-          name: "LoginError",
-          message: "Token is expired",
-        },
-      };
+      throw new Error("Token is expired");
     }
 
     sessionStorage.setItem(TOKEN_KEY, token);

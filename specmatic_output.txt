@@ -1,0 +1,5478 @@
+Contract test server running on port 3006...
+Specmatic Version: v2.44.1
+
+
+API Specification Summary: specs/admin-api.yaml
+  OpenAPI Version: 3.0.3
+  API Paths: 35, API Operations: 43
+  Schema components: 6, Security Schemes: [http]
+
+
+
+Endpoints API and SwaggerUI URL were not exposed by the application, so cannot calculate actual coverage
+
+
+Using Specmatic Open Source license initialized from jar:file:/home/kirlts/jarvis/node_modules/specmatic/specmatic.jar!/default-oss-license.txt
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.163
+    POST /admin/tenants
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 201
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "TPLKI"
+    }
+
+  Response at 2026-5-29 9:41:15.252
+    201 Created
+    content-type: application/json; charset=utf-8
+    content-length: 100
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "019e768a-e76f-733b-9e10-d1e7a78cc49e",
+        "name": "TPLKI",
+        "created_at": "2026-04-27T00:00:00.000Z"
+    }
+
+
+Scenario: POST /admin/tenants -> 201 with a request where REQUEST.BODY contains all the keys has SUCCEEDED
+
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.324
+    POST /admin/tenants
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 201
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "F"
+    }
+
+  Response at 2026-5-29 9:41:15.337
+    201 Created
+    content-type: application/json; charset=utf-8
+    content-length: 96
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "019e768a-e7c6-733b-9e10-e3885d286e98",
+        "name": "F",
+        "created_at": "2026-04-27T00:00:00.000Z"
+    }
+
+
+Scenario: POST /admin/tenants -> 201 with a request where REQUEST.BODY contains all the keys AND the key name is set to the shortest possible string has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.342
+    POST /admin/tenants
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 201
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "PWNMWWTQNVKEMAABRFGWEAUWGEPWNEFWHCJKGVXAJBIPARSQQSXPMKBQKJFYOIRIHQBJSXAKUKGNKCDLKRNAFHDBUNMWTPLJJLUHCIKHKUQYBPACKLDRYSMYJTVBWRBUPCYTXDVDJPXTDFRQXTTPCEFDXPUNLCUTONXGMYCOIVFYUYDHMOHSKHIKBSGNUDYIQBIHUKMUYBGYWBIIBPVVCUWKBIEEIRSXOAQAQRMNNAVLPSRORWNNONJDMRAVDIR"
+    }
+
+  Response at 2026-5-29 9:41:15.352
+    201 Created
+    content-type: application/json; charset=utf-8
+    content-length: 350
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "019e768a-e7d6-733b-9e10-f77ff2e52edb",
+        "name": "PWNMWWTQNVKEMAABRFGWEAUWGEPWNEFWHCJKGVXAJBIPARSQQSXPMKBQKJFYOIRIHQBJSXAKUKGNKCDLKRNAFHDBUNMWTPLJJLUHCIKHKUQYBPACKLDRYSMYJTVBWRBUPCYTXDVDJPXTDFRQXTTPCEFDXPUNLCUTONXGMYCOIVFYUYDHMOHSKHIKBSGNUDYIQBIHUKMUYBGYWBIIBPVVCUWKBIEEIRSXOAQAQRMNNAVLPSRORWNNONJDMRAVDIR",
+        "created_at": "2026-04-27T00:00:00.000Z"
+    }
+
+
+Scenario: POST /admin/tenants -> 201 with a request where REQUEST.BODY contains all the keys AND the key name is set to the longest possible string has SUCCEEDED
+
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.363
+    POST /admin/tenants
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 201
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "Y"
+    }
+
+  Response at 2026-5-29 9:41:15.373
+    201 Created
+    content-type: application/json; charset=utf-8
+    content-length: 96
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "019e768a-e7ea-733b-9e11-03db7e7f6e38",
+        "name": "Y",
+        "created_at": "2026-04-27T00:00:00.000Z"
+    }
+
+
+Scenario: POST /admin/tenants -> 201 with a request where REQUEST.BODY contains all the keys AND the key name is set to the shortest possible string has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.379
+    POST /admin/tenants
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 201
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "LCPBHUBEFRKACGEONPAHDPMVNYQKETGGJKAFSEGRESELVSTHHHNHNXEPAOUPDWBBDVIMJWEHYSLFCQKFVCJODNDQUAOXEURHAPHWCLSXPOSHSMYKXASYXOUNHCVJCMGFHHCPGCWYLBBUQVFHHDVPENMSTNGIBWMEMGDYVWIMIBRICRXAXBYYKWLBJBTSNMDQEJOYUFHWIXCKFKRBDKFWGOGERPCIMDFBATLHNACQAWOIRCJGINRSVFFWNVYAITA"
+    }
+
+  Response at 2026-5-29 9:41:15.391
+    201 Created
+    content-type: application/json; charset=utf-8
+    content-length: 350
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "019e768a-e7fb-733b-9e11-17eaa8b781e8",
+        "name": "LCPBHUBEFRKACGEONPAHDPMVNYQKETGGJKAFSEGRESELVSTHHHNHNXEPAOUPDWBBDVIMJWEHYSLFCQKFVCJODNDQUAOXEURHAPHWCLSXPOSHSMYKXASYXOUNHCVJCMGFHHCPGCWYLBBUQVFHHDVPENMSTNGIBWMEMGDYVWIMIBRICRXAXBYYKWLBJBTSNMDQEJOYUFHWIXCKFKRBDKFWGOGERPCIMDFBATLHNACQAWOIRCJGINRSVFFWNVYAITA",
+        "created_at": "2026-04-27T00:00:00.000Z"
+    }
+
+
+Scenario: POST /admin/tenants -> 201 with a request where REQUEST.BODY contains all the keys AND the key name is set to the longest possible string has SUCCEEDED
+
+
+
+--------------------
+
+  Skipping Scenario: POST /admin/tenants -> 400 (requestContentType application/json)
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+--------------------
+  Skipping Scenario: POST /admin/tenants -> 401 (requestContentType application/json)
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Skipping Scenario: POST /admin/tenants -> 403 (requestContentType application/json)
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+--------------------
+  Skipping Scenario: POST /admin/tenants -> 409 (requestContentType application/json)
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.401
+    GET /admin/tenants?page=1854939647301220717&limit=47
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:15.418
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 196
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "data": [
+            {
+                "id": "01926d8c-5a00-7000-8000-000000000001",
+                "name": "contract-tenant",
+                "created_at": "2026-04-27T00:00:00.000Z",
+                "deleted_at": null
+            }
+        ],
+        "meta": {
+            "total": 1,
+            "page": 1854939647301220600,
+            "limit": 47
+        }
+    }
+
+
+Scenario: GET /admin/tenants -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'limit' AND page is set to a value within the specified bounds AND limit is set to a value within the specified bounds has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.455
+    GET /admin/tenants?page=1&limit=1
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:15.468
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 177
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "data": [
+            {
+                "id": "01926d8c-5a00-7000-8000-000000000001",
+                "name": "contract-tenant",
+                "created_at": "2026-04-27T00:00:00.000Z",
+                "deleted_at": null
+            }
+        ],
+        "meta": {
+            "total": 1,
+            "page": 1,
+            "limit": 1
+        }
+    }
+
+
+Scenario: GET /admin/tenants -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'limit' AND page is set to the smallest possible value '1' AND limit is set to the smallest possible value '1' has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.474
+    GET /admin/tenants?page=2897509423539431090&limit=100
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:15.484
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 197
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "data": [
+            {
+                "id": "01926d8c-5a00-7000-8000-000000000001",
+                "name": "contract-tenant",
+                "created_at": "2026-04-27T00:00:00.000Z",
+                "deleted_at": null
+            }
+        ],
+        "meta": {
+            "total": 1,
+            "page": 2897509423539431000,
+            "limit": 100
+        }
+    }
+
+
+Scenario: GET /admin/tenants -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'limit' AND page is set to a value within the specified bounds AND limit is set to the largest possible value has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.490
+    GET /admin/tenants?page=292150573256664164&limit=1
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:15.500
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 194
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "data": [
+            {
+                "id": "01926d8c-5a00-7000-8000-000000000001",
+                "name": "contract-tenant",
+                "created_at": "2026-04-27T00:00:00.000Z",
+                "deleted_at": null
+            }
+        ],
+        "meta": {
+            "total": 1,
+            "page": 292150573256664200,
+            "limit": 1
+        }
+    }
+
+
+Scenario: GET /admin/tenants -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'limit' AND page is set to a value within the specified bounds AND limit is set to the smallest possible value '1' has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.508
+    GET /admin/tenants?page=1&limit=26
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:15.523
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 178
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "data": [
+            {
+                "id": "01926d8c-5a00-7000-8000-000000000001",
+                "name": "contract-tenant",
+                "created_at": "2026-04-27T00:00:00.000Z",
+                "deleted_at": null
+            }
+        ],
+        "meta": {
+            "total": 1,
+            "page": 1,
+            "limit": 26
+        }
+    }
+
+
+Scenario: GET /admin/tenants -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'limit' AND page is set to the smallest possible value '1' AND limit is set to a value within the specified bounds has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.537
+    GET /admin/tenants?page=1&limit=100
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:15.550
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 179
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "data": [
+            {
+                "id": "01926d8c-5a00-7000-8000-000000000001",
+                "name": "contract-tenant",
+                "created_at": "2026-04-27T00:00:00.000Z",
+                "deleted_at": null
+            }
+        ],
+        "meta": {
+            "total": 1,
+            "page": 1,
+            "limit": 100
+        }
+    }
+
+
+Scenario: GET /admin/tenants -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'limit' AND page is set to the smallest possible value '1' AND limit is set to the largest possible value has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.564
+    GET /admin/tenants
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:15.578
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 178
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "data": [
+            {
+                "id": "01926d8c-5a00-7000-8000-000000000001",
+                "name": "contract-tenant",
+                "created_at": "2026-04-27T00:00:00.000Z",
+                "deleted_at": null
+            }
+        ],
+        "meta": {
+            "total": 1,
+            "page": 1,
+            "limit": 20
+        }
+    }
+
+
+Scenario: GET /admin/tenants -> 200 has SUCCEEDED
+
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/tenants -> 400
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/tenants -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/tenants -> 403
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.606
+    GET /admin/tenants/69fb0ee0-3c0a-466b-bf30-d7a75fb7f5dd
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:15.621
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 128
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "01926d8c-5a00-7000-8000-000000000001",
+        "name": "contract-tenant",
+        "created_at": "2026-04-27T00:00:00.000Z",
+        "deleted_at": null
+    }
+
+
+Scenario: GET /admin/tenants/(id:uuid) -> 200 has SUCCEEDED
+
+
+
+--------------------
+  Skipping Scenario: GET /admin/tenants/(id:uuid) -> 400
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/tenants/(id:uuid) -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+--------------------
+  Skipping Scenario: GET /admin/tenants/(id:uuid) -> 403
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Skipping Scenario: GET /admin/tenants/(id:uuid) -> 404
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.636
+    PATCH /admin/tenants/9eeabe33-13e1-483f-a3f6-eeef66d8e87e
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "AIQYB"
+    }
+
+  Response at 2026-5-29 9:41:15.655
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 118
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "9eeabe33-13e1-483f-a3f6-eeef66d8e87e",
+        "name": "AIQYB",
+        "created_at": "2026-04-27T00:00:00.000Z",
+        "deleted_at": null
+    }
+
+
+Scenario: PATCH /admin/tenants/(id:uuid) -> 200 with a request where REQUEST.BODY contains all the keys has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.668
+    PATCH /admin/tenants/0aedaae2-92d1-489b-8d6d-cfff6e9a9fd1
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "C"
+    }
+
+  Response at 2026-5-29 9:41:15.683
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 114
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "0aedaae2-92d1-489b-8d6d-cfff6e9a9fd1",
+        "name": "C",
+        "created_at": "2026-04-27T00:00:00.000Z",
+        "deleted_at": null
+    }
+
+
+Scenario: PATCH /admin/tenants/(id:uuid) -> 200 with a request where REQUEST.BODY contains all the keys AND the key name is set to the shortest possible string has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.698
+    PATCH /admin/tenants/65acfaa6-ca35-48bb-9ee6-58ee02d6100d
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "IVROQYLHIHACQUJWUBIFSEJNISSBRCHKVDFFAGDBSUXQLUOSRERJTMTTDTRFXGUXFKGTXOSCEIHOXOQPCKPHFVCWVTHHBPOWYNEVUAVBYVBYELHUCLLGJPBLEJDUSJGYXXXYKSPXFPHYQHPWFDSKMFASUUWWGWGFSOIFYWGVBVCADKEMWKFGNJANHAUVJUMFSOORJEOYSHKDYHVVQERSJXSJWQICJTLOFBCCWWUJLVORCJNXXLRCIHMIRNYOION"
+    }
+
+  Response at 2026-5-29 9:41:15.708
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 368
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "65acfaa6-ca35-48bb-9ee6-58ee02d6100d",
+        "name": "IVROQYLHIHACQUJWUBIFSEJNISSBRCHKVDFFAGDBSUXQLUOSRERJTMTTDTRFXGUXFKGTXOSCEIHOXOQPCKPHFVCWVTHHBPOWYNEVUAVBYVBYELHUCLLGJPBLEJDUSJGYXXXYKSPXFPHYQHPWFDSKMFASUUWWGWGFSOIFYWGVBVCADKEMWKFGNJANHAUVJUMFSOORJEOYSHKDYHVVQERSJXSJWQICJTLOFBCCWWUJLVORCJNXXLRCIHMIRNYOION",
+        "created_at": "2026-04-27T00:00:00.000Z",
+        "deleted_at": null
+    }
+
+
+Scenario: PATCH /admin/tenants/(id:uuid) -> 200 with a request where REQUEST.BODY contains all the keys AND the key name is set to the longest possible string has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.713
+    PATCH /admin/tenants/d734ecf1-3f4f-4466-ad2f-4e64ef96bb7b
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "T"
+    }
+
+  Response at 2026-5-29 9:41:15.723
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 114
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "d734ecf1-3f4f-4466-ad2f-4e64ef96bb7b",
+        "name": "T",
+        "created_at": "2026-04-27T00:00:00.000Z",
+        "deleted_at": null
+    }
+
+
+Scenario: PATCH /admin/tenants/(id:uuid) -> 200 with a request where REQUEST.BODY contains all the keys AND the key name is set to the shortest possible string has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.730
+    PATCH /admin/tenants/e9601471-44d6-4cb0-81e2-6516545dd865
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "MQFLYEDRRFTUUJHPOQRMVSRENDHGTSJNHFTWJDGXTYWMWBREXFRIXCKRWVCAJQNWXOGFCWFMPNJGKCVHXYCVCPOKESQAWXUSJTEQHBBLSIKGOLBDOWCPYWCPYSYKNIYCDYOMVVDQHWIRDSYSFGHISJLTCQTCOJHFBFMFFATGROHHSCQUIFFTUOOKWJCRUWPTCDJTPPHJOOROQEXHGEXCQMCWUFWYGMDXFXDFTBKYJNCTSMUFMXQGMSGJQLGNQPP"
+    }
+
+  Response at 2026-5-29 9:41:15.740
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 368
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "e9601471-44d6-4cb0-81e2-6516545dd865",
+        "name": "MQFLYEDRRFTUUJHPOQRMVSRENDHGTSJNHFTWJDGXTYWMWBREXFRIXCKRWVCAJQNWXOGFCWFMPNJGKCVHXYCVCPOKESQAWXUSJTEQHBBLSIKGOLBDOWCPYWCPYSYKNIYCDYOMVVDQHWIRDSYSFGHISJLTCQTCOJHFBFMFFATGROHHSCQUIFFTUOOKWJCRUWPTCDJTPPHJOOROQEXHGEXCQMCWUFWYGMDXFXDFTBKYJNCTSMUFMXQGMSGJQLGNQPP",
+        "created_at": "2026-04-27T00:00:00.000Z",
+        "deleted_at": null
+    }
+
+
+Scenario: PATCH /admin/tenants/(id:uuid) -> 200 with a request where REQUEST.BODY contains all the keys AND the key name is set to the longest possible string has SUCCEEDED
+
+
+
+--------------------
+  Skipping Scenario: PATCH /admin/tenants/(id:uuid) -> 400 (requestContentType application/json)
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+--------------------
+  Skipping Scenario: PATCH /admin/tenants/(id:uuid) -> 401 (requestContentType application/json)
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+--------------------
+  Skipping Scenario: PATCH /admin/tenants/(id:uuid) -> 403 (requestContentType application/json)
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+--------------------
+  Skipping Scenario: PATCH /admin/tenants/(id:uuid) -> 404 (requestContentType application/json)
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+--------------------
+  Skipping Scenario: PATCH /admin/tenants/(id:uuid) -> 409 (requestContentType application/json)
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.750
+    DELETE /admin/tenants/b096315f-dfb6-4438-b736-5635cc911738?confirm=true&purge=true
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:15.760
+    404 Not Found
+    content-type: application/json; charset=utf-8
+    content-length: 28
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "error": "Tenant not found"
+    }
+
+
+Scenario: DELETE /admin/tenants/(id:uuid) -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'confirm', 'purge' AND confirm is set to 'true' from enum AND purge is set to 'true' from enum has FAILED
+
+Reason:
+Testing scenario "Soft-delete or permanently purge a tenant. Response: Tenant deleted"
+API: DELETE /admin/tenants/(id:uuid) -> 200
+
+  >> RESPONSE.STATUS
+  
+      R0002: HTTP status mismatch
+      Documentation: https://docs.specmatic.io/rules#r0002
+      Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+      Specification expected status 200 but response contained status 404
+
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.783
+    DELETE /admin/tenants/f7c588da-02db-4c33-b77c-9b8163472712?confirm=true&purge=false
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:15.792
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 64
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "status": "deleted",
+        "id": "f7c588da-02db-4c33-b77c-9b8163472712"
+    }
+
+
+Scenario: DELETE /admin/tenants/(id:uuid) -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'confirm', 'purge' AND confirm is set to 'true' from enum AND purge is set to 'false' from enum has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.798
+    DELETE /admin/tenants/de49ab02-fb9d-445d-a7eb-1584f3d51818?confirm=true
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:15.806
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 64
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "status": "deleted",
+        "id": "de49ab02-fb9d-445d-a7eb-1584f3d51818"
+    }
+
+
+Scenario: DELETE /admin/tenants/(id:uuid) -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the param 'confirm' AND confirm is set to 'true' from enum has SUCCEEDED
+
+
+
+--------------------
+  Skipping Scenario: DELETE /admin/tenants/(id:uuid) -> 400
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+--------------------
+
+  Skipping Scenario: DELETE /admin/tenants/(id:uuid) -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+--------------------
+  Skipping Scenario: DELETE /admin/tenants/(id:uuid) -> 403
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+
+  Skipping Scenario: DELETE /admin/tenants/(id:uuid) -> 404
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.815
+    GET /admin/jobs?page=4449794878566893728&state=MAAVN&tenant_id=YDFKD&limit=42
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:15.826
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 284
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    [
+        {
+            "id": "01926d8c-5a00-7000-8000-000000000002",
+            "name": "sync-inbox-process",
+            "state": "completed",
+            "data": {
+                "output": {
+                    "zipKey": "mock-zip-key"
+                }
+            },
+            "created_on": "2026-04-27T00:00:00.000Z",
+            "started_on": null,
+            "completed_on": null,
+            "description": "📥 Procesando payload de sincronización offline"
+        }
+    ]
+
+
+Scenario: GET /admin/jobs -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'state', 'tenant_id', 'limit' AND page is set to a value within the specified bounds AND limit is set to a value within the specified bounds has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.833
+    GET /admin/jobs?page=1&state=RXITW&tenant_id=YQCLT&limit=1
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:15.847
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 284
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    [
+        {
+            "id": "01926d8c-5a00-7000-8000-000000000002",
+            "name": "sync-inbox-process",
+            "state": "completed",
+            "data": {
+                "output": {
+                    "zipKey": "mock-zip-key"
+                }
+            },
+            "created_on": "2026-04-27T00:00:00.000Z",
+            "started_on": null,
+            "completed_on": null,
+            "description": "📥 Procesando payload de sincronización offline"
+        }
+    ]
+
+
+Scenario: GET /admin/jobs -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'state', 'tenant_id', 'limit' AND page is set to the smallest possible value '1' AND limit is set to the smallest possible value '1' has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.854
+    GET /admin/jobs?page=6178637272274870054&state=MDFTM&tenant_id=UVXWU&limit=100
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:15.865
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 284
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    [
+        {
+            "id": "01926d8c-5a00-7000-8000-000000000002",
+            "name": "sync-inbox-process",
+            "state": "completed",
+            "data": {
+                "output": {
+                    "zipKey": "mock-zip-key"
+                }
+            },
+            "created_on": "2026-04-27T00:00:00.000Z",
+            "started_on": null,
+            "completed_on": null,
+            "description": "📥 Procesando payload de sincronización offline"
+        }
+    ]
+
+
+Scenario: GET /admin/jobs -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'state', 'tenant_id', 'limit' AND page is set to a value within the specified bounds AND limit is set to the largest possible value has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.871
+    GET /admin/jobs?page=435884835477726669&state=VJXIU&tenant_id=VDRIB&limit=1
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:15.881
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 284
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    [
+        {
+            "id": "01926d8c-5a00-7000-8000-000000000002",
+            "name": "sync-inbox-process",
+            "state": "completed",
+            "data": {
+                "output": {
+                    "zipKey": "mock-zip-key"
+                }
+            },
+            "created_on": "2026-04-27T00:00:00.000Z",
+            "started_on": null,
+            "completed_on": null,
+            "description": "📥 Procesando payload de sincronización offline"
+        }
+    ]
+
+
+Scenario: GET /admin/jobs -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'state', 'tenant_id', 'limit' AND page is set to a value within the specified bounds AND limit is set to the smallest possible value '1' has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.888
+    GET /admin/jobs?page=1&state=IXWMI&tenant_id=OMTTB&limit=28
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:15.902
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 284
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    [
+        {
+            "id": "01926d8c-5a00-7000-8000-000000000002",
+            "name": "sync-inbox-process",
+            "state": "completed",
+            "data": {
+                "output": {
+                    "zipKey": "mock-zip-key"
+                }
+            },
+            "created_on": "2026-04-27T00:00:00.000Z",
+            "started_on": null,
+            "completed_on": null,
+            "description": "📥 Procesando payload de sincronización offline"
+        }
+    ]
+
+
+Scenario: GET /admin/jobs -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'state', 'tenant_id', 'limit' AND page is set to the smallest possible value '1' AND limit is set to a value within the specified bounds has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.917
+    GET /admin/jobs?page=1&state=BLFAG&tenant_id=PKUYI&limit=100
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:15.931
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 284
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    [
+        {
+            "id": "01926d8c-5a00-7000-8000-000000000002",
+            "name": "sync-inbox-process",
+            "state": "completed",
+            "data": {
+                "output": {
+                    "zipKey": "mock-zip-key"
+                }
+            },
+            "created_on": "2026-04-27T00:00:00.000Z",
+            "started_on": null,
+            "completed_on": null,
+            "description": "📥 Procesando payload de sincronización offline"
+        }
+    ]
+
+
+Scenario: GET /admin/jobs -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'state', 'tenant_id', 'limit' AND page is set to the smallest possible value '1' AND limit is set to the largest possible value has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.937
+    GET /admin/jobs
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:15.946
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 284
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    [
+        {
+            "id": "01926d8c-5a00-7000-8000-000000000002",
+            "name": "sync-inbox-process",
+            "state": "completed",
+            "data": {
+                "output": {
+                    "zipKey": "mock-zip-key"
+                }
+            },
+            "created_on": "2026-04-27T00:00:00.000Z",
+            "started_on": null,
+            "completed_on": null,
+            "description": "📥 Procesando payload de sincronización offline"
+        }
+    ]
+
+
+Scenario: GET /admin/jobs -> 200 has SUCCEEDED
+
+
+
+--------------------
+  Skipping Scenario: GET /admin/jobs -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+--------------------
+  Skipping Scenario: GET /admin/jobs -> 403
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.953
+    DELETE /admin/jobs?state=completed&confirm=true
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:15.963
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 57
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "message": "Jobs purgados correctamente",
+        "purgedCount": 1
+    }
+
+
+Scenario: DELETE /admin/jobs -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'state', 'confirm' AND state is set to 'completed' from enum AND confirm is set to 'true' from enum has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.968
+    DELETE /admin/jobs?state=failed&confirm=true
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:15.976
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 57
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "message": "Jobs purgados correctamente",
+        "purgedCount": 1
+    }
+
+
+Scenario: DELETE /admin/jobs -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'state', 'confirm' AND state is set to 'failed' from enum AND confirm is set to 'true' from enum has SUCCEEDED
+
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:15.981
+    DELETE /admin/jobs?state=cancelled&confirm=true
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.3
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 57
+    Date: Sat, 30 May 2026 01:41:15 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "message": "Jobs purgados correctamente",
+        "purgedCount": 1
+    }
+
+
+Scenario: DELETE /admin/jobs -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'state', 'confirm' AND state is set to 'cancelled' from enum AND confirm is set to 'true' from enum has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.9
+    DELETE /admin/jobs?state=all_finished&confirm=true
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.16
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 57
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "message": "Jobs purgados correctamente",
+        "purgedCount": 1
+    }
+
+
+Scenario: DELETE /admin/jobs -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'state', 'confirm' AND state is set to 'all_finished' from enum AND confirm is set to 'true' from enum has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.22
+    DELETE /admin/jobs?confirm=true
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.30
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 57
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "message": "Jobs purgados correctamente",
+        "purgedCount": 1
+    }
+
+
+Scenario: DELETE /admin/jobs -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the param 'confirm' AND confirm is set to 'true' from enum has SUCCEEDED
+
+
+
+
+
+--------------------
+
+  Skipping Scenario: DELETE /admin/jobs -> 400
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+
+  Skipping Scenario: DELETE /admin/jobs -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+--------------------
+
+  Skipping Scenario: DELETE /admin/jobs -> 403
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.35
+    GET /admin/whatsapp/status
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.44
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 115
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    [
+        {
+            "tenant_id": "01926d8c-5a00-7000-8000-000000000001",
+            "status": "connected",
+            "updated_at": "2026-04-27T00:00:00.000Z"
+        }
+    ]
+
+
+Scenario: GET /admin/whatsapp/status -> 200 has SUCCEEDED
+
+
+
+--------------------
+  Skipping Scenario: GET /admin/whatsapp/status -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Skipping Scenario: GET /admin/whatsapp/status -> 403
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/whatsapp/status/stream -> 200 (responseContentType text/event-stream)
+  T00001: Excluded by Filter
+  Documentation: https://docs.specmatic.io/rules#t00001
+  Summary: This operation was skipped because it did not match the specified filter
+  
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/whatsapp/status/stream -> 401
+  T00001: Excluded by Filter
+  Documentation: https://docs.specmatic.io/rules#t00001
+  Summary: This operation was skipped because it did not match the specified filter
+  
+
+--------------------
+
+  Skipping Scenario: GET /admin/whatsapp/status/stream -> 403
+  T00001: Excluded by Filter
+  Documentation: https://docs.specmatic.io/rules#t00001
+  Summary: This operation was skipped because it did not match the specified filter
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.51
+    PATCH /admin/tenants/2b4a6d97-f8df-4ea4-8907-879ef785d049/status
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "status": "active"
+    }
+
+  Response at 2026-5-29 9:41:16.63
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 119
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "2b4a6d97-f8df-4ea4-8907-879ef785d049",
+        "name": "active",
+        "created_at": "2026-04-27T00:00:00.000Z",
+        "deleted_at": null
+    }
+
+
+Scenario: PATCH /admin/tenants/(id:uuid)/status -> 200 with a request where REQUEST.BODY contains all the keys AND the key status is set to 'active' from enum has FAILED
+
+Reason:
+Testing scenario "Change tenant lifecycle status. Response: Tenant status updated"
+API: PATCH /admin/tenants/(id:uuid)/status -> 200
+
+  >> RESPONSE.BODY
+  
+      R1002: Value mismatch
+      Documentation: https://docs.specmatic.io/rules#r1002
+      Summary: The value does not match the expected value defined in the specification
+  
+      Specification expected no body but response contained {
+          "id": "2b4a6d97-f8df-4ea4-8907-879ef785d049",
+          "name": "active",
+          "created_at": "2026-04-27T00:00:00.000Z",
+          "deleted_at": null
+      }
+
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.69
+    PATCH /admin/tenants/532a4d1e-a926-4712-8cb3-210488489f13/status
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "status": "suspended"
+    }
+
+  Response at 2026-5-29 9:41:16.80
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 122
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "532a4d1e-a926-4712-8cb3-210488489f13",
+        "name": "suspended",
+        "created_at": "2026-04-27T00:00:00.000Z",
+        "deleted_at": null
+    }
+
+
+Scenario: PATCH /admin/tenants/(id:uuid)/status -> 200 with a request where REQUEST.BODY contains all the keys AND the key status is set to 'suspended' from enum has FAILED
+
+Reason:
+Testing scenario "Change tenant lifecycle status. Response: Tenant status updated"
+API: PATCH /admin/tenants/(id:uuid)/status -> 200
+
+  >> RESPONSE.BODY
+  
+      R1002: Value mismatch
+      Documentation: https://docs.specmatic.io/rules#r1002
+      Summary: The value does not match the expected value defined in the specification
+  
+      Specification expected no body but response contained {
+          "id": "532a4d1e-a926-4712-8cb3-210488489f13",
+          "name": "suspended",
+          "created_at": "2026-04-27T00:00:00.000Z",
+          "deleted_at": null
+      }
+
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.86
+    PATCH /admin/tenants/d63c91bc-9e59-4a89-8652-30f26a46ced7/status
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "status": "trial"
+    }
+
+  Response at 2026-5-29 9:41:16.94
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 118
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "d63c91bc-9e59-4a89-8652-30f26a46ced7",
+        "name": "trial",
+        "created_at": "2026-04-27T00:00:00.000Z",
+        "deleted_at": null
+    }
+
+
+Scenario: PATCH /admin/tenants/(id:uuid)/status -> 200 with a request where REQUEST.BODY contains all the keys AND the key status is set to 'trial' from enum has FAILED
+Reason:
+Testing scenario "Change tenant lifecycle status. Response: Tenant status updated"
+API: PATCH /admin/tenants/(id:uuid)/status -> 200
+
+  >> RESPONSE.BODY
+  
+      R1002: Value mismatch
+      Documentation: https://docs.specmatic.io/rules#r1002
+      Summary: The value does not match the expected value defined in the specification
+  
+      Specification expected no body but response contained {
+          "id": "d63c91bc-9e59-4a89-8652-30f26a46ced7",
+          "name": "trial",
+          "created_at": "2026-04-27T00:00:00.000Z",
+          "deleted_at": null
+      }
+
+
+
+
+--------------------
+
+  Skipping Scenario: PATCH /admin/tenants/(id:uuid)/status -> 400 (requestContentType application/json)
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+
+  Skipping Scenario: PATCH /admin/tenants/(id:uuid)/status -> 401 (requestContentType application/json)
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Skipping Scenario: PATCH /admin/tenants/(id:uuid)/status -> 404 (requestContentType application/json)
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.101
+    POST /admin/tenants/0b34cbca-a82f-48d9-9418-fc942c1cc0f4/restore
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.109
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 45
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "0b34cbca-a82f-48d9-9418-fc942c1cc0f4"
+    }
+
+
+Scenario: POST /admin/tenants/(id:uuid)/restore -> 200 has FAILED
+
+Reason:
+Testing scenario "Restore a soft-deleted tenant. Response: Tenant restored"
+API: POST /admin/tenants/(id:uuid)/restore -> 200
+
+  >> RESPONSE.BODY
+  
+      R1002: Value mismatch
+      Documentation: https://docs.specmatic.io/rules#r1002
+      Summary: The value does not match the expected value defined in the specification
+  
+      Specification expected no body but response contained {
+          "id": "0b34cbca-a82f-48d9-9418-fc942c1cc0f4"
+      }
+
+
+
+--------------------
+  Skipping Scenario: POST /admin/tenants/(id:uuid)/restore -> 400
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+--------------------
+
+  Skipping Scenario: POST /admin/tenants/(id:uuid)/restore -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+--------------------
+  Skipping Scenario: POST /admin/tenants/(id:uuid)/restore -> 404
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.115
+    GET /admin/tenants/fb0f7a5f-7483-4fbf-a585-a4d940b1ad4b/stats
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.123
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 769
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "inbox": {
+            "id": "01926d8c-5a00-7000-8000-000000000007",
+            "tenant_id": "01926d8c-5a00-7000-8000-000000000001",
+            "channel_id": "01926d8c-5a00-7000-8000-000000000003",
+            "sender_jid": "123456789@s.whatsapp.net",
+            "message_id": "mock-msg-id",
+            "message_type": "text",
+            "text_content": "hello",
+            "media_s3_key": null,
+            "processed_at": "2026-04-27T00:00:00.000Z",
+            "created_at": "2026-04-27T00:00:00.000Z"
+        },
+        "storage": {
+            "id": "01926d8c-5a00-7000-8000-000000000005",
+            "tenant_id": "01926d8c-5a00-7000-8000-000000000001",
+            "file_name": "test.jpg",
+            "mime_type": "image/jpeg",
+            "size_bytes": 1024,
+            "s3_key": "tenants/1/test.jpg",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "status": "uploaded",
+            "created_at": "2026-04-27T00:00:00.000Z",
+            "updated_at": "2026-04-27T00:00:00.000Z",
+            "deleted_at": null
+        }
+    }
+
+
+Scenario: GET /admin/tenants/(id:uuid)/stats -> 200 has SUCCEEDED
+
+
+
+--------------------
+  Skipping Scenario: GET /admin/tenants/(id:uuid)/stats -> 400
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+--------------------
+  Skipping Scenario: GET /admin/tenants/(id:uuid)/stats -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.129
+    POST /admin/tenants/556538be-324c-4786-9a68-67e6adf02dc3/token
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.138
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 26
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "token": "mock-jwt-token"
+    }
+
+
+Scenario: POST /admin/tenants/(id:uuid)/token -> 200 has SUCCEEDED
+
+
+
+
+--------------------
+
+  Skipping Scenario: POST /admin/tenants/(id:uuid)/token -> 400
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+
+  Skipping Scenario: POST /admin/tenants/(id:uuid)/token -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+
+--------------------
+
+  Skipping Scenario: POST /admin/tenants/(id:uuid)/token -> 404
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.143
+    POST /admin/whatsapp/status/9f9d2cf2-2541-4f1a-80be-b6fd3b9a7988/reconnect
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.152
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 70
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "message": "Inicialización / reconexión de canal WhatsApp encolada"
+    }
+
+
+Scenario: POST /admin/whatsapp/status/(tenant_id:uuid)/reconnect -> 200 has FAILED
+
+Reason:
+Testing scenario "Force WhatsApp reconnection and QR regeneration. Response: Reconnection initiated"
+API: POST /admin/whatsapp/status/(tenant_id:uuid)/reconnect -> 200
+
+  >> RESPONSE.BODY
+  
+      R1002: Value mismatch
+      Documentation: https://docs.specmatic.io/rules#r1002
+      Summary: The value does not match the expected value defined in the specification
+  
+      Specification expected no body but response contained {
+          "message": "Inicialización / reconexión de canal WhatsApp encolada"
+      }
+
+
+
+
+
+--------------------
+
+  Skipping Scenario: POST /admin/whatsapp/status/(tenant_id:uuid)/reconnect -> 400
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+
+--------------------
+
+  Skipping Scenario: POST /admin/whatsapp/status/(tenant_id:uuid)/reconnect -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.159
+    DELETE /admin/whatsapp/status/9d660ee3-5ab8-4978-b471-cf7304ef7a0d?confirm=true
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.170
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 58
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "message": "Desconexión y limpieza de sesión iniciadas"
+    }
+
+
+Scenario: DELETE /admin/whatsapp/status/(tenant_id:uuid) -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the param 'confirm' AND confirm is set to 'true' from enum has FAILED
+
+Reason:
+Testing scenario "Disconnect and soft-delete WhatsApp session. Response: Disconnection initiated"
+API: DELETE /admin/whatsapp/status/(tenant_id:uuid) -> 200
+
+  >> RESPONSE.BODY
+  
+      R1002: Value mismatch
+      Documentation: https://docs.specmatic.io/rules#r1002
+      Summary: The value does not match the expected value defined in the specification
+  
+      Specification expected no body but response contained {
+          "message": "Desconexión y limpieza de sesión iniciadas"
+      }
+
+
+
+
+--------------------
+
+  Skipping Scenario: DELETE /admin/whatsapp/status/(tenant_id:uuid) -> 400
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+--------------------
+  Skipping Scenario: DELETE /admin/whatsapp/status/(tenant_id:uuid) -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.177
+    GET /admin/whatsapp/status/96c76f80-9183-47a6-ac0d-baa0c144947c/audit
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.185
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 194
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    [
+        {
+            "id": 1,
+            "actor": "admin",
+            "action": "create",
+            "resource": "tenant",
+            "resource_id": "01926d8c-5a00-7000-8000-000000000001",
+            "details": {
+                "name": "contract-tenant"
+            },
+            "created_at": "2026-04-27T00:00:00.000Z"
+        }
+    ]
+
+
+Scenario: GET /admin/whatsapp/status/(tenant_id:uuid)/audit -> 200 has SUCCEEDED
+
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/whatsapp/status/(tenant_id:uuid)/audit -> 400
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/whatsapp/status/(tenant_id:uuid)/audit -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.193
+    POST /admin/whatsapp/status/1e03094f-f1ba-4677-ab80-cc0a93320400/channels
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 201
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "HKTPK",
+        "config": {}
+    }
+
+  Response at 2026-5-29 9:41:16.204
+    201 Created
+    content-type: application/json; charset=utf-8
+    content-length: 147
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "019e768a-eb29-733b-9e11-bc34cdf01079",
+        "tenant_id": "1e03094f-f1ba-4677-ab80-cc0a93320400",
+        "name": "HKTPK",
+        "status": "disconnected",
+        "config": {}
+    }
+
+
+Scenario: POST /admin/whatsapp/status/(tenant_id:uuid)/channels -> 201 with a request where REQUEST.BODY contains all the keys AND the key config contains all the keys has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.209
+    POST /admin/whatsapp/status/0612d1f7-70e7-45e0-af14-8944a0e70dae/channels
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 201
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "V",
+        "config": {}
+    }
+
+  Response at 2026-5-29 9:41:16.219
+    201 Created
+    content-type: application/json; charset=utf-8
+    content-length: 143
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "019e768a-eb39-733b-9e11-cc19b4643f3e",
+        "tenant_id": "0612d1f7-70e7-45e0-af14-8944a0e70dae",
+        "name": "V",
+        "status": "disconnected",
+        "config": {}
+    }
+
+
+Scenario: POST /admin/whatsapp/status/(tenant_id:uuid)/channels -> 201 with a request where REQUEST.BODY contains all the keys AND the key name is set to the shortest possible string AND config contains all the keys has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.225
+    POST /admin/whatsapp/status/145b1f04-3d82-48b4-a11d-dd15dfe6b157/channels
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 201
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "UPALOTGIMVOEKXITJLUMIMPEPVBCQXPOHVUUMISVMPCISQPXMTUAGHGCYWILNLGCVMKNGKJSXUGACUYITLXSIJDJXVJNEKTSFDPE",
+        "config": {}
+    }
+
+  Response at 2026-5-29 9:41:16.234
+    201 Created
+    content-type: application/json; charset=utf-8
+    content-length: 242
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "019e768a-eb48-733b-9e11-da9570aac314",
+        "tenant_id": "145b1f04-3d82-48b4-a11d-dd15dfe6b157",
+        "name": "UPALOTGIMVOEKXITJLUMIMPEPVBCQXPOHVUUMISVMPCISQPXMTUAGHGCYWILNLGCVMKNGKJSXUGACUYITLXSIJDJXVJNEKTSFDPE",
+        "status": "disconnected",
+        "config": {}
+    }
+
+
+Scenario: POST /admin/whatsapp/status/(tenant_id:uuid)/channels -> 201 with a request where REQUEST.BODY contains all the keys AND the key name is set to the longest possible string AND config contains all the keys has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.240
+    POST /admin/whatsapp/status/dc124016-68c8-4ca1-ae1d-506c96deb544/channels
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 201
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "DRIQXOYNXJKFKGOGRGMHLHCPGORERIALXTPATHEANTCODVJAHAHNCIWDJNWVVOCQDPPQGAHKMQCYMGEFEFBLTQFYJJJFTJIFJVOL",
+        "config": {}
+    }
+
+  Response at 2026-5-29 9:41:16.249
+    201 Created
+    content-type: application/json; charset=utf-8
+    content-length: 242
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "019e768a-eb56-733b-9e11-e958854c7a18",
+        "tenant_id": "dc124016-68c8-4ca1-ae1d-506c96deb544",
+        "name": "DRIQXOYNXJKFKGOGRGMHLHCPGORERIALXTPATHEANTCODVJAHAHNCIWDJNWVVOCQDPPQGAHKMQCYMGEFEFBLTQFYJJJFTJIFJVOL",
+        "status": "disconnected",
+        "config": {}
+    }
+
+
+Scenario: POST /admin/whatsapp/status/(tenant_id:uuid)/channels -> 201 with a request where REQUEST.BODY contains all the keys AND the key name is set to the longest possible string AND config contains all the keys has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.254
+    POST /admin/whatsapp/status/c6d8953f-06c9-4245-bce4-3916e29f32e0/channels
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 201
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "BRXDN"
+    }
+
+  Response at 2026-5-29 9:41:16.262
+    201 Created
+    content-type: application/json; charset=utf-8
+    content-length: 147
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "019e768a-eb63-733b-9e11-fcc8db654203",
+        "tenant_id": "c6d8953f-06c9-4245-bce4-3916e29f32e0",
+        "name": "BRXDN",
+        "status": "disconnected",
+        "config": {}
+    }
+
+
+Scenario: POST /admin/whatsapp/status/(tenant_id:uuid)/channels -> 201 with a request where REQUEST.BODY contains only the mandatory keys has SUCCEEDED
+
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.268
+    POST /admin/whatsapp/status/c87da17e-5a43-4254-bd4c-b2faffd806f8/channels
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 201
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "H"
+    }
+
+  Response at 2026-5-29 9:41:16.276
+    201 Created
+    content-type: application/json; charset=utf-8
+    content-length: 143
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "019e768a-eb72-733b-9e12-0e74a048344b",
+        "tenant_id": "c87da17e-5a43-4254-bd4c-b2faffd806f8",
+        "name": "H",
+        "status": "disconnected",
+        "config": {}
+    }
+
+
+Scenario: POST /admin/whatsapp/status/(tenant_id:uuid)/channels -> 201 with a request where REQUEST.BODY contains only the mandatory keys AND the key name is set to the shortest possible string has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.281
+    POST /admin/whatsapp/status/b8efb002-2348-474c-a36b-fd73c26402ea/channels
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 201
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "XXWPOLBHMKLYHQRGQUYEYDOWLIKCLNMHQBFAVMIXEGJBWFTDCVXYMOSVQVYXFWSEUNYDIVGDPHRFPUSHSSQCAJFSHFKKTOHMVVHP"
+    }
+
+  Response at 2026-5-29 9:41:16.289
+    201 Created
+    content-type: application/json; charset=utf-8
+    content-length: 242
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "019e768a-eb7f-733b-9e12-1dcd9463dc40",
+        "tenant_id": "b8efb002-2348-474c-a36b-fd73c26402ea",
+        "name": "XXWPOLBHMKLYHQRGQUYEYDOWLIKCLNMHQBFAVMIXEGJBWFTDCVXYMOSVQVYXFWSEUNYDIVGDPHRFPUSHSSQCAJFSHFKKTOHMVVHP",
+        "status": "disconnected",
+        "config": {}
+    }
+
+
+Scenario: POST /admin/whatsapp/status/(tenant_id:uuid)/channels -> 201 with a request where REQUEST.BODY contains only the mandatory keys AND the key name is set to the longest possible string has SUCCEEDED
+
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.294
+    POST /admin/whatsapp/status/35468c32-5512-463f-8b34-152ba168c6e7/channels
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 201
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "N"
+    }
+
+  Response at 2026-5-29 9:41:16.307
+    201 Created
+    content-type: application/json; charset=utf-8
+    content-length: 143
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "019e768a-eb90-733b-9e12-2c7bb5d89a59",
+        "tenant_id": "35468c32-5512-463f-8b34-152ba168c6e7",
+        "name": "N",
+        "status": "disconnected",
+        "config": {}
+    }
+
+
+Scenario: POST /admin/whatsapp/status/(tenant_id:uuid)/channels -> 201 with a request where REQUEST.BODY contains only the mandatory keys AND the key name is set to the shortest possible string has SUCCEEDED
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.313
+    POST /admin/whatsapp/status/42339b74-4d95-46cb-a823-d808398c4a54/channels
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 201
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "FURTWQAFWUFRTECPYLLAOGUNPOOHKEMYVORAAPAUGDOAWOQFYMMXWLBNBIVEFUNALFHQQAEVPFLAHXXTCQVTSRHIVPFNCGYRSTAY"
+    }
+
+  Response at 2026-5-29 9:41:16.323
+    201 Created
+    content-type: application/json; charset=utf-8
+    content-length: 242
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "019e768a-eba0-733b-9e12-3f3c39c0d8eb",
+        "tenant_id": "42339b74-4d95-46cb-a823-d808398c4a54",
+        "name": "FURTWQAFWUFRTECPYLLAOGUNPOOHKEMYVORAAPAUGDOAWOQFYMMXWLBNBIVEFUNALFHQQAEVPFLAHXXTCQVTSRHIVPFNCGYRSTAY",
+        "status": "disconnected",
+        "config": {}
+    }
+
+
+Scenario: POST /admin/whatsapp/status/(tenant_id:uuid)/channels -> 201 with a request where REQUEST.BODY contains only the mandatory keys AND the key name is set to the longest possible string has SUCCEEDED
+
+
+
+--------------------
+
+  Skipping Scenario: POST /admin/whatsapp/status/(tenant_id:uuid)/channels -> 400 (requestContentType application/json)
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+
+  Skipping Scenario: POST /admin/whatsapp/status/(tenant_id:uuid)/channels -> 401 (requestContentType application/json)
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+
+  Skipping Scenario: POST /admin/whatsapp/status/(tenant_id:uuid)/channels -> 404 (requestContentType application/json)
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.329
+    GET /admin/whatsapp/status/05ac25f9-ee38-4d64-a196-9d60c77ec1fe/channels
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.340
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 115
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    [
+        {
+            "tenant_id": "01926d8c-5a00-7000-8000-000000000001",
+            "status": "connected",
+            "updated_at": "2026-04-27T00:00:00.000Z"
+        }
+    ]
+
+
+Scenario: GET /admin/whatsapp/status/(tenant_id:uuid)/channels -> 200 has FAILED
+Reason:
+Testing scenario "List all WhatsApp channels for a tenant. Response: List of channels with session state"
+API: GET /admin/whatsapp/status/(tenant_id:uuid)/channels -> 200
+
+  >> RESPONSE.BODY[0].updated_at
+  
+      R2003: Unknown property
+      Documentation: https://docs.specmatic.io/rules#r2003
+      Summary: A property was found that is not defined in the specification
+  
+      Property "updated_at" in the response was not in the specification
+
+
+
+
+--------------------
+  Skipping Scenario: GET /admin/whatsapp/status/(tenant_id:uuid)/channels -> 400
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/whatsapp/status/(tenant_id:uuid)/channels -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.348
+    GET /admin/whatsapp/status/4c69cfb2-3489-4d01-bec6-4e6997eed7df/channels/0c6bab35-3145-4355-97b5-b080f4b090d8
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.358
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 113
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "tenant_id": "01926d8c-5a00-7000-8000-000000000001",
+        "status": "connected",
+        "updated_at": "2026-04-27T00:00:00.000Z"
+    }
+
+
+Scenario: GET /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200 has FAILED
+
+Reason:
+Testing scenario "Get channel detail with session state and QR. Response: Channel detail"
+API: GET /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200
+
+  >> RESPONSE.BODY.updated_at
+  
+      R2003: Unknown property
+      Documentation: https://docs.specmatic.io/rules#r2003
+      Summary: A property was found that is not defined in the specification
+  
+      Property "updated_at" in the response was not in the specification
+
+
+
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 400
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 404
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.368
+    PATCH /admin/whatsapp/status/630ede59-2d48-4be7-a86c-1717e0595826/channels/270fca3e-ed86-4c86-a8cb-8a3180741b90
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "WIVQP",
+        "config": {}
+    }
+
+  Response at 2026-5-29 9:41:16.380
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 31
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "message": "Canal actualizado"
+    }
+
+
+Scenario: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200 with a request where REQUEST.BODY contains all the keys AND the key config contains all the keys has FAILED
+
+Reason:
+Testing scenario "Update channel name and/or config. Response: Channel updated"
+API: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200
+
+  >> RESPONSE.BODY
+  
+      R1002: Value mismatch
+      Documentation: https://docs.specmatic.io/rules#r1002
+      Summary: The value does not match the expected value defined in the specification
+  
+      Specification expected no body but response contained {
+          "message": "Canal actualizado"
+      }
+
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.389
+    PATCH /admin/whatsapp/status/b1372c52-2abf-40c4-9ba8-950b472160b7/channels/7691c189-bb48-4d83-92c6-f7544b7ac572
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "Y",
+        "config": {}
+    }
+
+  Response at 2026-5-29 9:41:16.400
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 31
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "message": "Canal actualizado"
+    }
+
+
+Scenario: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200 with a request where REQUEST.BODY contains all the keys AND the key name is set to the shortest possible string AND config contains all the keys has FAILED
+Reason:
+Testing scenario "Update channel name and/or config. Response: Channel updated"
+API: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200
+
+  >> RESPONSE.BODY
+  
+      R1002: Value mismatch
+      Documentation: https://docs.specmatic.io/rules#r1002
+      Summary: The value does not match the expected value defined in the specification
+  
+      Specification expected no body but response contained {
+          "message": "Canal actualizado"
+      }
+
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.405
+    PATCH /admin/whatsapp/status/0c8c1c93-5434-4bde-af6e-7ab640005d75/channels/c8522f6e-392c-4df7-b4f5-c84dcaff7a21
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "YKBKWTCMRHIKEHBWRKYMIOUNLOQWNBBTGYHMVHGVLCDFRQENCUJYFHDWSFRITNIGPEAJLYSBFHQYXCKKXFHDNOSFTBWEMOKPSVEW",
+        "config": {}
+    }
+
+  Response at 2026-5-29 9:41:16.414
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 31
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "message": "Canal actualizado"
+    }
+
+
+Scenario: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200 with a request where REQUEST.BODY contains all the keys AND the key name is set to the longest possible string AND config contains all the keys has FAILED
+Reason:
+Testing scenario "Update channel name and/or config. Response: Channel updated"
+API: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200
+
+  >> RESPONSE.BODY
+  
+      R1002: Value mismatch
+      Documentation: https://docs.specmatic.io/rules#r1002
+      Summary: The value does not match the expected value defined in the specification
+  
+      Specification expected no body but response contained {
+          "message": "Canal actualizado"
+      }
+
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.419
+    PATCH /admin/whatsapp/status/232f78e0-e4a6-48e0-8c84-ca30bd35c13a/channels/84052865-2cda-4407-a0ab-203b7f34ae42
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "E",
+        "config": {}
+    }
+
+  Response at 2026-5-29 9:41:16.429
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 31
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "message": "Canal actualizado"
+    }
+
+
+Scenario: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200 with a request where REQUEST.BODY contains all the keys AND the key name is set to the shortest possible string AND config contains all the keys has FAILED
+
+Reason:
+Testing scenario "Update channel name and/or config. Response: Channel updated"
+API: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200
+
+  >> RESPONSE.BODY
+  
+      R1002: Value mismatch
+      Documentation: https://docs.specmatic.io/rules#r1002
+      Summary: The value does not match the expected value defined in the specification
+  
+      Specification expected no body but response contained {
+          "message": "Canal actualizado"
+      }
+
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.435
+    PATCH /admin/whatsapp/status/64611f74-8d16-4f89-ab2a-af6f7d0f9c22/channels/6e99628e-2eb8-4622-99aa-e3bc32e3ed1f
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "name": "OKAKLDXSANGXNCXUWAXDSFTYKOYWBRWTCNSDCQNOJQSFIEAYGLMYFBFTNTMYUYIGYYRNIXLLJDYEYFVUFDJYAVNMKBMQPAWTIFIX",
+        "config": {}
+    }
+
+  Response at 2026-5-29 9:41:16.445
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 31
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "message": "Canal actualizado"
+    }
+
+
+Scenario: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200 with a request where REQUEST.BODY contains all the keys AND the key name is set to the longest possible string AND config contains all the keys has FAILED
+Reason:
+Testing scenario "Update channel name and/or config. Response: Channel updated"
+API: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200
+
+  >> RESPONSE.BODY
+  
+      R1002: Value mismatch
+      Documentation: https://docs.specmatic.io/rules#r1002
+      Summary: The value does not match the expected value defined in the specification
+  
+      Specification expected no body but response contained {
+          "message": "Canal actualizado"
+      }
+
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.450
+    PATCH /admin/whatsapp/status/ee513c64-edbf-4765-bdd5-dbd231766924/channels/7bd86819-bec6-4363-b12f-9c92661c49a0
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {}
+
+  Response at 2026-5-29 9:41:16.457
+    400 Bad Request
+    content-type: application/json; charset=utf-8
+    content-length: 81
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "error": "Bad Request",
+        "message": "At least one field (name, config) is required"
+    }
+
+
+Scenario: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200 with a request where REQUEST.BODY contains only the mandatory keys has FAILED
+Reason:
+Testing scenario "Update channel name and/or config. Response: Channel updated"
+API: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200
+
+  >> RESPONSE.STATUS
+  
+      R0002: HTTP status mismatch
+      Documentation: https://docs.specmatic.io/rules#r0002
+      Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+      Specification expected status 200 but response contained status 400
+
+
+
+
+--------------------
+  Skipping Scenario: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 400 (requestContentType application/json)
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+
+  Skipping Scenario: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 401 (requestContentType application/json)
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+
+  Skipping Scenario: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 404 (requestContentType application/json)
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.464
+    DELETE /admin/whatsapp/status/779b0e98-2a63-4e37-b748-210e3f31e431/channels/ddd228cf-4498-495e-b467-260aed70b72f?confirm=true
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.472
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 52
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "message": "Canal eliminado y sesión desconectada"
+    }
+
+
+Scenario: DELETE /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the param 'confirm' AND confirm is set to 'true' from enum has FAILED
+Reason:
+Testing scenario "Soft-delete a WhatsApp channel and disconnect its socket. Response: Channel deleted"
+API: DELETE /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200
+
+  >> RESPONSE.BODY
+  
+      R1002: Value mismatch
+      Documentation: https://docs.specmatic.io/rules#r1002
+      Summary: The value does not match the expected value defined in the specification
+  
+      Specification expected no body but response contained {
+          "message": "Canal eliminado y sesión desconectada"
+      }
+
+
+
+
+--------------------
+
+  Skipping Scenario: DELETE /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 400
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+--------------------
+  Skipping Scenario: DELETE /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.480
+    POST /admin/whatsapp/status/fbaf9dc9-ab78-40e6-8f05-b16ccccea9aa/channels/5b442e09-012c-4c09-9a55-c488c1a241f8/reconnect
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.489
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 94
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "message": "Reconexión de canal encolada",
+        "channelId": "5b442e09-012c-4c09-9a55-c488c1a241f8"
+    }
+
+
+Scenario: POST /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid)/reconnect -> 200 has SUCCEEDED
+
+
+
+--------------------
+  Skipping Scenario: POST /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid)/reconnect -> 400
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+
+  Skipping Scenario: POST /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid)/reconnect -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+
+  Skipping Scenario: POST /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid)/reconnect -> 404
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.499
+    GET /admin/audit?page=224&limit=853&action=BPRMC&resource=MYXFX&resource_id=NYESE
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.512
+    400 Bad Request
+    content-type: application/json; charset=utf-8
+    content-length: 113
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "statusCode": 400,
+        "code": "FST_ERR_VALIDATION",
+        "error": "Bad Request",
+        "message": "querystring/limit must be <= 100"
+    }
+
+
+Scenario: GET /admin/audit -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'limit', 'action', 'resource', 'resource_id' has FAILED
+Reason:
+Testing scenario "Paginated admin audit trail. Response: Paginated audit entries"
+API: GET /admin/audit -> 200
+
+  >> RESPONSE.STATUS
+  
+      R0002: HTTP status mismatch
+      Documentation: https://docs.specmatic.io/rules#r0002
+      Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+      Specification expected status 200 but response contained status 400
+
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.517
+    GET /admin/audit
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.527
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 242
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "data": [
+            {
+                "id": 1,
+                "actor": "admin",
+                "action": "create",
+                "resource": "tenant",
+                "resource_id": "01926d8c-5a00-7000-8000-000000000001",
+                "details": {
+                    "name": "contract-tenant"
+                },
+                "created_at": "2026-04-27T00:00:00.000Z"
+            }
+        ],
+        "meta": {
+            "total": 1,
+            "page": 1,
+            "limit": 50
+        }
+    }
+
+
+Scenario: GET /admin/audit -> 200 has SUCCEEDED
+
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/audit -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.536
+    GET /admin/dashboard/summary
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.546
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 932
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "tenants": {
+            "id": "01926d8c-5a00-7000-8000-000000000001",
+            "name": "contract-tenant",
+            "created_at": "2026-04-27T00:00:00.000Z",
+            "deleted_at": null
+        },
+        "jobs": {},
+        "whatsapp": {},
+        "storage": {
+            "id": "01926d8c-5a00-7000-8000-000000000005",
+            "tenant_id": "01926d8c-5a00-7000-8000-000000000001",
+            "file_name": "test.jpg",
+            "mime_type": "image/jpeg",
+            "size_bytes": 1024,
+            "s3_key": "tenants/1/test.jpg",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "status": "uploaded",
+            "created_at": "2026-04-27T00:00:00.000Z",
+            "updated_at": "2026-04-27T00:00:00.000Z",
+            "deleted_at": null
+        },
+        "inbox": {
+            "id": "01926d8c-5a00-7000-8000-000000000007",
+            "tenant_id": "01926d8c-5a00-7000-8000-000000000001",
+            "channel_id": "01926d8c-5a00-7000-8000-000000000003",
+            "sender_jid": "123456789@s.whatsapp.net",
+            "message_id": "mock-msg-id",
+            "message_type": "text",
+            "text_content": "hello",
+            "media_s3_key": null,
+            "processed_at": "2026-04-27T00:00:00.000Z",
+            "created_at": "2026-04-27T00:00:00.000Z"
+        }
+    }
+
+
+Scenario: GET /admin/dashboard/summary -> 200 has SUCCEEDED
+
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/dashboard/summary -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.553
+    GET /admin/health
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.565
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 301
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "status": "healthy",
+        "services": {
+            "database": {
+                "status": "healthy",
+                "latency_ms": 0
+            },
+            "pooler": {
+                "status": "healthy",
+                "latency_ms": 0
+            },
+            "loki": {
+                "status": "healthy",
+                "latency_ms": 1
+            },
+            "storage": {
+                "status": "healthy",
+                "latency_ms": 0
+            },
+            "job_queue": {
+                "status": "healthy",
+                "latency_ms": 1
+            }
+        },
+        "timestamp": "2026-05-30T01:41:16.562Z"
+    }
+
+
+Scenario: GET /admin/health -> 200 has SUCCEEDED
+
+
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/health -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.572
+    GET /admin/logs?query=CRQTU&limit=647&start=VCNII&end=OQUVB
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.582
+    400 Bad Request
+    content-type: application/json; charset=utf-8
+    content-length: 113
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "statusCode": 400,
+        "code": "FST_ERR_VALIDATION",
+        "error": "Bad Request",
+        "message": "querystring/limit must be <= 500"
+    }
+
+
+Scenario: GET /admin/logs -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'query', 'limit', 'start', 'end' has FAILED
+Reason:
+Testing scenario "Query logs via Loki proxy. Response: Log entries"
+API: GET /admin/logs -> 200
+
+  >> RESPONSE.STATUS
+  
+      R0002: HTTP status mismatch
+      Documentation: https://docs.specmatic.io/rules#r0002
+      Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+      Specification expected status 200 but response contained status 400
+
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.587
+    GET /admin/logs
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.660
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 30
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "data": [],
+        "meta": {
+            "total": 0
+        }
+    }
+
+
+Scenario: GET /admin/logs -> 200 has SUCCEEDED
+
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/logs -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/logs -> 502
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.667
+    GET /admin/logs/labels
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.676
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 64
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "status": "success",
+        "data": {
+            "result": [],
+            "resultType": "streams"
+        }
+    }
+
+
+Scenario: GET /admin/logs/labels -> 200 has FAILED
+Reason:
+Testing scenario "Available Loki label names. Response: Loki labels"
+API: GET /admin/logs/labels -> 200
+
+  >> RESPONSE.BODY
+  
+      R1002: Value mismatch
+      Documentation: https://docs.specmatic.io/rules#r1002
+      Summary: The value does not match the expected value defined in the specification
+  
+      Specification expected no body but response contained {
+          "status": "success",
+          "data": {
+              "result": [],
+              "resultType": "streams"
+          }
+      }
+
+
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/logs/labels -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/logs/labels -> 502
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.685
+    GET /admin/storage?page=391&limit=488&tenant_id=BGOLJ&status=pending&search=ATXLI
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.694
+    400 Bad Request
+    content-type: application/json; charset=utf-8
+    content-length: 113
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "statusCode": 400,
+        "code": "FST_ERR_VALIDATION",
+        "error": "Bad Request",
+        "message": "querystring/limit must be <= 100"
+    }
+
+
+Scenario: GET /admin/storage -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'limit', 'tenant_id', 'status', 'search' AND status is set to 'pending' from enum has FAILED
+Reason:
+Testing scenario "Paginated storage objects list. Response: Paginated storage objects"
+API: GET /admin/storage -> 200
+
+  >> RESPONSE.STATUS
+  
+      R0002: HTTP status mismatch
+      Documentation: https://docs.specmatic.io/rules#r0002
+      Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+      Specification expected status 200 but response contained status 400
+
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.701
+    GET /admin/storage?page=184&limit=591&tenant_id=RIFKV&status=uploaded&search=FEWYX
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.709
+    400 Bad Request
+    content-type: application/json; charset=utf-8
+    content-length: 113
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "statusCode": 400,
+        "code": "FST_ERR_VALIDATION",
+        "error": "Bad Request",
+        "message": "querystring/limit must be <= 100"
+    }
+
+
+Scenario: GET /admin/storage -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'limit', 'tenant_id', 'status', 'search' AND status is set to 'uploaded' from enum has FAILED
+Reason:
+Testing scenario "Paginated storage objects list. Response: Paginated storage objects"
+API: GET /admin/storage -> 200
+
+  >> RESPONSE.STATUS
+  
+      R0002: HTTP status mismatch
+      Documentation: https://docs.specmatic.io/rules#r0002
+      Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+      Specification expected status 200 but response contained status 400
+
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.715
+    GET /admin/storage?page=208&limit=301&tenant_id=DNTRV&status=deleted&search=BOLWD
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.722
+    400 Bad Request
+    content-type: application/json; charset=utf-8
+    content-length: 113
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "statusCode": 400,
+        "code": "FST_ERR_VALIDATION",
+        "error": "Bad Request",
+        "message": "querystring/limit must be <= 100"
+    }
+
+
+Scenario: GET /admin/storage -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'limit', 'tenant_id', 'status', 'search' AND status is set to 'deleted' from enum has FAILED
+Reason:
+Testing scenario "Paginated storage objects list. Response: Paginated storage objects"
+API: GET /admin/storage -> 200
+
+  >> RESPONSE.STATUS
+  
+      R0002: HTTP status mismatch
+      Documentation: https://docs.specmatic.io/rules#r0002
+      Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+      Specification expected status 200 but response contained status 400
+
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.728
+    GET /admin/storage
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.737
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 436
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "data": [
+            {
+                "id": "01926d8c-5a00-7000-8000-000000000005",
+                "tenant_id": "01926d8c-5a00-7000-8000-000000000001",
+                "file_name": "test.jpg",
+                "mime_type": "image/jpeg",
+                "size_bytes": 1024,
+                "s3_key": "tenants/1/test.jpg",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "status": "uploaded",
+                "created_at": "2026-04-27T00:00:00.000Z",
+                "updated_at": "2026-04-27T00:00:00.000Z",
+                "deleted_at": null
+            }
+        ],
+        "meta": {
+            "total": 1,
+            "page": 1,
+            "limit": 50
+        }
+    }
+
+
+Scenario: GET /admin/storage -> 200 has SUCCEEDED
+
+
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/storage -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.745
+    GET /admin/storage/summary
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.753
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 386
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "01926d8c-5a00-7000-8000-000000000005",
+        "tenant_id": "01926d8c-5a00-7000-8000-000000000001",
+        "file_name": "test.jpg",
+        "mime_type": "image/jpeg",
+        "size_bytes": 1024,
+        "s3_key": "tenants/1/test.jpg",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "status": "uploaded",
+        "created_at": "2026-04-27T00:00:00.000Z",
+        "updated_at": "2026-04-27T00:00:00.000Z",
+        "deleted_at": null
+    }
+
+
+Scenario: GET /admin/storage/summary -> 200 has FAILED
+Reason:
+Testing scenario "Aggregated storage statistics. Response: Storage summary"
+API: GET /admin/storage/summary -> 200
+
+  >> RESPONSE.BODY.id
+  
+      R2003: Unknown property
+      Documentation: https://docs.specmatic.io/rules#r2003
+      Summary: A property was found that is not defined in the specification
+  
+      Property "id" in the response was not in the specification
+  
+  >> RESPONSE.BODY.tenant_id
+  
+      R2003: Unknown property
+      Documentation: https://docs.specmatic.io/rules#r2003
+      Summary: A property was found that is not defined in the specification
+  
+      Property "tenant_id" in the response was not in the specification
+  
+  >> RESPONSE.BODY.file_name
+  
+      R2003: Unknown property
+      Documentation: https://docs.specmatic.io/rules#r2003
+      Summary: A property was found that is not defined in the specification
+  
+      Property "file_name" in the response was not in the specification
+  
+  >> RESPONSE.BODY.mime_type
+  
+      R2003: Unknown property
+      Documentation: https://docs.specmatic.io/rules#r2003
+      Summary: A property was found that is not defined in the specification
+  
+      Property "mime_type" in the response was not in the specification
+  
+  >> RESPONSE.BODY.size_bytes
+  
+      R2003: Unknown property
+      Documentation: https://docs.specmatic.io/rules#r2003
+      Summary: A property was found that is not defined in the specification
+  
+      Property "size_bytes" in the response was not in the specification
+  
+  >> RESPONSE.BODY.s3_key
+  
+      R2003: Unknown property
+      Documentation: https://docs.specmatic.io/rules#r2003
+      Summary: A property was found that is not defined in the specification
+  
+      Property "s3_key" in the response was not in the specification
+  
+  >> RESPONSE.BODY.sha256
+  
+      R2003: Unknown property
+      Documentation: https://docs.specmatic.io/rules#r2003
+      Summary: A property was found that is not defined in the specification
+  
+      Property "sha256" in the response was not in the specification
+  
+  >> RESPONSE.BODY.status
+  
+      R2003: Unknown property
+      Documentation: https://docs.specmatic.io/rules#r2003
+      Summary: A property was found that is not defined in the specification
+  
+      Property "status" in the response was not in the specification
+  
+  >> RESPONSE.BODY.created_at
+  
+      R2003: Unknown property
+      Documentation: https://docs.specmatic.io/rules#r2003
+      Summary: A property was found that is not defined in the specification
+  
+      Property "created_at" in the response was not in the specification
+  
+  >> RESPONSE.BODY.updated_at
+  
+      R2003: Unknown property
+      Documentation: https://docs.specmatic.io/rules#r2003
+      Summary: A property was found that is not defined in the specification
+  
+      Property "updated_at" in the response was not in the specification
+  
+  >> RESPONSE.BODY.deleted_at
+  
+      R2003: Unknown property
+      Documentation: https://docs.specmatic.io/rules#r2003
+      Summary: A property was found that is not defined in the specification
+  
+      Property "deleted_at" in the response was not in the specification
+
+
+
+
+--------------------
+  Skipping Scenario: GET /admin/storage/summary -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.760
+    GET /admin/config
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.768
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 102
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    [
+        {
+            "key": "some-key",
+            "value": "some-value",
+            "updated_at": "2026-04-27T00:00:00.000Z",
+            "updated_by": "admin"
+        }
+    ]
+
+
+Scenario: GET /admin/config -> 200 has FAILED
+Reason:
+Testing scenario "Read system configuration. Response: Config entries"
+API: GET /admin/config -> 200
+
+  >> RESPONSE.BODY[0].value
+  
+      R1001: Type mismatch
+      Documentation: https://docs.specmatic.io/rules#r1001
+      Summary: The value type does not match the expected type defined in the specification
+  
+      Specification expected type json object but response contained value "some-value" of type string
+
+
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/config -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.777
+    PATCH /admin/config/MQJXT
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "value": {}
+    }
+
+  Response at 2026-5-29 9:41:16.787
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 85
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "system",
+        "name": "{}",
+        "created_at": "2026-04-27T00:00:00.000Z",
+        "deleted_at": null
+    }
+
+
+Scenario: PATCH /admin/config/(key:string) -> 200 with a request where REQUEST.BODY contains all the keys AND the key value contains all the keys has FAILED
+Reason:
+Testing scenario "Update a system configuration parameter. Response: Config updated"
+API: PATCH /admin/config/(key:string) -> 200
+
+  >> RESPONSE.BODY
+  
+      R1002: Value mismatch
+      Documentation: https://docs.specmatic.io/rules#r1002
+      Summary: The value does not match the expected value defined in the specification
+  
+      Specification expected no body but response contained {
+          "id": "system",
+          "name": "{}",
+          "created_at": "2026-04-27T00:00:00.000Z",
+          "deleted_at": null
+      }
+
+
+
+
+
+--------------------
+
+  Skipping Scenario: PATCH /admin/config/(key:string) -> 401 (requestContentType application/json)
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+
+  Skipping Scenario: PATCH /admin/config/(key:string) -> 404 (requestContentType application/json)
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.794
+    GET /admin/tokens/revoked?page=652&limit=303
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.803
+    400 Bad Request
+    content-type: application/json; charset=utf-8
+    content-length: 113
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "statusCode": 400,
+        "code": "FST_ERR_VALIDATION",
+        "error": "Bad Request",
+        "message": "querystring/limit must be <= 100"
+    }
+
+
+Scenario: GET /admin/tokens/revoked -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'limit' has FAILED
+Reason:
+Testing scenario "List revoked tokens. Response: Paginated revoked tokens"
+API: GET /admin/tokens/revoked -> 200
+
+  >> RESPONSE.STATUS
+  
+      R0002: HTTP status mismatch
+      Documentation: https://docs.specmatic.io/rules#r0002
+      Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+      Specification expected status 200 but response contained status 400
+
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.808
+    GET /admin/tokens/revoked
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.816
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 197
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "data": [
+            {
+                "jti": "01926d8c-5a00-7000-8000-000000000006",
+                "revoked_at": "2026-04-27T00:00:00.000Z",
+                "revoked_by": "admin",
+                "expires_at": "2026-04-27T01:00:00.000Z"
+            }
+        ],
+        "meta": {
+            "total": 1,
+            "page": 1,
+            "limit": 50
+        }
+    }
+
+
+Scenario: GET /admin/tokens/revoked -> 200 has SUCCEEDED
+
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/tokens/revoked -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.823
+    POST /admin/tokens/revoke
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 201
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "jti": "8fd9ead6-8f40-4acc-b818-9e6345e51bc0",
+        "tenant_id": "ba3955ef-de04-4b14-a566-27af59f142ce"
+    }
+
+  Response at 2026-5-29 9:41:16.836
+    201 Created
+    content-type: application/json; charset=utf-8
+    content-length: 65
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "status": "revoked",
+        "jti": "8fd9ead6-8f40-4acc-b818-9e6345e51bc0"
+    }
+
+
+Scenario: POST /admin/tokens/revoke -> 201 with a request where REQUEST.BODY contains all the keys has FAILED
+Reason:
+Testing scenario "Revoke a tenant token by JTI. Response: Token revoked"
+API: POST /admin/tokens/revoke -> 201
+
+  >> RESPONSE.BODY
+  
+      R1002: Value mismatch
+      Documentation: https://docs.specmatic.io/rules#r1002
+      Summary: The value does not match the expected value defined in the specification
+  
+      Specification expected no body but response contained {
+          "status": "revoked",
+          "jti": "8fd9ead6-8f40-4acc-b818-9e6345e51bc0"
+      }
+
+
+
+
+--------------------
+  Skipping Scenario: POST /admin/tokens/revoke -> 401 (requestContentType application/json)
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+--------------------
+  Skipping Scenario: POST /admin/tokens/revoke -> 409 (requestContentType application/json)
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.845
+    GET /admin/inbox?page=596&limit=479&status=RJQTL&tenant_id=JUUSA
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.856
+    400 Bad Request
+    content-type: application/json; charset=utf-8
+    content-length: 113
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "statusCode": 400,
+        "code": "FST_ERR_VALIDATION",
+        "error": "Bad Request",
+        "message": "querystring/limit must be <= 100"
+    }
+
+
+Scenario: GET /admin/inbox -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'limit', 'status', 'tenant_id' has FAILED
+Reason:
+Testing scenario "Paginated inbox items. Response: Paginated inbox entries"
+API: GET /admin/inbox -> 200
+
+  >> RESPONSE.STATUS
+  
+      R0002: HTTP status mismatch
+      Documentation: https://docs.specmatic.io/rules#r0002
+      Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+      Specification expected status 200 but response contained status 400
+
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.862
+    GET /admin/inbox
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.870
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 412
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "data": [
+            {
+                "id": "01926d8c-5a00-7000-8000-000000000007",
+                "tenant_id": "01926d8c-5a00-7000-8000-000000000001",
+                "channel_id": "01926d8c-5a00-7000-8000-000000000003",
+                "sender_jid": "123456789@s.whatsapp.net",
+                "message_id": "mock-msg-id",
+                "message_type": "text",
+                "text_content": "hello",
+                "media_s3_key": null,
+                "processed_at": "2026-04-27T00:00:00.000Z",
+                "created_at": "2026-04-27T00:00:00.000Z"
+            }
+        ],
+        "meta": {
+            "total": 1,
+            "page": 1,
+            "limit": 50
+        }
+    }
+
+
+Scenario: GET /admin/inbox -> 200 has SUCCEEDED
+
+
+
+--------------------
+  Skipping Scenario: GET /admin/inbox -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.881
+    GET /admin/inbox/3a9532fd-3ba9-4a77-94d2-1fd8ac9056ae
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.889
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 362
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "id": "01926d8c-5a00-7000-8000-000000000007",
+        "tenant_id": "01926d8c-5a00-7000-8000-000000000001",
+        "channel_id": "01926d8c-5a00-7000-8000-000000000003",
+        "sender_jid": "123456789@s.whatsapp.net",
+        "message_id": "mock-msg-id",
+        "message_type": "text",
+        "text_content": "hello",
+        "media_s3_key": null,
+        "processed_at": "2026-04-27T00:00:00.000Z",
+        "created_at": "2026-04-27T00:00:00.000Z"
+    }
+
+
+Scenario: GET /admin/inbox/(id:uuid) -> 200 has FAILED
+
+Reason:
+Testing scenario "Detailed single inbox item. Response: Inbox item detail"
+API: GET /admin/inbox/(id:uuid) -> 200
+
+  >> RESPONSE.BODY
+  
+      R1002: Value mismatch
+      Documentation: https://docs.specmatic.io/rules#r1002
+      Summary: The value does not match the expected value defined in the specification
+  
+      Specification expected no body but response contained {
+          "id": "01926d8c-5a00-7000-8000-000000000007",
+          "tenant_id": "01926d8c-5a00-7000-8000-000000000001",
+          "channel_id": "01926d8c-5a00-7000-8000-000000000003",
+          "sender_jid": "123456789@s.whatsapp.net",
+          "message_id": "mock-msg-id",
+          "message_type": "text",
+          "text_content": "hello",
+          "media_s3_key": null,
+          "processed_at": "2026-04-27T00:00:00.000Z",
+          "created_at": "2026-04-27T00:00:00.000Z"
+      }
+
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/inbox/(id:uuid) -> 400
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+
+--------------------
+  Skipping Scenario: GET /admin/inbox/(id:uuid) -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/inbox/(id:uuid) -> 404
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.894
+    POST /admin/inbox/904cf60f-7480-4c7e-8acc-f5ff0fea05d5/reprocess
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.902
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 64
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "status": "pending",
+        "id": "904cf60f-7480-4c7e-8acc-f5ff0fea05d5"
+    }
+
+
+Scenario: POST /admin/inbox/(id:uuid)/reprocess -> 200 has FAILED
+Reason:
+Testing scenario "Reprocess a failed inbox item. Response: Item queued for reprocessing"
+API: POST /admin/inbox/(id:uuid)/reprocess -> 200
+
+  >> RESPONSE.BODY
+  
+      R1002: Value mismatch
+      Documentation: https://docs.specmatic.io/rules#r1002
+      Summary: The value does not match the expected value defined in the specification
+  
+      Specification expected no body but response contained {
+          "status": "pending",
+          "id": "904cf60f-7480-4c7e-8acc-f5ff0fea05d5"
+      }
+
+
+
+
+--------------------
+
+  Skipping Scenario: POST /admin/inbox/(id:uuid)/reprocess -> 400
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+--------------------
+  Skipping Scenario: POST /admin/inbox/(id:uuid)/reprocess -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Skipping Scenario: POST /admin/inbox/(id:uuid)/reprocess -> 404
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.910
+    POST /admin/dev-login
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.919
+    401 Unauthorized
+    content-type: application/json; charset=utf-8
+    content-length: 30
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "error": "Unauthorized Admin"
+    }
+
+
+Scenario: POST /admin/dev-login -> 200 has FAILED
+
+Reason:
+Testing scenario "Dev-only login (NODE_ENV=development). Response: Admin JWT for development"
+API: POST /admin/dev-login -> 200
+
+  >> RESPONSE.STATUS
+  
+      R0002: HTTP status mismatch
+      Documentation: https://docs.specmatic.io/rules#r0002
+      Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+      Specification expected status 200 but response contained status 401
+
+
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.928
+    GET /admin/storage/24cdc960-8116-4447-ba7b-6e5d1261fb17/download-url
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.939
+    500 Internal Server Error
+    content-type: application/json; charset=utf-8
+    content-length: 121
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "statusCode": 500,
+        "error": "Internal Server Error",
+        "message": "Cannot read properties of undefined (reading 'startsWith')"
+    }
+
+
+Scenario: GET /admin/storage/(id:uuid)/download-url -> 200 has FAILED
+Reason:
+Testing scenario "Generate presigned GET URL for a single object. Response: Presigned URL generated"
+API: GET /admin/storage/(id:uuid)/download-url -> 200
+
+  >> RESPONSE.STATUS
+  
+      R0002: HTTP status mismatch
+      Documentation: https://docs.specmatic.io/rules#r0002
+      Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+      Specification expected status 200 but response contained status 500
+
+
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/storage/(id:uuid)/download-url -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+--------------------
+
+  Skipping Scenario: GET /admin/storage/(id:uuid)/download-url -> 404
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.945
+    DELETE /admin/storage/e82f22b7-596d-405d-bdf0-6b7dfd19f751/download-url?confirm=true
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:16.952
+    404 Not Found
+    content-type: application/json; charset=utf-8
+    content-length: 151
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "message": "Route DELETE:/admin/storage/e82f22b7-596d-405d-bdf0-6b7dfd19f751/download-url?confirm=true not found",
+        "error": "Not Found",
+        "statusCode": 404
+    }
+
+
+Scenario: DELETE /admin/storage/(id:uuid)/download-url -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the param 'confirm' AND confirm is set to 'true' from enum has FAILED
+
+Reason:
+Testing scenario "Soft-delete a storage object. Response: Object soft-deleted"
+API: DELETE /admin/storage/(id:uuid)/download-url -> 200
+
+  >> RESPONSE.STATUS
+  
+      R0002: HTTP status mismatch
+      Documentation: https://docs.specmatic.io/rules#r0002
+      Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+      Specification expected status 200 but response contained status 404
+
+
+
+
+--------------------
+
+  Skipping Scenario: DELETE /admin/storage/(id:uuid)/download-url -> 400
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+
+  Skipping Scenario: DELETE /admin/storage/(id:uuid)/download-url -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Skipping Scenario: DELETE /admin/storage/(id:uuid)/download-url -> 404
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.961
+    POST /admin/storage/batch-urls
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "ids": [
+            "4cdc1de6-355c-48cb-be4d-81b828bed51a",
+            "b0817b6a-a3d3-40f5-9ccd-53fb8e43ee31"
+        ]
+    }
+
+  Response at 2026-5-29 9:41:16.971
+    500 Internal Server Error
+    content-type: application/json; charset=utf-8
+    content-length: 121
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "statusCode": 500,
+        "error": "Internal Server Error",
+        "message": "Cannot read properties of undefined (reading 'startsWith')"
+    }
+
+
+Scenario: POST /admin/storage/batch-urls -> 200 with a request where REQUEST.BODY contains all the keys has FAILED
+
+Reason:
+Testing scenario "Generate presigned GET URLs for multiple objects. Response: Array of presigned URLs"
+API: POST /admin/storage/batch-urls -> 200
+
+  >> RESPONSE.STATUS
+  
+      R0002: HTTP status mismatch
+      Documentation: https://docs.specmatic.io/rules#r0002
+      Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+      Specification expected status 200 but response contained status 500
+
+
+
+
+--------------------
+
+  Skipping Scenario: POST /admin/storage/batch-urls -> 400 (requestContentType application/json)
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+
+  Skipping Scenario: POST /admin/storage/batch-urls -> 401 (requestContentType application/json)
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.977
+    POST /admin/storage/bulk-delete
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "ids": [
+            "b0887171-51ff-4bbb-9b9a-c99785679c30"
+        ],
+        "confirm": true
+    }
+
+  Response at 2026-5-29 9:41:16.988
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 18
+    Date: Sat, 30 May 2026 01:41:16 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "deletedCount": 1
+    }
+
+
+Scenario: POST /admin/storage/bulk-delete -> 200 with a request where REQUEST.BODY contains all the keys has SUCCEEDED
+
+
+
+--------------------
+
+  Skipping Scenario: POST /admin/storage/bulk-delete -> 400 (requestContentType application/json)
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+--------------------
+  Skipping Scenario: POST /admin/storage/bulk-delete -> 401 (requestContentType application/json)
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:16.996
+    POST /admin/storage/bulk-download
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 202
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: application/json
+    
+    {
+        "ids": [
+            "337ded61-3c8d-40d5-9d9c-f151f3fe2c77"
+        ]
+    }
+
+  Response at 2026-5-29 9:41:17.5
+    202 Accepted
+    content-type: application/json; charset=utf-8
+    content-length: 70
+    Date: Sat, 30 May 2026 01:41:17 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "jobId": "01926d8c-5a00-7000-8000-000000000099",
+        "status": "processing"
+    }
+
+
+Scenario: POST /admin/storage/bulk-download -> 202/202 with a request where REQUEST.BODY contains all the keys has SUCCEEDED
+
+
+
+--------------------
+
+  Skipping Scenario: POST /admin/storage/bulk-download -> 400 (requestContentType application/json)
+  - T00004: Generative Disabled
+  Documentation: https://docs.specmatic.io/rules#t00004
+  Summary: This operation was skipped because it requires schema resiliency to be enabled
+  
+  - T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+
+--------------------
+
+  Skipping Scenario: POST /admin/storage/bulk-download -> 401 (requestContentType application/json)
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+  Request to http://127.0.0.1:3006 at 2026-5-29 9:41:17.12
+    GET /admin/storage/zip/d68c0a84-68ec-4ad9-9978-a30353fdf831/download-url
+    Authorization: Bearer mock-admin-token
+    Specmatic-Response-Code: 200
+    Host: 127.0.0.1:3006
+    Accept-Charset: UTF-8
+    Accept: */*
+    Content-Type: NOT SENT
+    
+    
+
+  Response at 2026-5-29 9:41:17.70
+    200 OK
+    content-type: application/json; charset=utf-8
+    content-length: 394
+    Date: Sat, 30 May 2026 01:41:17 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=72
+    
+    {
+        "url": "http://localhost:9000/jarvis-files/mock-zip-key?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=minioadmin%2F20260530%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260530T014117Z&X-Amz-Expires=600&X-Amz-Signature=25ca37cbd742e8ca880e4312df91d8c494802300bcac30741920c7a4516771cc&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+    }
+
+
+Scenario: GET /admin/storage/zip/(jobId:uuid)/download-url -> 200 has SUCCEEDED
+
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/storage/zip/(jobId:uuid)/download-url -> 401
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+
+--------------------
+
+  Skipping Scenario: GET /admin/storage/zip/(jobId:uuid)/download-url -> 404
+  T00002: Examples Required
+  Documentation: https://docs.specmatic.io/rules#t00002
+  Summary: This operation requires examples to run, but none were provided
+  
+
+Could not load report configuration, coverage will be calculated but no coverage threshold will be enforced
+
+
+|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| SPECMATIC API COVERAGE SUMMARY                                                                                                                                          |
+|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| coverage | path                                                               | method | requestContentType | response | responseContentType | remarks         | result |
+|----------|--------------------------------------------------------------------|--------|--------------------|----------|---------------------|-----------------|--------|
+| 22%      | /admin/tenants                                                     | POST   | application/json   | 201      | application/json    | covered         | 5p     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 403      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 409      | NA                  | not tested      |        |
+|          |                                                                    | GET    | NA                 | 200      | application/json    | covered         | 7p     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 403      | NA                  | not tested      |        |
+| 19%      | /admin/tenants/{id}                                                | GET    | NA                 | 200      | application/json    | covered         | 1p     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 403      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 404      | NA                  | not tested      |        |
+|          |                                                                    | PATCH  | application/json   | 200      | application/json    | covered         | 5p     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 403      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 404      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 409      | NA                  | not tested      |        |
+|          |                                                                    | DELETE | NA                 | 200      | application/json    | covered         | 2p 1f  |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 403      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 404      | NA                  | not tested      |        |
+| 29%      | /admin/jobs                                                        | GET    | NA                 | 200      | application/json    | covered         | 7p     |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 403      | NA                  | not tested      |        |
+|          |                                                                    | DELETE | NA                 | 200      | application/json    | covered         | 5p     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 403      | NA                  | not tested      |        |
+| 33%      | /admin/whatsapp/status                                             | GET    | NA                 | 200      | application/json    | covered         | 1p     |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 403      | NA                  | not tested      |        |
+| 0%       | /admin/whatsapp/status/stream                                      | GET    | NA                 | 200      | text/event-stream   | not tested*!    |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested*!    |        |
+|          |                                                                    |        |                    | 403      | NA                  | not tested*!    |        |
+| 25%      | /admin/tenants/{id}/status                                         | PATCH  | application/json   | 200      | NA                  | covered         | 3f     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 404      | NA                  | not tested      |        |
+| 25%      | /admin/tenants/{id}/restore                                        | POST   | NA                 | 200      | NA                  | covered         | 1f     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 404      | NA                  | not tested      |        |
+| 33%      | /admin/tenants/{id}/stats                                          | GET    | NA                 | 200      | application/json    | covered         | 1p     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+| 25%      | /admin/tenants/{id}/token                                          | POST   | NA                 | 200      | application/json    | covered         | 1p     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 404      | NA                  | not tested      |        |
+| 33%      | /admin/whatsapp/status/{tenant_id}/reconnect                       | POST   | NA                 | 200      | NA                  | covered         | 1f     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+| 33%      | /admin/whatsapp/status/{tenant_id}                                 | DELETE | NA                 | 200      | NA                  | covered         | 1f     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+| 33%      | /admin/whatsapp/status/{tenant_id}/audit                           | GET    | NA                 | 200      | application/json    | covered         | 1p     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+| 29%      | /admin/whatsapp/status/{tenant_id}/channels                        | POST   | application/json   | 201      | application/json    | covered         | 9p     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 404      | NA                  | not tested      |        |
+|          |                                                                    | GET    | NA                 | 200      | application/json    | covered         | 1f     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+| 27%      | /admin/whatsapp/status/{tenant_id}/channels/{channel_id}           | GET    | NA                 | 200      | application/json    | covered         | 1f     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 404      | NA                  | not tested      |        |
+|          |                                                                    | PATCH  | application/json   | 200      | NA                  | covered         | 6f     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 404      | NA                  | not tested      |        |
+|          |                                                                    | DELETE | NA                 | 200      | NA                  | covered         | 1f     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+| 25%      | /admin/whatsapp/status/{tenant_id}/channels/{channel_id}/reconnect | POST   | NA                 | 200      | application/json    | covered         | 1p     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 404      | NA                  | not tested      |        |
+| 50%      | /admin/audit                                                       | GET    | NA                 | 200      | application/json    | covered         | 1p 1f  |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+| 50%      | /admin/dashboard/summary                                           | GET    | NA                 | 200      | application/json    | covered         | 1p     |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+| 50%      | /admin/health                                                      | GET    | NA                 | 200      | application/json    | covered         | 1p     |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+| 33%      | /admin/logs                                                        | GET    | NA                 | 200      | application/json    | covered         | 1p 1f  |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 502      | NA                  | not tested      |        |
+| 33%      | /admin/logs/labels                                                 | GET    | NA                 | 200      | NA                  | covered         | 1f     |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 502      | NA                  | not tested      |        |
+| 50%      | /admin/storage                                                     | GET    | NA                 | 200      | application/json    | covered         | 1p 3f  |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+| 50%      | /admin/storage/summary                                             | GET    | NA                 | 200      | application/json    | covered         | 1f     |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+| 50%      | /admin/config                                                      | GET    | NA                 | 200      | application/json    | covered         | 1f     |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+| 33%      | /admin/config/{key}                                                | PATCH  | application/json   | 200      | NA                  | covered         | 1f     |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 404      | NA                  | not tested      |        |
+| 50%      | /admin/tokens/revoked                                              | GET    | NA                 | 200      | application/json    | covered         | 1p 1f  |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+| 33%      | /admin/tokens/revoke                                               | POST   | application/json   | 201      | NA                  | covered         | 1f     |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 409      | NA                  | not tested      |        |
+| 50%      | /admin/inbox                                                       | GET    | NA                 | 200      | application/json    | covered         | 1p 1f  |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+| 25%      | /admin/inbox/{id}                                                  | GET    | NA                 | 200      | NA                  | covered         | 1f     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 404      | NA                  | not tested      |        |
+| 25%      | /admin/inbox/{id}/reprocess                                        | POST   | NA                 | 200      | NA                  | covered         | 1f     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 404      | NA                  | not tested      |        |
+| 0%       | /admin/dev-login                                                   | POST   | NA                 | 200      | application/json    | not implemented | 1f     |
+| 0%       | /admin/storage/{id}/download-url                                   | GET    | NA                 | 200      | application/json    | not implemented | 1f     |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 404      | NA                  | not tested      |        |
+|          |                                                                    | DELETE | NA                 | 200      | NA                  | not implemented | 1f     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 404      | NA                  | not tested      |        |
+| 0%       | /admin/storage/batch-urls                                          | POST   | application/json   | 200      | application/json    | not implemented | 1f     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+| 33%      | /admin/storage/bulk-delete                                         | POST   | application/json   | 200      | application/json    | covered         | 1p     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+| 33%      | /admin/storage/bulk-download                                       | POST   | application/json   | 202      | application/json    | covered         | 1p     |
+|          |                                                                    |        |                    | 400      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+| 33%      | /admin/storage/zip/{jobId}/download-url                            | GET    | NA                 | 200      | application/json    | covered         | 1p     |
+|          |                                                                    |        |                    | 401      | NA                  | not tested      |        |
+|          |                                                                    |        |                    | 404      | NA                  | not tested      |        |
+|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| * = Operation not eligible for coverage                                                                                                                                 |
+| ! = Operation excluded from the run due to a filter                                                                                                                     |
+| p = passed tests                                                                                                                                                        |
+| f = failed tests                                                                                                                                                        |
+|                                                                                                                                                                         |
+| 28% API Coverage reported from 137 operations eligible for coverage                                                                                                     |
+| 27% Absolute Coverage (includes excluded operations that were not tested)                                                                                               |
+|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+
+4 operations found in the spec are not implemented.
+
+
+Generating HTML report...
+
+Saving Coverage Report json to ./build/reports/specmatic ...
+
+Generating CTRF report using  coverageReportOperations...
+
+Generating report for 90 tests and 140 coverage operations...
+Using new report generation method that accepts coverage report operations.
+
+Generating HTML report in build/reports/specmatic/test/html/index.html
+
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by org.fusesource.jansi.internal.JansiLoader in 
+an unnamed module (file:/home/kirlts/jarvis/node_modules/specmatic/specmatic.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+
+
+
+
+
+Unsuccessful Scenarios:
+
+  "Scenario: DELETE /admin/tenants/(id:uuid) -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'confirm', 'purge' AND confirm is set to 'true' from enum AND purge is set to 'true' from enum FAILED"
+        Reason:
+    Testing scenario "Soft-delete or permanently purge a tenant. Response: Tenant deleted"
+    API: DELETE /admin/tenants/(id:uuid) -> 200
+  
+      >> RESPONSE.STATUS
+  
+          R0002: HTTP status mismatch
+          Documentation: https://docs.specmatic.io/rules#r0002
+          Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+          Specification expected status 200 but response contained status 404
+
+  "Scenario: PATCH /admin/tenants/(id:uuid)/status -> 200 with a request where REQUEST.BODY contains all the keys AND the key status is set to 'active' from enum FAILED"
+        Reason:
+    Testing scenario "Change tenant lifecycle status. Response: Tenant status updated"
+    API: PATCH /admin/tenants/(id:uuid)/status -> 200
+  
+      >> RESPONSE.BODY
+  
+          R1002: Value mismatch
+          Documentation: https://docs.specmatic.io/rules#r1002
+          Summary: The value does not match the expected value defined in the specification
+  
+          Specification expected no body but response contained {
+              "id": "2b4a6d97-f8df-4ea4-8907-879ef785d049",
+              "name": "active",
+              "created_at": "2026-04-27T00:00:00.000Z",
+              "deleted_at": null
+          }
+
+  "Scenario: PATCH /admin/tenants/(id:uuid)/status -> 200 with a request where REQUEST.BODY contains all the keys AND the key status is set to 'suspended' from enum FAILED"
+        Reason:
+    Testing scenario "Change tenant lifecycle status. Response: Tenant status updated"
+    API: PATCH /admin/tenants/(id:uuid)/status -> 200
+  
+      >> RESPONSE.BODY
+  
+          R1002: Value mismatch
+          Documentation: https://docs.specmatic.io/rules#r1002
+          Summary: The value does not match the expected value defined in the specification
+  
+          Specification expected no body but response contained {
+              "id": "532a4d1e-a926-4712-8cb3-210488489f13",
+              "name": "suspended",
+              "created_at": "2026-04-27T00:00:00.000Z",
+              "deleted_at": null
+          }
+
+  "Scenario: PATCH /admin/tenants/(id:uuid)/status -> 200 with a request where REQUEST.BODY contains all the keys AND the key status is set to 'trial' from enum FAILED"
+        Reason:
+    Testing scenario "Change tenant lifecycle status. Response: Tenant status updated"
+    API: PATCH /admin/tenants/(id:uuid)/status -> 200
+  
+      >> RESPONSE.BODY
+  
+          R1002: Value mismatch
+          Documentation: https://docs.specmatic.io/rules#r1002
+          Summary: The value does not match the expected value defined in the specification
+  
+          Specification expected no body but response contained {
+              "id": "d63c91bc-9e59-4a89-8652-30f26a46ced7",
+              "name": "trial",
+              "created_at": "2026-04-27T00:00:00.000Z",
+              "deleted_at": null
+          }
+
+  "Scenario: POST /admin/tenants/(id:uuid)/restore -> 200 FAILED"
+        Reason:
+    Testing scenario "Restore a soft-deleted tenant. Response: Tenant restored"
+    API: POST /admin/tenants/(id:uuid)/restore -> 200
+  
+      >> RESPONSE.BODY
+  
+          R1002: Value mismatch
+          Documentation: https://docs.specmatic.io/rules#r1002
+          Summary: The value does not match the expected value defined in the specification
+  
+          Specification expected no body but response contained {
+              "id": "0b34cbca-a82f-48d9-9418-fc942c1cc0f4"
+          }
+
+  "Scenario: POST /admin/whatsapp/status/(tenant_id:uuid)/reconnect -> 200 FAILED"
+        Reason:
+    Testing scenario "Force WhatsApp reconnection and QR regeneration. Response: Reconnection initiated"
+    API: POST /admin/whatsapp/status/(tenant_id:uuid)/reconnect -> 200
+  
+      >> RESPONSE.BODY
+  
+          R1002: Value mismatch
+          Documentation: https://docs.specmatic.io/rules#r1002
+          Summary: The value does not match the expected value defined in the specification
+  
+          Specification expected no body but response contained {
+              "message": "Inicialización / reconexión de canal WhatsApp encolada"
+          }
+
+  "Scenario: DELETE /admin/whatsapp/status/(tenant_id:uuid) -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the param 'confirm' AND confirm is set to 'true' from enum FAILED"
+        Reason:
+    Testing scenario "Disconnect and soft-delete WhatsApp session. Response: Disconnection initiated"
+    API: DELETE /admin/whatsapp/status/(tenant_id:uuid) -> 200
+  
+      >> RESPONSE.BODY
+  
+          R1002: Value mismatch
+          Documentation: https://docs.specmatic.io/rules#r1002
+          Summary: The value does not match the expected value defined in the specification
+  
+          Specification expected no body but response contained {
+              "message": "Desconexión y limpieza de sesión iniciadas"
+          }
+
+  "Scenario: GET /admin/whatsapp/status/(tenant_id:uuid)/channels -> 200 FAILED"
+        Reason:
+    Testing scenario "List all WhatsApp channels for a tenant. Response: List of channels with session state"
+    API: GET /admin/whatsapp/status/(tenant_id:uuid)/channels -> 200
+  
+      >> RESPONSE.BODY[0].updated_at
+  
+          R2003: Unknown property
+          Documentation: https://docs.specmatic.io/rules#r2003
+          Summary: A property was found that is not defined in the specification
+  
+          Property "updated_at" in the response was not in the specification
+
+  "Scenario: GET /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200 FAILED"
+        Reason:
+    Testing scenario "Get channel detail with session state and QR. Response: Channel detail"
+    API: GET /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200
+  
+      >> RESPONSE.BODY.updated_at
+  
+          R2003: Unknown property
+          Documentation: https://docs.specmatic.io/rules#r2003
+          Summary: A property was found that is not defined in the specification
+  
+          Property "updated_at" in the response was not in the specification
+
+  "Scenario: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200 with a request where REQUEST.BODY contains all the keys AND the key config contains all the keys FAILED"
+        Reason:
+    Testing scenario "Update channel name and/or config. Response: Channel updated"
+    API: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200
+  
+      >> RESPONSE.BODY
+  
+          R1002: Value mismatch
+          Documentation: https://docs.specmatic.io/rules#r1002
+          Summary: The value does not match the expected value defined in the specification
+  
+          Specification expected no body but response contained {
+              "message": "Canal actualizado"
+          }
+
+  "Scenario: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200 with a request where REQUEST.BODY contains all the keys AND the key name is set to the shortest possible string AND config contains all the keys FAILED"
+        Reason:
+    Testing scenario "Update channel name and/or config. Response: Channel updated"
+    API: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200
+  
+      >> RESPONSE.BODY
+  
+          R1002: Value mismatch
+          Documentation: https://docs.specmatic.io/rules#r1002
+          Summary: The value does not match the expected value defined in the specification
+  
+          Specification expected no body but response contained {
+              "message": "Canal actualizado"
+          }
+
+  "Scenario: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200 with a request where REQUEST.BODY contains all the keys AND the key name is set to the longest possible string AND config contains all the keys FAILED"
+        Reason:
+    Testing scenario "Update channel name and/or config. Response: Channel updated"
+    API: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id
+:uuid) -> 200
+  
+      >> RESPONSE.BODY
+  
+          R1002: Value mismatch
+          Documentation: https://docs.specmatic.io/rules#r1002
+          Summary: The value does not match the expected value defined in the specification
+  
+          Specification expected no body but response contained {
+              "message": "Canal actualizado"
+          }
+
+  "Scenario: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200 with a request where REQUEST.BODY contains all the keys AND the key name is set to the shortest possible string AND config contains all the keys FAILED"
+        Reason:
+    Testing scenario "Update channel name and/or config. Response: Channel updated"
+    API: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200
+  
+      >> RESPONSE.BODY
+  
+          R1002: Value mismatch
+          Documentation: https://docs.specmatic.io/rules#r1002
+          Summary: The value does not match the expected value defined in the specification
+  
+          Specification expected no body but response contained {
+              "message": "Canal actualizado"
+          }
+
+  "Scenario: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200 with a request where REQUEST.BODY contains all the keys AND the key name is set to the longest possible string AND config contains all the keys FAILED"
+        Reason:
+    Testing scenario "Update channel name and/or config. Response: Channel updated"
+    API: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200
+  
+      >> RESPONSE.BODY
+  
+          R1002: Value mismatch
+          Documentation: https://docs.specmatic.io/rules#r1002
+          Summary: The value does not match the expected value defined in the specification
+  
+          Specification expected no body but response contained {
+              "message": "Canal actualizado"
+          }
+
+  "Scenario: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200 with a request where REQUEST.BODY contains only the mandatory keys FAILED"
+        Reason:
+    Testing scenario "Update channel name and/or config. Response: Channel updated"
+    API: PATCH /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200
+  
+      >> RESPONSE.STATUS
+  
+          R0002: HTTP status mismatch
+          Documentation: https://docs.specmatic.io/rules#r0002
+          Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+          Specification expected status 200 but response contained status 400
+
+  "Scenario: DELETE /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the param 'confirm' AND confirm is set to 'true' from enum FAILED"
+        Reason:
+    Testing scenario "Soft-delete a WhatsApp channel and disconnect its socket. Response: Channel deleted"
+    API: DELETE /admin/whatsapp/status/(tenant_id:uuid)/channels/(channel_id:uuid) -> 200
+  
+      >> RESPONSE.BODY
+  
+          R1002: Value mismatch
+          Documentation: https://docs.specmatic.io/rules#r1002
+          Summary: The value does not match the expected value defined in the specification
+  
+          Specification expected no body but response contained {
+              "message": "Canal eliminado y sesión desconectada"
+          }
+
+  "Scenario: GET /admin/audit -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'limit', 'action', 'resource', 'resource_id' FAILED"
+        Reason:
+    Testing scenario "Paginated admin audit trail. Response: Paginated audit entries"
+    API: GET /admin/audit -> 200
+  
+      >> RESPONSE.STATUS
+  
+          R0002: HTTP status mismatch
+          Documentation: https://docs.specmatic.io/rules#r0002
+          Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+          Specification expected status 200 but response contained status 400
+
+  "Scenario: GET /admin/logs -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'query', 'limit', 'start', 'end' FAILED"
+        Reason:
+    Testing scenario "Query logs via Loki proxy. Response: Log entries"
+    API: GET /admin/logs -> 200
+  
+      >> RESPONSE.STATUS
+  
+          R0002: HTTP status mismatch
+          Documentation: https://docs.specmatic.io/rules#r0002
+          Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+          Specification expected status 200 but response contained status 400
+
+  "Scenario: GET /admin/logs/labels -> 200 FAILED"
+        Reason:
+    Testing scenario "Available Loki label names. Response: Loki labels"
+    API: GET /admin/logs/labels -> 200
+  
+      >> RESPONSE.BODY
+  
+          R1002: Value mismatch
+          Documentation: https://docs.specmatic.io/rules#r1002
+          Summary: The value does not match the expected value defined in the specification
+  
+          Specification expected no body but response contained {
+              "status": "success",
+              "data": {
+                  "result": [],
+                  "resultType": "streams"
+              }
+          }
+
+  "Scenario: GET /admin/storage -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'limit', 'tenant_id', 'status', 'search' AND status is set to 'pending' from enum FAILED"
+        Reason:
+    Testing scenario "Paginated storage objects list. Response: Paginated storage objects"
+    API: GET /admin/storage -> 200
+  
+      >> RESPONSE.STATUS
+  
+          R0002: HTTP status mismatch
+          Documentation: https://docs.specmatic.io/rules#r0002
+          Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+          Specification expected status 200 but response contained status 400
+
+  "Scenario: GET /admin/storage -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'limit', 'tenant_id', 'status', 'search' AND status is set to 'uploaded' from enum FAILED"
+        Reason:
+    Testing scenario "Paginated storage objects list. Response: Paginated storage objects"
+    API: GET /admin/storage -> 200
+  
+      >> RESPONSE.STATUS
+  
+          R0002: HTTP status mismatch
+          Documentation: https://docs.specmatic.io/rules#r0002
+          Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+          Specification expected status 200 but response contained status 400
+
+  "Scenario: GET /admin/storage -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'limit', 'tenant_id', 'status', 'search' AND status is set to 'deleted' from enum FAILED"
+        Reason:
+    Testing scenario "Paginated storage objects list. Response: Paginated storage objects"
+    API: GET /admin/storage -> 200
+  
+      >> RESPONSE.STATUS
+  
+          R0002: HTTP status mismatch
+          Documentation: https://docs.specmatic.io/rules#r0002
+          Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+          Specification expected status 200 but response contained status 400
+
+  "Scenario: GET /admin/storage/summary -> 200 FAILED"
+        Reason:
+    Testing scenario "Aggregated storage statistics. Response: Storage summary"
+    API: GET /admin/storage/summary -> 200
+  
+      >> RESPONSE.BODY.id
+  
+          R2003: Unknown property
+          Documentation: https://docs.specmatic.io/rules#r2003
+          Summary: A property was found that is not defined in the specification
+  
+          Property "id" in the response was not in the specification
+  
+      >> RESPONSE.BODY.tenant_id
+  
+          R2003: Unknown property
+          Documentation: https://docs.specmatic.io/rules#r2003
+          Summary: A property was found that is not defined in the specification
+  
+          Property "tenant_id" in the response was not in the specification
+  
+      >> RESPONSE.BODY.file_name
+  
+          R2003: Unknown property
+          Documentation: https://docs.specmatic.io/rules#r2003
+          Summary: A property was found that is not defined 
+in the specification
+  
+          Property "file_name" in the response was not in the specification
+  
+      >> RESPONSE.BODY.mime_type
+  
+          R2003: Unknown property
+          Documentation: https://docs.specmatic.io/rules#r2003
+          Summary: A property was found that is not defined in the specification
+  
+          Property "mime_type" in the response was not in the specification
+  
+      >> RESPONSE.BODY.size_bytes
+  
+          R2003: Unknown property
+          Documentation: https://docs.specmatic.io/rules#r2003
+          Summary: A property was found that is not defined in the specification
+  
+          Property "size_bytes" in the response was not in the specification
+  
+      >> RESPONSE.BODY.s3_key
+  
+          R2003: Unknown property
+          Documentation: https://docs.specmatic.io/rules#r2003
+          Summary: A property was found that is not defined in the specification
+  
+          Property "s3_key" in the response was not in the specification
+  
+      >> RESPONSE.BODY.sha256
+  
+          R2003: Unknown property
+          Documentation: https://docs.specmatic.io/rules#r2003
+          Summary: A property was found that is not defined in the specification
+  
+          Property "sha256" in the response was not in the specification
+  
+      >> RESPONSE.BODY.status
+  
+          R2003: Unknown property
+          Documentation: https://docs.specmatic.io/rules#r2003
+          Summary: A property was found that is not defined in the specification
+  
+          Property "status" in the response was not in the specification
+  
+      >> RESPONSE.BODY.created_at
+  
+          R2003: Unknown property
+          Documentation: https://docs.specmatic.io/rules#r2003
+          Summary: A property was found that is not defined in the specification
+  
+          Property "created_at" in the response was not in the specification
+  
+      >> RESPONSE.BODY.updated_at
+  
+          R2003: Unknown property
+          Documentation: https://docs.specmatic.io/rules#r2003
+          Summary: A property was found that is not defined in the specification
+  
+          Property "updated_at" in the response was not in the specification
+  
+      >> RESPONSE.BODY.deleted_at
+  
+          R2003: Unknown property
+          Documentation: https://docs.specmatic.io/rules#r2003
+          Summary: A property was found that is not defined in the specification
+  
+          Property "deleted_at" in the response was not in the specification
+
+  "Scenario: GET /admin/config -> 200 FAILED"
+        Reason:
+    Testing scenario "Read system configuration. Response: Config entries"
+    API: GET /admin/config -> 200
+  
+      >> RESPONSE.BODY[0].value
+  
+          R1001: Type mismatch
+          Documentation: https://docs.specmatic.io/rules#r1001
+          Summary: The value type does not match the expected type defined in the specification
+  
+          Specification expected type json object but response contained value "some-value" of type string
+
+  "Scenario: PATCH /admin/config/(key:string) -> 200 with a request where REQUEST.BODY contains all the keys AND the key value contains all the keys FAILED"
+        Reason:
+    Testing scenario "Update a system configuration parameter. Response: Config updated"
+    API: PATCH /admin/config/(key:string) -> 200
+  
+      >> RESPONSE.BODY
+  
+          R1002: Value mismatch
+          Documentation: https://docs.specmatic.io/rules#r1002
+          Summary: The value does not match the expected value defined in the specification
+  
+          Specification expected no body but response contained {
+              "id": "system",
+              "name": "{}",
+              "created_at": "2026-04-27T00:00:00.000Z",
+              "deleted_at": null
+          }
+
+  "Scenario: GET /admin/tokens/revoked -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'limit' FAILED"
+        Reason:
+    Testing scenario "List revoked tokens. Response: Paginated revoked tokens"
+    API: GET /admin/tokens/revoked -> 200
+  
+      >> RESPONSE.STATUS
+  
+          R0002: HTTP status mismatch
+          Documentation: https://docs.specmatic.io/rules#r0002
+          Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+          Specification expected status 200 but response contained status 400
+
+  "Scenario: POST /admin/tokens/revoke -> 201 with a request where REQUEST.BODY contains all the keys FAILED"
+        Reason:
+    Testing scenario "Revoke a tenant token by JTI. Response: Token revoked"
+    API: POST /admin/tokens/revoke -> 201
+  
+      >> RESPONSE.BODY
+  
+          R1002: Value mismatch
+          Documentation: https://docs.specmatic.io/rules#r1002
+          Summary: The value does not match the expected value defined in the specification
+  
+          Specification expected no body but response contained {
+              "status": "revoked",
+              "jti": "8fd9ead6-8f40-4acc-b818-9e6345e51bc0"
+          }
+
+  "Scenario: GET /admin/inbox -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the params 'page', 'limit', 'status', 'tenant_id' FAILED"
+        Reason:
+    Testing scenario "Paginated inbox items. Response: Paginated inbox entries"
+    API: GET /admin/inbox -> 200
+  
+      >> RESPONSE.STATUS
+  
+          R0002: HTTP status mismatch
+          Documentation: https://docs.specmatic.io/rules#r0002
+          Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+          Specification expected status 200 but response contained status 400
+
+  "Scenario: GET /admin/inbox/(id:uuid) -> 200 FAILED"
+        Reason:
+    Testing scenario "Detailed single inbox item. Response: Inbox item detail"
+    API: GET /admin/inbox/(id:uuid) -> 200
+  
+      >> RESPONSE.BODY
+  
+          R1002: Value mismatch
+          Documentation: https://docs.specmatic.io/rules#r1002
+          Summary: The value does not match the expected value defined in the specification
+  
+          Specification expected no body but response contained {
+              "id": "01926d8c-5a00-7000-8000-000000000007",
+              "tenant_id": "01926d8c-5a00-7000-8000-000000000001",
+              "channel_id": "01926d8c-5a00-7000-8000-000000000003",
+              "sender_jid": "123456789@s.whatsapp.net",
+              "message_id": "mock-msg-id",
+              "message_type": "text",
+              "text_content": "hello",
+              "media_s3_key": null,
+              "processed_at": "2026-04-27T00:00:00.000Z",
+              "created_at": "2026-04-27T00:00:00.000Z"
+          }
+
+  "Scenario: POST /admin/inbox/(id:uuid)/reprocess -> 200 FAILED"
+        Reason:
+    Testing scenario "Reprocess a failed inbox item. Response: Item queued for reprocessing"
+    API: POST /admin/inbox/(id:uuid)/reprocess -> 200
+  
+      >> RESPONSE.BODY
+  
+          R1002: Value mismatch
+          Documentation: https://docs.specmatic.io/rules#r1002
+          Summary: The value does not match the expected value defined in the specification
+  
+          Specification expected no body but response contained {
+              "status": "pending",
+              "id": "904cf60f-7480-4c7e-8acc-f5ff0fea05d5"
+          }
+
+  "Scenario: POST /admin/dev-login -> 200 FAILED"
+        Reason:
+    Testing scenario "Dev-only login (NODE_ENV=development). Response: Admin JWT for development"
+    API: POST /admin/dev-login -> 200
+  
+      >> RESPONSE.STATUS
+  
+          R0002: HTTP status mismatch
+          Documentation: https://docs.specmatic.io/rules#r0002
+          Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+          Specification expected status 200 but response contained status 401
+
+  "Scenario: GET /admin/storage/(id:uuid)/download-url -> 200 FAILED"
+        Reason:
+    Testing scenario "Generate presigned GET URL for a single object. Response: Presigned URL generated"
+    API: GET /admin/storage/(id:uuid)/download-url -> 200
+  
+      >> RESPONSE.STATUS
+  
+          R0002: HTTP status mismatch
+          Documentation: https://docs.specmatic.io/rules#r0002
+          Summary: The HTTP status code does not match the expected status code defined in th
+e specification
+  
+          Specification expected status 200 but response contained status 500
+
+  "Scenario: DELETE /admin/storage/(id:uuid)/download-url -> 200 with a request where REQUEST.PARAMETERS.QUERY contains the param 'confirm' AND confirm is set to 'true' from enum FAILED"
+        Reason:
+    Testing scenario "Soft-delete a storage object. Response: Object soft-deleted"
+    API: DELETE /admin/storage/(id:uuid)/download-url -> 200
+  
+      >> RESPONSE.STATUS
+  
+          R0002: HTTP status mismatch
+          Documentation: https://docs.specmatic.io/rules#r0002
+          Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+          Specification expected status 200 but response contained status 404
+
+  "Scenario: POST /admin/storage/batch-urls -> 200 with a request where REQUEST.BODY contains all the keys FAILED"
+        Reason:
+    Testing scenario "Generate presigned GET URLs for multiple objects. Response: Array of presigned URLs"
+    API: POST /admin/storage/batch-urls -> 200
+  
+      >> RESPONSE.STATUS
+  
+          R0002: HTTP status mismatch
+          Documentation: https://docs.specmatic.io/rules#r0002
+          Summary: The HTTP status code does not match the expected status code defined in the specification
+  
+          Specification expected status 200 but response contained status 500
+
+
+Tests run: 90, Successes: 56, Failures: 34, Errors: 0
+
+
+Executed at 2026-05-29T21:41:18.382402379
+
+
+
+Specmatic: 56/90 passed, 34 failed.
+Contract tests have failures.

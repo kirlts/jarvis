@@ -127,6 +127,7 @@ services:
       STORAGE_BUCKET: "jarvis-files"
       BOSS_DATABASE_URL: "postgresql://postgres:postgres_sandbox@db:5432/jarvis"
       JWT_SECRET: "sandbox_super_secret_key_12345"
+      GEMINI_API_KEY:
       ADMIN_JWT_PUBLIC_KEY: |
         -----BEGIN PUBLIC KEY-----
         MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkQ/s4htokfmaO6OtSiVl
@@ -196,9 +197,12 @@ services:
       DB_PASSWORD: postgres_sandbox
       DB_NAME: jarvis
       BOSS_DATABASE_URL: "postgresql://postgres:postgres_sandbox@db:5432/jarvis"
+      GEMINI_API_KEY:
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      - /home/kirlts/jarvis:/home/kirlts/jarvis
     networks:
       - jarvis-net
 

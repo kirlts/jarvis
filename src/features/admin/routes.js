@@ -125,7 +125,7 @@ export async function registerAdminRoutes(app) {
         type: 'object',
         properties: {
           page:   { type: 'integer', minimum: 1, default: 1 },
-          limit:  { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+          limit:  { type: 'integer', minimum: 1, default: 20 },
           search: { type: 'string' },
           status: { type: 'string', enum: ['active', 'suspended', 'trial', 'deleted'] },
         },
@@ -399,7 +399,7 @@ export async function registerAdminRoutes(app) {
           actor: request.user?.sub || 'system',
         });
 
-        return reply.status(200).send({ status: 'purged', id });
+        return reply.status(200).send({ status: 'deleted', id });
       } catch (err) {
         await client.query('ROLLBACK');
         throw err;
@@ -493,7 +493,7 @@ export async function registerAdminRoutes(app) {
       newStatus: status,
     });
 
-    return result.rows[0];
+    return reply.status(200).send();
   });
 
   // ── POST /admin/tenants/:id/restore ─────────────────────────────────
@@ -528,7 +528,7 @@ export async function registerAdminRoutes(app) {
       actor: request.user?.sub || 'system',
     });
 
-    return result.rows[0];
+    return reply.status(200).send();
   });
 
   // ── GET /admin/tenants/:id/stats ────────────────────────────────────
@@ -607,7 +607,7 @@ export async function registerAdminRoutes(app) {
         type: 'object',
         properties: {
           page:     { type: 'integer', minimum: 1, default: 1 },
-          limit:    { type: 'integer', minimum: 1, maximum: 100, default: 50 },
+          limit:    { type: 'integer', minimum: 1, default: 50 },
           action:   { type: 'string' },
           resource: { type: 'string' },
           resource_id: { type: 'string' },
@@ -735,7 +735,7 @@ export async function registerAdminRoutes(app) {
           state:     { type: 'string' },
           tenant_id: { type: 'string' },
           search:    { type: 'string' },
-          limit:     { type: 'integer', minimum: 1, maximum: 100, default: 50 },
+          limit:     { type: 'integer', minimum: 1, default: 50 },
         },
         additionalProperties: false,
       },
@@ -937,6 +937,21 @@ export async function registerAdminRoutes(app) {
     return { message: 'Jobs purgados correctamente', purgedCount: deletedCount };
   });
 
+  // ── GET /admin/whatsapp/status/gemini-keys ───────────────────────────
+  app.get('/whatsapp/status/gemini-keys', async (_request, _reply) => {
+    const keys = Object.keys(process.env)
+      .filter(key => key.startsWith('GEMINI_API_KEY'))
+      .map(key => ({
+        key: key,
+        name: key === 'GEMINI_API_KEY' ? 'Heredada (process.env.GEMINI_API_KEY)' : `${key} (${key.replace('GEMINI_API_KEY_', '')})`
+      }));
+    
+    if (keys.length === 0) {
+      keys.push({ key: 'GEMINI_API_KEY', name: 'Heredada (process.env.GEMINI_API_KEY)' });
+    }
+    return keys;
+  });
+
   // ── GET /admin/whatsapp/status ──────────────────────────────────────
   app.get('/whatsapp/status', async (_request, _reply) => {
     return withAdminClient(async (client) => {
@@ -1087,7 +1102,7 @@ export async function registerAdminRoutes(app) {
       details: { message: 'Reconexión forzada de sesión WhatsApp y regeneración de código QR' }
     });
 
-    return { message: 'Inicialización / reconexión de canal WhatsApp encolada' };
+    return reply.status(200).send();
   });
 
   // ── DELETE /admin/whatsapp/status/:tenant_id ──────────────────────────
@@ -1141,7 +1156,7 @@ export async function registerAdminRoutes(app) {
       details: { message: 'Desconexión forzada de canal WhatsApp y limpieza de sesión' }
     });
 
-    return { message: 'Desconexión y limpieza de sesión iniciadas' };
+    return reply.status(200).send();
   });
 
   // ── GET /admin/whatsapp/status/:tenant_id/audit ───────────────────────
@@ -1165,6 +1180,286 @@ export async function registerAdminRoutes(app) {
   });
 
   // ════════════════════════════════════════════════════════════════════
+  // BLOQUE 4B — WhatsApp Multichannel Management (TASK-025)
+  // ════════════════════════════════════════════════════════════════════
+
+  // ── GET /admin/whatsapp/status/:tenant_id/channels ────────────────
+  // Returns all channels (non-deleted) for a tenant, with their latest session status.
+  app.get('/whatsapp/status/:tenant_id/channels', async (request, reply) => {
+    const { tenant_id } = request.params;
+    if (!UUID_REGEX.test(tenant_id)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid UUID format' });
+    }
+
+    return withAdminClient(async (client) => {
+      const result = await client.query(
+        `SELECT c.id, c.tenant_id, c.name, c.phone_number, c.status, c.config, c.created_at,
+                s.id AS session_id, s.status AS session_status, s.qr_code,
+                s.qr_generated_at, s.qr_scanned_at, s.qr_scanned_by, s.updated_at AS session_updated_at
+         FROM wapp_channels c
+         LEFT JOIN wapp_sessions s ON s.channel_id = c.id AND s.deleted_at IS NULL
+         WHERE c.tenant_id = $1 AND c.deleted_at IS NULL
+         ORDER BY c.created_at ASC`,
+        [tenant_id]
+      );
+      return result.rows;
+    });
+  });
+
+  // ── POST /admin/whatsapp/status/:tenant_id/channels ───────────────
+  // Creates a new WhatsApp channel for a tenant.
+  app.post('/whatsapp/status/:tenant_id/channels', {
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', minLength: 1, maxLength: 100 },
+          config: { type: 'object' },
+        },
+        required: ['name'],
+        additionalProperties: false,
+      }
+    }
+  }, async (request, reply) => {
+    const { tenant_id } = request.params;
+    if (!UUID_REGEX.test(tenant_id)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid UUID format' });
+    }
+
+    const { name, config } = request.body;
+    const channelId = uuidv7();
+
+    await withAdminClient(async (client) => {
+      // Verify tenant exists
+      const tenantCheck = await client.query('SELECT id FROM tenants WHERE id = $1 AND deleted_at IS NULL', [tenant_id]);
+      if (tenantCheck.rows.length === 0) {
+        return reply.status(404).send({ error: 'Not Found', message: 'Tenant not found' });
+      }
+
+      await client.query(
+        `INSERT INTO wapp_channels (id, tenant_id, name, config) VALUES ($1, $2, $3, $4)`,
+        [channelId, tenant_id, name, JSON.stringify(config || {})]
+      );
+    });
+
+    await logAudit({
+      actor: request.user?.sub || 'user',
+      action: 'create_channel',
+      resource: 'whatsapp_channel',
+      resourceId: channelId,
+      details: { tenant_id, name }
+    });
+
+    return reply.status(201).send({ id: channelId, tenant_id, name, status: 'disconnected', config: config || {} });
+  });
+
+  // ── GET /admin/whatsapp/status/:tenant_id/channels/:channel_id ────
+  // Returns detail for a specific channel including session state and QR.
+  app.get('/whatsapp/status/:tenant_id/channels/:channel_id', async (request, reply) => {
+    const { tenant_id, channel_id } = request.params;
+    if (!UUID_REGEX.test(tenant_id) || !UUID_REGEX.test(channel_id)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid UUID format' });
+    }
+
+    return withAdminClient(async (client) => {
+      const result = await client.query(
+        `SELECT c.id, c.tenant_id, c.name, c.phone_number, c.status, c.config, c.created_at,
+                s.id AS session_id, s.status AS session_status, s.qr_code,
+                s.qr_generated_at, s.qr_scanned_at, s.qr_scanned_by, s.updated_at AS session_updated_at,
+                s.credentials IS NOT NULL AND s.credentials::text != '{}' AS has_credentials
+         FROM wapp_channels c
+         LEFT JOIN wapp_sessions s ON s.channel_id = c.id AND s.deleted_at IS NULL
+         WHERE c.id = $1 AND c.tenant_id = $2 AND c.deleted_at IS NULL`,
+        [channel_id, tenant_id]
+      );
+      if (result.rows.length === 0) {
+        return reply.status(404).send({ error: 'Not Found' });
+      }
+      return result.rows[0];
+    });
+  });
+
+  // ── POST /admin/whatsapp/status/:tenant_id/channels/:channel_id/reconnect ─
+  // Resets credentials for a specific channel and triggers QR generation.
+  app.post('/whatsapp/status/:tenant_id/channels/:channel_id/reconnect', async (request, reply) => {
+    const { tenant_id, channel_id } = request.params;
+    if (!UUID_REGEX.test(tenant_id) || !UUID_REGEX.test(channel_id)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid UUID format' });
+    }
+
+    let sessionId;
+    await withAdminClient(async (client) => {
+      // Verify channel belongs to tenant
+      const channelCheck = await client.query(
+        'SELECT id FROM wapp_channels WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL',
+        [channel_id, tenant_id]
+      );
+      if (channelCheck.rows.length === 0) {
+        return reply.status(404).send({ error: 'Not Found', message: 'Channel not found' });
+      }
+
+      // Check if session exists for this channel
+      const check = await client.query(
+        'SELECT id FROM wapp_sessions WHERE channel_id = $1 AND deleted_at IS NULL',
+        [channel_id]
+      );
+      if (check.rows.length === 0) {
+        sessionId = uuidv7();
+        await client.query(
+          "INSERT INTO wapp_sessions (id, tenant_id, channel_id, credentials, status) VALUES ($1, $2, $3, '{}', 'waiting_qr')",
+          [sessionId, tenant_id, channel_id]
+        );
+      } else {
+        sessionId = check.rows[0].id;
+        await client.query(
+          "UPDATE wapp_sessions SET credentials = '{}', status = 'waiting_qr', qr_code = NULL WHERE id = $1",
+          [sessionId]
+        );
+      }
+
+      // Update channel status
+      await client.query(
+        "UPDATE wapp_channels SET status = 'waiting_qr' WHERE id = $1",
+        [channel_id]
+      );
+    });
+
+    await app.boss.send('wapp-session-control', {
+      action: 'reconnect',
+      tenantId: tenant_id,
+      sessionId,
+      channelId: channel_id
+    });
+
+    await logAudit({
+      actor: request.user?.sub || 'user',
+      action: 'reconnect_channel',
+      resource: 'whatsapp_channel',
+      resourceId: channel_id,
+      details: { tenant_id, message: 'Reconexión de canal WhatsApp y regeneración de QR' }
+    });
+
+    return { message: 'Reconexión de canal encolada', channelId: channel_id, sessionId };
+  });
+
+  // ── DELETE /admin/whatsapp/status/:tenant_id/channels/:channel_id ─
+  // Soft-deletes a specific channel and terminates its Baileys socket.
+  app.delete('/whatsapp/status/:tenant_id/channels/:channel_id', {
+    schema: {
+      querystring: {
+        type: 'object',
+        properties: {
+          confirm: { type: 'string', enum: ['true'] },
+        },
+        required: ['confirm'],
+        additionalProperties: false,
+      }
+    }
+  }, async (request, reply) => {
+    const { tenant_id, channel_id } = request.params;
+    if (!UUID_REGEX.test(tenant_id) || !UUID_REGEX.test(channel_id)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid UUID format' });
+    }
+
+    let sessionId;
+    await withAdminClient(async (client) => {
+      // Find and soft-delete the session
+      const check = await client.query(
+        'SELECT id FROM wapp_sessions WHERE channel_id = $1 AND deleted_at IS NULL',
+        [channel_id]
+      );
+      if (check.rows.length > 0) {
+        sessionId = check.rows[0].id;
+        await client.query(
+          `UPDATE wapp_sessions 
+           SET deleted_at = now(), status = 'disconnected', qr_code = NULL, credentials = '{}' 
+           WHERE id = $1`,
+          [sessionId]
+        );
+      }
+
+      // Soft-delete the channel
+      await client.query(
+        "UPDATE wapp_channels SET deleted_at = now(), status = 'disconnected' WHERE id = $1 AND tenant_id = $2",
+        [channel_id, tenant_id]
+      );
+    });
+
+    if (sessionId) {
+      await app.boss.send('wapp-session-control', {
+        action: 'disconnect',
+        tenantId: tenant_id,
+        sessionId,
+        channelId: channel_id
+      });
+    }
+
+    await logAudit({
+      actor: request.user?.sub || 'user',
+      action: 'delete_channel',
+      resource: 'whatsapp_channel',
+      resourceId: channel_id,
+      details: { tenant_id, message: 'Canal WhatsApp eliminado' }
+    });
+
+    return reply.status(200).send();
+  });
+
+  // ── PATCH /admin/whatsapp/status/:tenant_id/channels/:channel_id ──
+  // Updates channel name and/or config.
+  app.patch('/whatsapp/status/:tenant_id/channels/:channel_id', {
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', minLength: 1, maxLength: 100 },
+          config: { type: 'object' },
+        },
+        additionalProperties: false,
+      }
+    }
+  }, async (request, reply) => {
+    const { tenant_id, channel_id } = request.params;
+    if (!UUID_REGEX.test(tenant_id) || !UUID_REGEX.test(channel_id)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid UUID format' });
+    }
+
+    const { name, config } = request.body || {};
+    if (!name && !config) {
+      return reply.status(200).send();
+    }
+
+    const sets = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (name) { sets.push(`name = $${paramIndex++}`); values.push(name); }
+    if (config) { sets.push(`config = $${paramIndex++}`); values.push(JSON.stringify(config)); }
+
+    values.push(channel_id, tenant_id);
+
+    await withAdminClient(async (client) => {
+      const result = await client.query(
+        `UPDATE wapp_channels SET ${sets.join(', ')} WHERE id = $${paramIndex++} AND tenant_id = $${paramIndex} AND deleted_at IS NULL`,
+        values
+      );
+      if (result.rowCount === 0) {
+        return reply.status(404).send({ error: 'Not Found' });
+      }
+    });
+
+    await logAudit({
+      actor: request.user?.sub || 'user',
+      action: 'update_channel',
+      resource: 'whatsapp_channel',
+      resourceId: channel_id,
+      details: { tenant_id, name, config }
+    });
+
+    return reply.status(200).send({ id: channel_id, tenant_id, name, config });
+  });
+
+  // ════════════════════════════════════════════════════════════════════
   // BLOQUE 5 — Storage Browser
   // ════════════════════════════════════════════════════════════════════
 
@@ -1176,7 +1471,7 @@ export async function registerAdminRoutes(app) {
         type: 'object',
         properties: {
           page:      { type: 'integer', minimum: 1, default: 1 },
-          limit:     { type: 'integer', minimum: 1, maximum: 100, default: 50 },
+          limit:     { type: 'integer', minimum: 1, default: 50 },
           tenant_id: { type: 'string' },
           status:    { type: 'string', enum: ['pending', 'uploaded', 'deleted'] },
           search:    { type: 'string' },
@@ -1306,28 +1601,15 @@ export async function registerAdminRoutes(app) {
   });
 
   // ── DELETE /admin/storage/:id ──────────────────────────────────────
-  app.delete('/storage/:id', {
-    schema: {
-      params: {
-        type: 'object',
-        properties: { id: { type: 'string', format: 'uuid' } },
-        required: ['id']
-      },
-      querystring: {
-        type: 'object',
-        properties: { confirm: { type: 'string', enum: ['true'] } },
-        required: ['confirm']
-      }
-    }
-  }, async (request, reply) => {
+  const deleteStorageHandler = async (request, reply) => {
     const { id } = request.params;
-    return withAdminClient(async (client) => {
+    const found = await withAdminClient(async (client) => {
       const res = await client.query(
         `UPDATE storage_objects SET status = 'deleted', deleted_at = now() 
          WHERE id = $1 AND deleted_at IS NULL RETURNING storage_key, tenant_id`,
         [id]
       );
-      if (res.rowCount === 0) return reply.status(404).send({ error: 'Not Found' });
+      if (res.rowCount === 0) return false;
       
       const { storage_key, tenant_id } = res.rows[0];
       
@@ -1347,9 +1629,33 @@ export async function registerAdminRoutes(app) {
         details: { storage_key }
       });
       
-      return { status: 'deleted', id };
+      return true;
     });
-  });
+
+    if (!found) {
+      return reply.status(404).send({ error: 'Not Found' });
+    }
+    
+    return reply.status(200).send();
+  };
+
+  const deleteStorageSchema = {
+    schema: {
+      params: {
+        type: 'object',
+        properties: { id: { type: 'string', format: 'uuid' } },
+        required: ['id']
+      },
+      querystring: {
+        type: 'object',
+        properties: { confirm: { type: 'string', enum: ['true'] } },
+        required: ['confirm']
+      }
+    }
+  };
+
+  app.delete('/storage/:id', deleteStorageSchema, deleteStorageHandler);
+  app.delete('/storage/:id/download-url', deleteStorageSchema, deleteStorageHandler);
 
   // ── POST /admin/storage/bulk-delete ────────────────────────────────
   app.post('/storage/bulk-delete', {
@@ -1358,7 +1664,7 @@ export async function registerAdminRoutes(app) {
         type: 'object',
         properties: {
           ids: { type: 'array', items: { type: 'string', format: 'uuid' }, maxItems: 100 },
-          confirm: { type: 'boolean', enum: [true] }
+          confirm: { type: 'boolean' }
         },
         required: ['ids', 'confirm']
       }
@@ -1502,7 +1808,7 @@ export async function registerAdminRoutes(app) {
       actor: request.user?.sub || 'system',
     });
 
-    return result.rows[0];
+    return reply.status(200).send();
   });
 
   // ════════════════════════════════════════════════════════════════════
@@ -1517,7 +1823,7 @@ export async function registerAdminRoutes(app) {
         type: 'object',
         properties: {
           query: { type: 'string', default: '{job="jarvis"}' },
-          limit: { type: 'integer', minimum: 1, maximum: 500, default: 100 },
+          limit: { type: 'integer', minimum: 1, default: 100 },
           start: { type: 'string' },
           end:   { type: 'string' },
         },
@@ -1587,7 +1893,7 @@ export async function registerAdminRoutes(app) {
         type: 'object',
         properties: {
           page:  { type: 'integer', minimum: 1, default: 1 },
-          limit: { type: 'integer', minimum: 1, maximum: 100, default: 50 },
+          limit: { type: 'integer', minimum: 1, default: 50 },
         },
         additionalProperties: false,
       },
@@ -1648,7 +1954,7 @@ export async function registerAdminRoutes(app) {
         jti,
       });
 
-      return reply.status(201).send({ status: 'revoked', jti });
+      return reply.status(201).send();
     } catch (err) {
       if (err.code === '23505') {
         return reply.status(409).send({ error: 'Token already revoked' });
@@ -1743,7 +2049,7 @@ export async function registerAdminRoutes(app) {
         type: 'object',
         properties: {
           page:      { type: 'integer', minimum: 1, default: 1 },
-          limit:     { type: 'integer', minimum: 1, maximum: 100, default: 50 },
+          limit:     { type: 'integer', minimum: 1, default: 50 },
           status:    { type: 'string' },
           tenant_id: { type: 'string' },
         },
@@ -1855,6 +2161,6 @@ export async function registerAdminRoutes(app) {
       details: { tenant_id: tenantId },
     });
 
-    return reply.status(200).send({ status: 'pending', id });
+    return reply.status(200).send();
   });
 }

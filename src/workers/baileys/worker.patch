@@ -1,0 +1,29 @@
+--- src/workers/baileys/worker.js
++++ src/workers/baileys/worker.js
+@@ -236,9 +236,11 @@
+                   await client.query(`SELECT set_config('request.jwt.claims.tenant_id', $1, true)`, [tenantId]);
+ 
+                   await client.query(
+-                    `INSERT INTO wapp_incoming (id, tenant_id, sender, message) VALUES ($1, $2, $3, $4)`,
+-                    [msgId, tenantId, from, msg]
++                    `INSERT INTO sync_inbox (id, tenant_id, payload, status)
++                     VALUES ($1, $2, $3, 'pending')
++                     ON CONFLICT (id) DO NOTHING`,
++                    [msgId, tenantId, JSON.stringify({ type: 'text', sender: from, message: textContent, channelId })]
+                   );
+                   await client.query('COMMIT');
+                 } catch (err) {
+                   await client.query('ROLLBACK');
+                   throw err;
+@@ -246,6 +248,13 @@
+                   client.release();
+                 }
++                
++                const boss = new PgBoss(config.boss.connectionString);
++                await boss.start();
++                await boss.send('sync-inbox-process', {
++                  inboxId: msgId, tenantId,
++                  payload: { type: 'text', sender: from, message: textContent, channelId }
++                });
++                await boss.stop();
+               }

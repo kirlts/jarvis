@@ -148,13 +148,28 @@ export function buildTimelineEvents(
         displayName = i.message.pushName.length > 20 ? i.message.pushName.substring(0, 20) + '...' : i.message.pushName;
       }
 
+      const isFromMe = !!i.payload?.isFromMe;
       let content = '';
-      if (typeLabel) {
-        content = i.payload?.message
-          ? `📥 ${typeLabel} + Texto de ${displayName}`
-          : `📥 ${typeLabel} recibido de ${displayName}`;
+      if (isFromMe) {
+        if (typeLabel) {
+          content = i.payload?.message
+            ? `📤 ${typeLabel} + Texto: ${i.payload.message}`
+            : `📤 ${typeLabel} enviado por mí`;
+        } else {
+          content = i.payload?.message
+            ? `📤 Enviado: ${i.payload.message}`
+            : `📤 Mensaje enviado por mí`;
+        }
       } else {
-        content = `📥 Mensaje recibido de ${displayName}`;
+        if (typeLabel) {
+          content = i.payload?.message
+            ? `📥 ${typeLabel} + Texto de ${displayName}: ${i.payload.message}`
+            : `📥 ${typeLabel} recibido de ${displayName}`;
+        } else {
+          content = i.payload?.message
+            ? `📥 Recibido de ${displayName}: ${i.payload.message}`
+            : `📥 Mensaje recibido de ${displayName}`;
+        }
       }
       
       let channelName;
@@ -209,6 +224,14 @@ function getGroupLabel(evt: TimelineEvent, count: number): string {
     const mediaName = mediaMap[msgType || ''] || 'Archivos';
     const displayName = formatJid(sender);
     const hasText = getCaption(evt);
+
+    const isFromMe = !!evt.item.payload?.isFromMe;
+    if (isFromMe) {
+      return hasText
+        ? `📤 ${count} ${mediaName} + Texto enviado por mí`
+        : `📤 ${count} ${mediaName} enviados por mí`;
+    }
+
     return hasText
       ? `📥 ${count} ${mediaName} + Texto de ${displayName}`
       : `📥 ${count} ${mediaName} recibidas de ${displayName}`;

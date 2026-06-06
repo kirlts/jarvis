@@ -39,7 +39,8 @@ k6 run --out dashboard scripts/stress/*.js
 |---|---|
 | **Pact** | Sequential consumer-first workflow is an anti-pattern for solo-dev with AI assistance. Specmatic inverts this by using OpenAPI spec as source of truth. |
 | **Jest** | CJS-first, requires transforms for ESM. `node:test` is native to Node 24 and zero-config. |
-| **Playwright / E2E** | Not yet integrated. The Ops Console SPA is tested via Vitest (pure-function + JSDOM component tests). A Playwright E2E smoke layer covering login → timeline → media is planned but not yet implemented. |
+| **Playwright / E2E** | Fully Integrated. A highly comprehensive Playwright E2E suite covering 10 major flows (login, tenant lifecycle, operations monitoring, WhatsApp multichannel creation/delete, plugin config, media expand preview) is implemented and validated. |
+
 | **Artillery** | Single-threaded, commercial for distributed load. K6 is Go-native, free, and supports 30K+ VUs from a laptop. |
 
 ---
@@ -156,7 +157,8 @@ The traditional pyramid (many unit tests → few integration → fewer E2E) is *
 ## E2E Policy
 
 - **Activate when:** When changes to the Ops Console SPA affect timeline rendering, SSE auto-refresh, multimedia grouping, or media preview flows that cannot be fully validated by pure-function unit tests alone.
-- **Ops Console (SPA Propietaria):** The SPA is tested at two layers: (1) Pure-function tests for `timeline-utils.ts` (deduplication, grouping, `formatJid`, `extractSearchTerm`) via Vitest without JSDOM; (2) Component-level tests for individual pages via Vitest + JSDOM. A future Playwright E2E smoke test should cover the full login → timeline → media preview flow.
+- **Ops Console (SPA Propietaria):** The SPA is tested at three layers: (1) Pure-function tests for `timeline-utils.ts` (deduplication, grouping, `formatJid`, `extractSearchTerm`) via Vitest without JSDOM; (2) Component-level tests for individual pages via Vitest + JSDOM; and (3) Playwright E2E integration tests (10 robust scenarios covering the full login, tenant lifecycle, operations monitoring, WhatsApp multichannel connection, dynamic plugin configuration, and media expand preview flows).
+
 - **WhatsApp (Baileys):** Manual verification via `.HUM` checks in VERIFICATION.md. Automated testing of WhatsApp WebSocket protocol is blocked by Meta's anti-automation policies.
 
 ---
