@@ -19,6 +19,8 @@ import { getAuthHeader } from "../../providers/auth";
 import { useWhatsAppSSE } from "../../hooks/useWhatsAppSSE";
 import { formatJid, resolveBrowserUrl, formatBytes, timeAgo, copyToClipboard as copyToClipboardUtil, buildTimelineEvents, groupTimelineEvents, extractSearchTerm } from "./timeline-utils";
 import { ChannelDetailPanel } from "../../components/ChannelDetailPanel";
+import { CopyButton } from "../../components/CopyButton";
+import { JsonEditor } from "../../components/JsonEditor";
 
 interface Tenant {
   id: string;
@@ -62,6 +64,27 @@ interface AuditLog {
   created_at: string;
 }
 
+interface Plugin {
+  id: string;
+  name: string;
+  display_name: string;
+  description: string;
+  fields: any[];
+}
+
+interface TenantRule {
+  id: string;
+  tenant_id: string;
+  channel_id: string | null;
+  name: string;
+  trigger_type: 'all' | 'regex' | 'media_type';
+  trigger_value: string | null;
+  actions: { plugin_id: string; config: Record<string, any> }[];
+  priority: number;
+  active: boolean;
+  created_at: string;
+}
+
 const STATUS_BADGE: Record<string, string> = {
   active: "badge-success",
   suspended: "badge-warning",
@@ -85,25 +108,6 @@ const STATUS_DOT: Record<string, string> = {
 
 // formatBytes, timeAgo imported from ./timeline-utils
 
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      className="btn btn-ghost btn-sm"
-      style={{ padding: '2px 8px', fontSize: 'var(--text-xs)' }}
-      onClick={async (e) => {
-        e.stopPropagation();
-        const ok = await copyToClipboardUtil(text);
-        if (ok) {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        }
-      }}
-    >
-      {copied ? '✓ Copiado' : '📋 Copiar'}
-    </button>
-  );
-}
 
 export function TenantDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -131,7 +135,7 @@ export function TenantDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isPurging, setIsPurging] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'config' | 'whatsapp'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'whatsapp' | 'rules'>('overview');
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
   const [configValue, setConfigValue] = useState('');
@@ -150,12 +154,26 @@ export function TenantDetailPage() {
   // WhatsApp Multichannel State
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
-  const [showCreateChannel, setShowCreateChannel] = useState(false);
+  const [showCreateChannelModal, setShowCreateChannelModal] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
+  const [selectedChannelType, setSelectedChannelType] = useState("whatsapp_baileys");
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [audits, setAudits] = useState<AuditLog[]>([]);
   const [isAuditLoading, setIsAuditLoading] = useState(false);
   const { mutate: createChannelMutate } = useCustomMutation();
+
+  // Create / Edit Rule States
+  const [showRuleModal, setShowRuleModal] = useState(false);
+  const [editingRule, setEditingRule] = useState<TenantRule | null>(null);
+  const [ruleName, setRuleName] = useState("");
+  const [ruleChannelId, setRuleChannelId] = useState("");
+  const [ruleTriggerType, setRuleTriggerType] = useState<'all' | 'regex' | 'media_type'>('all');
+  const [ruleTriggerValue, setRuleTriggerValue] = useState("");
+  const [rulePriority, setRulePriority] = useState(0);
+  const [ruleActive, setRuleActive] = useState(true);
+  const [ruleActions, setRuleActions] = useState<{ plugin_id: string; config: string }[]>([
+    { plugin_id: "", config: "{}" }
+  ]);
 
   // Timeline UI State
   const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
@@ -168,13 +186,16 @@ export function TenantDetailPage() {
   // Fetch Tenant Event History
   // Real-time updates driven by SSE → PG LISTEN/NOTIFY (tenant_activity channel).
   // No polling needed — the SSE callback triggers explicit refetches.
-  const { result: auditResult, query: auditQuery } = useList({
-    resource: "audit",
-    filters: [{ field: "resource_id", operator: "eq", value: id }],
-    pagination: { currentPage: 1, pageSize: 50 },
-    queryOptions: { enabled: activeTab === 'overview' && !!id },
+  const { query: auditQuery, result: auditResult } = useCustom<{ data: any[], meta: { total: number } }>({
+    url: '',
+    method: 'get',
+    meta: { rawUrl: `/admin/audit?tenant_id=${id}&limit=50` },
+    queryOptions: {
+      queryKey: ['tenant-audit-full', id],
+      enabled: activeTab === 'overview' && !!id,
+    },
   });
-  const auditData = auditResult?.data;
+  const auditData = auditResult?.data?.data || [];
   const isAuditLoadingList = auditQuery.isLoading;
 
   const { result: jobsResult, query: jobsQuery } = useList({
@@ -195,6 +216,43 @@ export function TenantDetailPage() {
   const inboxData = inboxResult?.data;
   const isInboxLoading = inboxQuery.isLoading;
 
+  // Fetch activity logs
+  const { query: activityQuery, result: activityResult } = useCustom<{ data: any[], meta: { total: number } }>({
+    url: '',
+    method: 'get',
+    meta: { rawUrl: `/admin/activity?tenant_id=${id}&limit=50` },
+    queryOptions: {
+      queryKey: ['tenant-activity', id],
+      enabled: activeTab === 'overview' && !!id,
+    },
+  });
+  const activityData = activityResult?.data?.data || [];
+  const isActivityLoading = activityQuery.isLoading;
+
+  // Fetch plugins catalog
+  const { query: pluginsQuery, result: pluginsResult } = useCustom<Plugin[]>({
+    url: '',
+    method: 'get',
+    meta: { rawUrl: `/admin/plugins` },
+    queryOptions: {
+      queryKey: ['plugins-catalog'],
+      enabled: activeTab === 'rules',
+    },
+  });
+  const plugins = (pluginsResult?.data || []) as Plugin[];
+
+  // Fetch rules for the tenant
+  const { query: rulesQuery, result: rulesResult } = useCustom<{ data: TenantRule[], meta: { total: number } }>({
+    url: '',
+    method: 'get',
+    meta: { rawUrl: `/admin/rules?tenant_id=${id}&limit=100` },
+    queryOptions: {
+      queryKey: ['tenant-rules', id],
+      enabled: activeTab === 'rules' && !!id,
+    },
+  });
+  const rules = rulesResult?.data?.data || [];
+
   // Fetch WhatsApp channels via useCustom (sub-resource under tenant, per RULES.md)
   const { query: wappQuery, result: channelsResult } = useCustom<WappChannel[]>({
     url: '',
@@ -213,9 +271,9 @@ export function TenantDetailPage() {
   }, [channels, selectedChannelId]);
 
   const allEvents = useMemo(() => {
-    const events = buildTimelineEvents(auditData as any[], jobsData as any[], inboxData as any[], channels);
+    const events = buildTimelineEvents(auditData as any[], jobsData as any[], inboxData as any[], channels, activityData as any[]);
     return groupTimelineEvents(events);
-  }, [auditData, jobsData, inboxData, channels]);
+  }, [auditData, jobsData, inboxData, channels, activityData]);
 
   const availableTypes = useMemo(() => {
     const types = new Set(allEvents.map(e => e.type));
@@ -293,8 +351,9 @@ export function TenantDetailPage() {
         jobsQuery?.refetch?.();
         inboxQuery?.refetch?.();
         tenantQuery?.refetch?.();
+        activityQuery?.refetch?.();
       }
-    }, [id, wappQuery, auditQuery, jobsQuery, inboxQuery, tenantQuery]),
+    }, [id, wappQuery, auditQuery, jobsQuery, inboxQuery, tenantQuery, activityQuery]),
     true // Always enabled to auto-refresh background activity (inbox, jobs, audits, channels)
   );
 
@@ -341,6 +400,14 @@ export function TenantDetailPage() {
       }
     );
   }, [tenant, deleteTenant, addToast, navigate]);
+  useEffect(() => {
+    if (tenant?.config) {
+      const rawConfig = tenant.config as any;
+      setTtlValue(typeof rawConfig.token_ttl_hours === 'number' ? rawConfig.token_ttl_hours : 24);
+      setConfigValue(JSON.stringify(rawConfig, null, 2));
+    }
+  }, [tenant?.config]);
+
 
   if (isLoading) {
     return (
@@ -397,14 +464,6 @@ export function TenantDetailPage() {
     );
   }
 
-  function startEditConfig() {
-    const rawConfig = tenant!.config || {};
-    setTtlValue(typeof rawConfig.token_ttl_hours === 'number' ? rawConfig.token_ttl_hours : 24);
-    setConfigValue(JSON.stringify(rawConfig, null, 2));
-    setConfigError('');
-    setActiveTab('config');
-  }
-
   function handleDescSave() {
     updateTenant(
       { resource: "tenants", id: tenant!.id, values: { config: { ...(tenant!.config as Record<string, unknown>), description: descDraft } } },
@@ -417,7 +476,7 @@ export function TenantDetailPage() {
     setEditingDesc(true);
   }
 
-  function saveConfig() {
+  function handleConfigSave() {
     try {
       const parsed = JSON.parse(configValue);
       setConfigError('');
@@ -503,15 +562,172 @@ export function TenantDetailPage() {
     createChannelMutate({
       url: `${API_URL}/admin/whatsapp/status/${id}/channels`,
       method: "post",
-      values: { name: newChannelName.trim() },
+      values: { 
+        name: newChannelName.trim(),
+        config: { channel_type: selectedChannelType }
+      },
     }, {
       onSuccess: () => {
         addToast("Canal creado", "success");
         setNewChannelName("");
-        setShowCreateChannel(false);
+        setSelectedChannelType("whatsapp_baileys");
+        setShowCreateChannelModal(false);
         wappQuery?.refetch?.();
       },
       onError: (err) => addToast(`Error: ${err.message}`, "error"),
+    });
+  };
+
+  const openCreateRuleModal = () => {
+    setEditingRule(null);
+    setRuleName("");
+    setRuleChannelId("");
+    setRuleTriggerType("all");
+    setRuleTriggerValue("");
+    setRulePriority(0);
+    setRuleActive(true);
+    setRuleActions([{ plugin_id: plugins[0]?.id || "", config: "{}" }]);
+    setShowRuleModal(true);
+  };
+
+  const openEditRuleModal = (rule: TenantRule) => {
+    setEditingRule(rule);
+    setRuleName(rule.name);
+    setRuleChannelId(rule.channel_id || "");
+    setRuleTriggerType(rule.trigger_type);
+    setRuleTriggerValue(rule.trigger_value || "");
+    setRulePriority(rule.priority);
+    setRuleActive(rule.active);
+    setRuleActions(
+      rule.actions.map(act => ({
+        plugin_id: act.plugin_id,
+        config: JSON.stringify(act.config, null, 2)
+      }))
+    );
+    setShowRuleModal(true);
+  };
+
+  const handleSaveRule = () => {
+    if (!ruleName.trim()) {
+      addToast("El nombre de la regla es requerido", "error");
+      return;
+    }
+
+    const parsedActions = [];
+    for (let i = 0; i < ruleActions.length; i++) {
+      const act = ruleActions[i];
+      if (!act.plugin_id) {
+        addToast("Seleccione un plugin para cada acción", "error");
+        return;
+      }
+      try {
+        parsedActions.push({
+          plugin_id: act.plugin_id,
+          config: JSON.parse(act.config || "{}")
+        });
+      } catch (err) {
+        addToast(`Acción ${i + 1}: JSON de configuración inválido`, "error");
+        return;
+      }
+    }
+
+    if (parsedActions.length === 0) {
+      addToast("Debe agregar al menos una acción", "error");
+      return;
+    }
+
+    const payload = {
+      tenant_id: id,
+      channel_id: ruleChannelId || null,
+      name: ruleName.trim(),
+      trigger_type: ruleTriggerType,
+      trigger_value: ruleTriggerValue.trim() || null,
+      actions: parsedActions,
+      priority: Number(rulePriority),
+      active: ruleActive
+    };
+
+    if (editingRule) {
+      createChannelMutate({
+        url: `${API_URL}/admin/rules/${editingRule.id}`,
+        method: "patch",
+        values: payload
+      }, {
+        onSuccess: () => {
+          addToast("Regla actualizada correctamente", "success");
+          setShowRuleModal(false);
+          rulesQuery.refetch();
+        },
+        onError: (err) => addToast(`Error al guardar: ${err.message}`, "error")
+      });
+    } else {
+      createChannelMutate({
+        url: `${API_URL}/admin/rules`,
+        method: "post",
+        values: payload
+      }, {
+        onSuccess: () => {
+          addToast("Regla creada correctamente", "success");
+          setShowRuleModal(false);
+          rulesQuery.refetch();
+        },
+        onError: (err) => addToast(`Error al crear: ${err.message}`, "error")
+      });
+    }
+  };
+
+  const handleDeleteRule = (ruleId: string) => {
+    if (!confirm("¿Está seguro de eliminar esta regla de ruteo?")) return;
+    createChannelMutate({
+      url: `${API_URL}/admin/rules/${ruleId}?confirm=true`,
+      method: "delete",
+      values: {}
+    }, {
+      onSuccess: () => {
+        addToast("Regla eliminada", "success");
+        rulesQuery.refetch();
+      },
+      onError: (err) => addToast(`Error al eliminar: ${err.message}`, "error")
+    });
+  };
+
+  const handleToggleRuleActive = (rule: TenantRule) => {
+    createChannelMutate({
+      url: `${API_URL}/admin/rules/${rule.id}`,
+      method: "patch",
+      values: { active: !rule.active }
+    }, {
+      onSuccess: () => {
+        addToast(`Regla ${!rule.active ? 'activada' : 'desactivada'}`, "success");
+        rulesQuery.refetch();
+      },
+      onError: (err) => addToast(`Error: ${err.message}`, "error")
+    });
+  };
+
+  const handleIncreasePriority = (rule: TenantRule) => {
+    createChannelMutate({
+      url: `${API_URL}/admin/rules/${rule.id}`,
+      method: "patch",
+      values: { priority: rule.priority + 1 }
+    }, {
+      onSuccess: () => {
+        rulesQuery.refetch();
+      },
+      onError: (err) => addToast(`Error: ${err.message}`, "error")
+    });
+  };
+
+  const handleDecreasePriority = (rule: TenantRule) => {
+    createChannelMutate({
+      url: `${API_URL}/admin/rules/${rule.id}`,
+      method: "patch",
+      values: { priority: Math.max(0, rule.priority - 1) }
+    }, {
+      onSuccess: () => {
+        rulesQuery.refetch();
+      },
+      onError: (err) => addToast(`Error: ${err.message}`, "error")
     });
   };
 
@@ -577,16 +793,6 @@ export function TenantDetailPage() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
-          {!isDeleted && tenant.status === 'active' && (
-            <button
-              className="btn btn-ghost"
-              onClick={handleGenerateToken}
-              disabled={generating}
-              id="generate-token-button"
-            >
-              {generating ? "Generando…" : "+ Generar Token"}
-            </button>
-          )}
           {isDeleted ? (
             <>
               <button className="btn btn-primary" onClick={handleRestore} id="restore-tenant-button">
@@ -621,16 +827,17 @@ export function TenantDetailPage() {
           Resumen
         </button>
         <button
-          className={`tab-item ${activeTab === 'config' ? 'active' : ''}`}
-          onClick={startEditConfig}
-        >
-          Configuración
-        </button>
-        <button
           className={`tab-item ${activeTab === 'whatsapp' ? 'active' : ''}`}
           onClick={() => setActiveTab('whatsapp')}
         >
-          Conexión WhatsApp
+          Canales
+        </button>
+        <button
+          className={`tab-item ${activeTab === 'rules' ? 'active' : ''}`}
+          onClick={() => setActiveTab('rules')}
+          id="rules-tab-button"
+        >
+          Reglas
         </button>
       </div>
 
@@ -666,6 +873,41 @@ export function TenantDetailPage() {
                   </div>
                 )}
               </div>
+              <details style={{ marginTop: 'var(--sp-4)', background: 'var(--surface-1)', padding: 'var(--sp-4)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+                <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
+                  Configuración Avanzada (TTL y JSON)
+                </summary>
+                <div style={{ marginTop: 'var(--sp-4)', display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
+                  <div className="dashboard-card" style={{ padding: 'var(--sp-4)' }}>
+                    <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 'var(--sp-2)' }}>Política de expiración de tokens (TTL)</h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
+                      <label style={{ fontSize: 'var(--text-xs)', fontWeight: 500 }} htmlFor="overview-ttl">TTL (Horas):</label>
+                      <input
+                        id="overview-ttl"
+                        type="number"
+                        className="form-input"
+                        style={{ width: '100px', fontSize: 'var(--text-sm)' }}
+                        value={ttlValue}
+                        min={1}
+                        max={8760}
+                        onChange={(e) => handleTtlChange(Math.max(1, Math.min(8760, Number(e.target.value) || 24)))}
+                      />
+                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>(1h - 1año)</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <JsonEditor
+                      label="Configuración Técnica (JSON)"
+                      value={configValue}
+                      onChange={(v) => { setConfigValue(v); setConfigError(''); }}
+                      onBlur={handleConfigSave}
+                      error={configError}
+                      rows={10}
+                    />
+                  </div>
+                </div>
+              </details>
             </div>
 
             {/* Compact Stats */}
@@ -742,7 +984,7 @@ export function TenantDetailPage() {
                             {evt.channelName || '—'}
                           </td>
                           <td>
-                            <span className={`badge badge-${evt.type === 'operación' ? 'success' : evt.type === 'whatsapp' ? 'warning' : 'neutral'}`}>
+                            <span className={`badge badge-${evt.type === 'operación' ? 'success' : evt.type === 'whatsapp' ? 'warning' : evt.type === 'acción' ? 'info' : 'neutral'}`}>
                               {evt.type}
                             </span>
                           </td>
@@ -890,6 +1132,34 @@ export function TenantDetailPage() {
                       </>
                     )}
 
+                    {selectedEvent.type === 'acción' && (() => {
+                      const allItems = [selectedEvent, ...(selectedEvent.additionalItems || [])];
+                      return (
+                        <>
+                          <h4 style={{ margin: '0 0 var(--sp-2) 0', color: 'var(--text-tertiary)', fontSize: 'var(--text-xs)', textTransform: 'uppercase' }}>
+                            Trazabilidad de la Acción ({allItems.length} eventos)
+                          </h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
+                            {allItems.map((evt: any, idx: number) => {
+                              const item = evt.item || evt;
+                              const desc = item.details?.message || item.description || evt.content || item.name || item.action;
+                              const time = new Date(evt.date).toLocaleTimeString("es-CL", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+                              return (
+                                <div key={item.id || idx} style={{ padding: 'var(--sp-3)', background: 'var(--surface-1)', borderRadius: 'var(--radius-sm)' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--sp-1)' }}>
+                                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase' }}>
+                                      {time} - {evt.type}
+                                    </span>
+                                  </div>
+                                  <p style={{ margin: 0, color: 'var(--text-primary)', lineHeight: 1.5 }}>{desc}</p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </>
+                      );
+                    })()}
+
                   </div>
 
                   {/* Media Preview — collapsed by default, N items */}
@@ -964,31 +1234,8 @@ export function TenantDetailPage() {
                     </div>
                   )}
 
-                  {/* Collapsible JSON */}
                   <div style={{ marginTop: 'var(--sp-4)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                      <button className="btn btn-ghost btn-sm" onClick={() => setShowJson(!showJson)}>
-                        JSON {showJson ? '▲' : '▼'}
-                      </button>
-                    </div>
-                    {showJson && (
-                      <div style={{ position: 'relative', background: 'var(--surface-0)', padding: 'var(--sp-3)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', marginTop: 'var(--sp-2)' }}>
-                        <button 
-                          className="btn btn-primary btn-sm" 
-                          style={{ position: 'absolute', top: 'var(--sp-2)', right: 'var(--sp-2)' }}
-                          onClick={async () => { 
-                            await copyToClipboard(JSON.stringify(selectedEvent.item, null, 2)); 
-                            setCopied(true);
-                            setTimeout(() => setCopied(false), 2000);
-                          }}
-                        >
-                          {copied ? "Copiado ✓" : "Copiar"}
-                        </button>
-                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontSize: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-                          {JSON.stringify(selectedEvent.item, null, 2)}
-                        </pre>
-                      </div>
-                    )}
+                    <JsonEditor value={JSON.stringify(selectedEvent.item, null, 2)} rows={15} />
                   </div>
                 </div>
               </div>
@@ -997,93 +1244,22 @@ export function TenantDetailPage() {
         </>
       )}
 
-      {activeTab === 'config' && (
-        <div>
-          <div className="dashboard-card" style={{ marginBottom: 'var(--sp-4)', padding: 'var(--sp-4)', maxWidth: '700px' }}>
-            <h3 style={{ fontSize: 'var(--text-md)', fontWeight: 600, marginBottom: 'var(--sp-2)' }}>
-              Política de expiración de tokens (TTL)
-            </h3>
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginBottom: 'var(--sp-3)' }}>
-              Configura la duración de vida de los tokens HS256 generados para este usuario.
-            </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
-              <label style={{ fontSize: 'var(--text-sm)', fontWeight: 500 }} htmlFor="token-ttl-input">
-                TTL (Horas):
-              </label>
-              <input
-                id="token-ttl-input"
-                type="number"
-                className="form-input"
-                style={{ width: '120px' }}
-                value={ttlValue}
-                min={1}
-                max={8760}
-                onChange={(e) => handleTtlChange(Math.max(1, Math.min(8760, Number(e.target.value) || 24)))}
-              />
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
-                (1 hora a 1 año / 8760 horas)
-              </span>
-            </div>
-          </div>
-
-          <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 'var(--sp-2)' }}>
-            Configuración JSON
-          </h3>
-          <textarea
-            className="form-input"
-            value={configValue}
-            onChange={(e) => { setConfigValue(e.target.value); setConfigError(''); }}
-            rows={12}
-            spellCheck={false}
-            style={{
-              width: '100%',
-              maxWidth: '700px',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--text-sm)',
-              resize: 'vertical',
-            }}
-            id="tenant-config-editor"
-          />
-          {configError && (
-            <div className="error-banner" style={{ marginTop: 'var(--sp-3)', maxWidth: '700px' }}>
-              {configError}
-            </div>
-          )}
-          <div style={{ marginTop: 'var(--sp-4)', display: 'flex', gap: 'var(--sp-3)' }}>
-            <button className="btn btn-primary" onClick={saveConfig} id="save-config-button">
-              Guardar
-            </button>
-            <button className="btn btn-ghost" onClick={() => setActiveTab('overview')}>
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
 
       {activeTab === 'whatsapp' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
           {/* Header with Create button */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
-              <h3 style={{ margin: 0 }}>Canales WhatsApp</h3>
+              <h3 style={{ margin: 0 }}>Canales</h3>
               <span className="badge badge-neutral">{channels.length}</span>
             </div>
             <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
               <button className="btn btn-ghost btn-sm" onClick={openAudits}>Ver auditoría</button>
-              <button className="btn btn-primary btn-sm" onClick={() => setShowCreateChannel(true)} id="create-channel-button">
+              <button className="btn btn-primary btn-sm" onClick={() => setShowCreateChannelModal(true)} id="create-channel-button">
                 + Nuevo canal
               </button>
             </div>
           </div>
-
-          {/* Create Channel Inline Form */}
-          {showCreateChannel && (
-            <div style={{ display: 'flex', gap: 'var(--sp-2)', alignItems: 'center', padding: 'var(--sp-3)', background: 'var(--surface-1)', borderRadius: 'var(--radius-md)' }}>
-              <input className="form-input" placeholder="Nombre del canal (ej: Bot Ventas)" value={newChannelName} onChange={(e) => setNewChannelName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleCreateChannel()} autoFocus style={{ flex: 1 }} />
-              <button className="btn btn-primary btn-sm" onClick={handleCreateChannel} disabled={!newChannelName.trim()}>Crear</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => { setShowCreateChannel(false); setNewChannelName(''); }}>Cancelar</button>
-            </div>
-          )}
 
           {/* Master-Detail Split Layout */}
           {wappQuery.isLoading ? (
@@ -1094,11 +1270,11 @@ export function TenantDetailPage() {
           ) : channels.length === 0 ? (
             <div className="empty-state" style={{ padding: 'var(--sp-8)' }}>
               <div className="empty-state-icon">🔌</div>
-              <h2 style={{ margin: 'var(--sp-3) 0 var(--sp-2) 0' }}>Sin canales WhatsApp</h2>
+              <h2 style={{ margin: 'var(--sp-3) 0 var(--sp-2) 0' }}>Sin canales</h2>
               <p style={{ maxWidth: '480px', margin: '0 auto var(--sp-5) auto', fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
-                Crea un canal para conectar un número de WhatsApp a {tenant.name}.
+                Crea un canal para conectar una cuenta a {tenant.name}.
               </p>
-              <button className="btn btn-primary" onClick={() => setShowCreateChannel(true)}>+ Crear primer canal</button>
+              <button className="btn btn-primary" onClick={() => setShowCreateChannelModal(true)}>+ Crear primer canal</button>
             </div>
           ) : (
             <div style={{
@@ -1169,6 +1345,377 @@ export function TenantDetailPage() {
         </div>
       )}
 
+      {activeTab === 'rules' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+              <h3 style={{ margin: 0 }}>Reglas de Ruteo Híbrido</h3>
+              <span className="badge badge-neutral">{rules.length}</span>
+            </div>
+            <button 
+              className="btn btn-primary btn-sm" 
+              onClick={openCreateRuleModal}
+              id="new-rule-button"
+            >
+              + Nueva Regla
+            </button>
+          </div>
+
+          {rulesQuery.isLoading ? (
+            <div className="data-table-wrapper" style={{ padding: 'var(--sp-5)' }}>
+              <span className="skeleton skeleton-line" style={{ width: '60%', marginBottom: 'var(--sp-3)' }} />
+              <span className="skeleton skeleton-line" style={{ width: '40%' }} />
+            </div>
+          ) : rules.length === 0 ? (
+            <div className="empty-state" style={{ padding: 'var(--sp-8)' }}>
+              <div className="empty-state-icon">🔀</div>
+              <h2 style={{ margin: 'var(--sp-3) 0 var(--sp-2) 0' }}>Sin reglas de ruteo</h2>
+              <p style={{ maxWidth: '480px', margin: '0 auto var(--sp-5) auto', fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
+                Configura reglas basadas en expresiones regulares para enrutar mensajes entrantes hacia plugins específicos.
+              </p>
+            </div>
+          ) : (
+            <div className="data-table-wrapper">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Prioridad</th>
+                    <th>Nombre</th>
+                    <th>Canal</th>
+                    <th>Disparador</th>
+                    <th>Acciones</th>
+                    <th>Estado</th>
+                    <th style={{ textAlign: 'right' }}>Acciones de Fila</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rules
+                    .sort((a, b) => b.priority - a.priority)
+                    .map((rule) => {
+                      const channel = channels.find(c => c.id === rule.channel_id);
+                      return (
+                        <tr key={rule.id}>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+                              <span style={{ fontWeight: 'bold' }}>{rule.priority}</span>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <button 
+                                  className="btn btn-ghost" 
+                                  style={{ padding: '2px 4px', height: 'auto', fontSize: '10px' }}
+                                  onClick={() => handleIncreasePriority(rule)}
+                                  title="Subir prioridad"
+                                >
+                                  ▲
+                                </button>
+                                <button 
+                                  className="btn btn-ghost" 
+                                  style={{ padding: '2px 4px', height: 'auto', fontSize: '10px' }}
+                                  onClick={() => handleDecreasePriority(rule)}
+                                  title="Bajar prioridad"
+                                >
+                                  ▼
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                          <td style={{ fontWeight: 500 }}>{rule.name}</td>
+                          <td>
+                            {channel ? (
+                              <span className="badge badge-info">{channel.name}</span>
+                            ) : (
+                              <span className="badge badge-neutral">Todos los canales</span>
+                            )}
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <span style={{ textTransform: 'capitalize', fontSize: 'var(--text-xs)', fontWeight: 600 }}>
+                                {rule.trigger_type.replace('_', ' ')}
+                              </span>
+                              {rule.trigger_value && (
+                                <code style={{ fontSize: 'var(--text-xs)', background: 'var(--surface-2)', padding: '2px 4px', borderRadius: 'var(--radius-sm)' }}>
+                                  {rule.trigger_value}
+                                </code>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                              {rule.actions.map((act, idx) => {
+                                const plugin = plugins.find((p: Plugin) => p.id === act.plugin_id);
+                                return (
+                                  <span 
+                                    key={idx} 
+                                    className="badge badge-success"
+                                    title={JSON.stringify(act.config)}
+                                    style={{ fontSize: 'var(--text-xs)' }}
+                                  >
+                                    🔌 {plugin ? plugin.display_name : act.plugin_id}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </td>
+                          <td>
+                            <button 
+                              className={`btn btn-sm ${rule.active ? 'btn-success' : 'btn-ghost'}`}
+                              onClick={() => handleToggleRuleActive(rule)}
+                              style={{ padding: '4px 8px', fontSize: 'var(--text-xs)' }}
+                            >
+                              {rule.active ? 'Activo' : 'Inactivo'}
+                            </button>
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--sp-2)' }}>
+                              <button 
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => openEditRuleModal(rule)}
+                              >
+                                Editar
+                              </button>
+                              <button 
+                                className="btn btn-ghost btn-sm"
+                                style={{ color: 'var(--color-danger)' }}
+                                onClick={() => handleDeleteRule(rule.id)}
+                              >
+                                Eliminar
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Rule CRUD Modal */}
+      {showRuleModal && (
+        <div className="modal-overlay" onClick={() => setShowRuleModal(false)} role="dialog" aria-modal="true" id="rule-crud-modal">
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h2 className="modal-title">{editingRule ? "Editar Regla" : "Nueva Regla"}</h2>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)', marginTop: 'var(--sp-2)' }}>
+              <div>
+                <label className="form-label">Nombre de la Regla</label>
+                <input 
+                  className="form-input" 
+                  value={ruleName} 
+                  onChange={e => setRuleName(e.target.value)} 
+                  placeholder="ej: Auto-respuesta de soporte"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="form-label">Canal de Entrada</label>
+                <select 
+                  className="form-input" 
+                  value={ruleChannelId} 
+                  onChange={e => setRuleChannelId(e.target.value)}
+                >
+                  <option value="">Todos los Canales</option>
+                  {channels.map(c => (
+                    <option key={c.id} value={c.id}>{c.name} ({c.phone_number || 'Sin número'})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-3)' }}>
+                <div>
+                  <label className="form-label">Tipo de Disparador</label>
+                  <select 
+                    className="form-input" 
+                    value={ruleTriggerType} 
+                    onChange={e => setRuleTriggerType(e.target.value as any)}
+                  >
+                    <option value="all">Todo (Cualquier mensaje)</option>
+                    <option value="regex">Regex (Expresión Regular)</option>
+                    <option value="media_type">Tipo de Archivo/Media</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label">Prioridad</label>
+                  <input 
+                    type="number"
+                    className="form-input" 
+                    value={rulePriority} 
+                    onChange={e => setRulePriority(Number(e.target.value))} 
+                    min={0}
+                  />
+                </div>
+              </div>
+
+              {ruleTriggerType !== 'all' && (
+                <div>
+                  <label className="form-label">
+                    {ruleTriggerType === 'regex' ? 'Expresión Regular (Regex)' : 'Tipo de Media (ej. image, video, document)'}
+                  </label>
+                  <input 
+                    className="form-input" 
+                    value={ruleTriggerValue} 
+                    onChange={e => setRuleTriggerValue(e.target.value)} 
+                    placeholder={ruleTriggerType === 'regex' ? '^/(ayuda|soporte)' : 'image'}
+                  />
+                </div>
+              )}
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+                <input 
+                  type="checkbox" 
+                  id="rule-active-checkbox"
+                  checked={ruleActive}
+                  onChange={e => setRuleActive(e.target.checked)}
+                />
+                <label htmlFor="rule-active-checkbox" className="form-label" style={{ margin: 0, cursor: 'pointer' }}>
+                  Regla Activa
+                </label>
+              </div>
+
+              <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 'var(--sp-3)', marginTop: 'var(--sp-2)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--sp-2)' }}>
+                  <label className="form-label" style={{ margin: 0 }}>Acciones de la Regla (Plugins)</label>
+                  <button 
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setRuleActions([...ruleActions, { plugin_id: plugins[0]?.id || "", config: "{}" }])}
+                  >
+                    + Añadir Acción
+                  </button>
+                </div>
+
+                {ruleActions.map((action, index) => (
+                  <div 
+                    key={index} 
+                    style={{ 
+                      background: 'var(--surface-1)', 
+                      padding: 'var(--sp-3)', 
+                      borderRadius: 'var(--radius-md)', 
+                      border: '1px solid var(--border-subtle)',
+                      marginBottom: 'var(--sp-2)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 'var(--sp-2)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600 }}>Acción #{index + 1}</span>
+                      {ruleActions.length > 1 && (
+                        <button 
+                          className="btn btn-ghost btn-sm" 
+                          style={{ color: 'var(--color-danger)', padding: '2px' }}
+                          onClick={() => setRuleActions(ruleActions.filter((_, idx) => idx !== index))}
+                        >
+                          Eliminar
+                        </button>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--sp-2)' }}>
+                      <div>
+                        <label className="form-label" style={{ fontSize: 'var(--text-xs)' }}>Plugin</label>
+                        <select 
+                          className="form-input form-input-sm" 
+                          value={action.plugin_id} 
+                          onChange={e => {
+                            const newActs = [...ruleActions];
+                            newActs[index].plugin_id = e.target.value;
+                            setRuleActions(newActs);
+                          }}
+                        >
+                          {plugins.map((p: Plugin) => (
+                            <option key={p.id} value={p.id}>{p.display_name} ({p.name})</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="form-label" style={{ fontSize: 'var(--text-xs)' }}>Configuración (JSON)</label>
+                        <textarea 
+                          className="form-input" 
+                          rows={3}
+                          value={action.config} 
+                          onChange={e => {
+                            const newActs = [...ruleActions];
+                            newActs[index].config = e.target.value;
+                            setRuleActions(newActs);
+                          }}
+                          placeholder="{}"
+                          style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="modal-actions" style={{ marginTop: 'var(--sp-4)' }}>
+              <button className="btn btn-ghost" onClick={() => setShowRuleModal(false)}>
+                Cancelar
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={handleSaveRule}
+                id="save-rule-button"
+              >
+                Guardar Regla
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Channel Modal */}
+      {showCreateChannelModal && (
+        <div className="modal-overlay" onClick={() => setShowCreateChannelModal(false)} role="dialog" aria-modal="true">
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: '450px' }}>
+            <h2 className="modal-title">Nuevo Canal</h2>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)', marginTop: 'var(--sp-2)' }}>
+              <div>
+                <label className="form-label">Nombre del Canal</label>
+                <input 
+                  className="form-input" 
+                  value={newChannelName} 
+                  onChange={e => setNewChannelName(e.target.value)} 
+                  placeholder="ej: Whatsapp Ventas"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="form-label">Tipo de Canal</label>
+                <select 
+                  className="form-input" 
+                  value={selectedChannelType} 
+                  onChange={e => setSelectedChannelType(e.target.value)}
+                >
+                  <option value="whatsapp_baileys">Whatsapp (Baileys)</option>
+                  <option value="telegram_bot">Telegram Bot</option>
+                  <option value="generic_webhook">Webhook Genérico</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="modal-actions" style={{ marginTop: 'var(--sp-4)' }}>
+              <button className="btn btn-ghost" onClick={() => setShowCreateChannelModal(false)}>
+                Cancelar
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={handleCreateChannel} 
+                disabled={!newChannelName.trim()}
+                id="confirm-create-channel-button"
+              >
+                Crear Canal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* K.1 — Token Generation Modal */}
       {showTokenModal && (
         <div
@@ -1219,7 +1766,7 @@ export function TenantDetailPage() {
       {showAuditModal && (
         <div className="modal-overlay" onClick={() => setShowAuditModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '650px' }}>
-            <h2 className="modal-title">Historial de conexión WhatsApp</h2>
+            <h2 className="modal-title">Historial de conexión</h2>
             
             {isAuditLoading ? (
               <div style={{ padding: 'var(--sp-6)', textAlign: 'center' }}>

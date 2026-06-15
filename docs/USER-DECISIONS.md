@@ -632,6 +632,20 @@ Reducir el intervalo de latidos (`heartbeatInterval`) del endpoint Server-Sent E
 - Interfaz de plugins 100% robusta y acoplada a las directivas de seguridad de Refine.
 **Reversion conditions:** Ninguna.
 
+## [UD-036] Arquitectura de Ruteo Híbrido Desacoplado y Catálogo Global de Plugins
+
+**Date:** 2026-06-14
+**Context:** Se requería evolucionar el chatbot para desacoplar la lógica del sistema de canales específicos (como WhatsApp) y permitir enrutar ráfagas de mensajes entrantes a diferentes plugins o procesadores (LLM, STT, MCP, etc.) de forma dinámica.
+**Decision:** Implementar una arquitectura de Ruteo Híbrido en la base de datos a través de una tabla centralizada de reglas de enrutamiento (`tenant_rules`) asociadas a un Catálogo Global de Plugins (`plugin_catalog`). Las reglas se evalúan en orden de prioridad utilizando expresiones regulares deterministas evaluadas directamente por el motor de base de datos.
+**Discarded alternatives:**
+- Lógica de enrutamiento dura (hardcoded) en el backend (descartada por obligar a realizar despliegues de código o paradas de servicio para reconfigurar el destino de los mensajes).
+- Configuración de plugins directa e integrada en el registro de sesión del canal (descartada por no permitir enrutar el mismo canal a múltiples plugins según el contenido del mensaje).
+**Consequences:**
+- Se eliminó la columna obsoleta `processor` de la tabla de sesiones de WhatsApp (`wapp_sessions`).
+- Se habilita la orquestación en caliente desde la base de datos de múltiples plugins por inquilino/canal.
+- La Ops Console provee un administrador interactivo completo de reglas con soporte a priorización y regex.
+**Reversion conditions:** Si el overhead de consultas SQL complejas de expresiones regulares degrada significativamente la latencia del worker en condiciones de tráfico masivo (1000+ mensajes por segundo), se evaluará migrar a un motor de caché en memoria Redis.
+
 
 
 

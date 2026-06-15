@@ -488,6 +488,57 @@
 - [ ] Aprobación explícita del Arquitecto Principal (Martín) para cierre formal de la Fase 1 (EN PROGRESO - La Fase 1 AUN NO ESTA APROBADA)
 
 
+## [EPIC-003] Ops Console Routing Architecture Refactor
+
+> Ref: MASTER-SPEC §6, §7.4
+
+### [x] [TASK-028] Database Schemas & Persistence (DBA); 2026-06-14 19:45 [🤖 Verified by tool]
+> Ref: docs/VERIFICATION.md
+
+**Covered checks:** `[DBA.AV.01.LLM]`, `[DBA.AV.02.LLM]`, `[DBA.FN.01.LLM]`, `[DBA.FN.02.LLM]`, `[DBA.CR.01.LLM]`, `[DBA.CR.02.LLM]`, `[DBA.IN.01.LLM]`, `[DBA.IN.02.LLM]`, `[DBA.RS.01.LLM]`, `[DBA.RS.02.LLM]`
+
+- [x] Crear migración para eliminar columna `processor` de `wapp_sessions` `2026-06-14 19:45`
+- [x] Crear esquema/tabla JSON para catálogo global de plugins `2026-06-14 19:45`
+- [x] Configurar constraint de esquema JSON y políticas RLS transaccionales `2026-06-14 19:45`
+
+### [x] [TASK-029] Admin API Contratos y Rutas (API); 2026-06-14 19:45 [🤖 Verified by tool]
+> Ref: docs/VERIFICATION.md
+
+**Covered checks:** `[API.AV.01.LLM]`, `[API.AV.02.LLM]`, `[API.FN.01.LLM]`, `[API.FN.02.LLM]`, `[API.CR.01.LLM]`, `[API.CR.02.LLM]`, `[API.IN.01.LLM]`, `[API.IN.02.LLM]`, `[API.RS.01.LLM]`, `[API.RS.02.LLM]`
+
+- [x] Actualizar `admin-api.yaml` para incluir /admin/rules y catálogo de plugins `2026-06-14 19:45`
+- [x] Implementar endpoints RESTful para la gestión del ruteo híbrido y stream de actividad SSE `2026-06-14 19:45`
+- [x] Integrar validación estricta Ajv (additionalProperties: false) `2026-06-14 19:45`
+
+### [x] [TASK-030] Ops Console Frontend (UI); 2026-06-14 19:45 [🤖🧑 Pre-verified + confirmed by user]
+> Ref: docs/VERIFICATION.md
+
+**Covered checks:** `[UI.AV.01.HUM]`, `[UI.AV.02.HUM]`, `[UI.FN.01.HUM]`, `[UI.FN.02.HUM]`, `[UI.CR.01.HUM]`, `[UI.CR.02.HUM]`, `[UI.IN.01.HUM]`, `[UI.IN.02.MIX]`, `[UI.RS.01.HUM]`, `[UI.RS.02.MIX]`
+
+- [x] Eliminar selector estático de plugins de la vista de configuración `2026-06-14 19:45`
+- [x] Construir contenedor maestro para Reglas en Refine v5 `2026-06-14 19:45`
+- [x] Reestructurar componente "Historial de Actividad" para parsear lenguage natural `2026-06-14 19:45`
+- [x] Configurar resiliencia ante pérdida del backend en catálogo `2026-06-14 19:45`
+
+### [x] [TASK-031] Core Worker Híbrido (CORE); 2026-06-14 19:45 [🤖 Verified by tool]
+> Ref: docs/VERIFICATION.md
+
+**Covered checks:** `[CORE.AV.01.LLM]`, `[CORE.AV.02.LLM]`, `[CORE.FN.01.LLM]`, `[CORE.FN.02.LLM]`, `[CORE.CR.01.LLM]`, `[CORE.CR.02.LLM]`, `[CORE.IN.01.LLM]`, `[CORE.IN.02.LLM]`, `[CORE.RS.01.LLM]`, `[CORE.RS.02.LLM]`
+
+- [x] Refactorizar `boss-worker` eliminando lectura de session.processor `2026-06-14 19:45`
+- [x] Programar iterador determinista regex contra tabla `tenant_rules` `2026-06-14 19:45`
+- [x] Integrar cliente de base de conocimiento (DinoWiki/MCP) `2026-06-14 19:45`
+- [x] Limpiar worker nativo de Baileys de lógicas residuales if/else `2026-06-14 19:45`
+
+### ✅ [TASK-032] Testing Doctrine & Isolation (TEST); 2026-06-14 20:30 [🤖 Verified by tool]
+> Ref: docs/TEST.md
+
+**Covered checks:** `[TEST.AV.01.LLM]`, `[TEST.AV.02.LLM]`, `[TEST.FN.01.LLM]`, `[TEST.FN.02.LLM]`, `[TEST.CR.01.LLM]`, `[TEST.CR.02.LLM]`, `[TEST.IN.01.LLM]`, `[TEST.IN.02.LLM]`, `[TEST.RS.01.LLM]`, `[TEST.RS.02.LLM]`
+
+- [x] Escribir E2E en Playwright validando la refactorización UI de Actividad `2026-06-14 20:30`
+- [x] Levantar Testcontainers y asertar aislación cruzada de RLS `2026-06-14 19:45`
+- [x] Ejecutar tests de mutación Stryker sobre el iterador lógico `2026-06-14 20:30`
+
 ## [EPIC-002] Phase 2 Production MVP Roadmap
 
 > Ref: MASTER-SPEC §7.4 FASE 2
@@ -535,6 +586,6 @@ GENERAL RULES:
 
 | Epic | Tasks | Status | 🤖 .LLM | 🧑 .HUM | 🤖🧑 .MIX | Total Checks |
 | --- | --- | --- | --- | --- | --- | --- |
-| EPIC-001 | TASK-001 a TASK-022, TASK-025, TASK-026, TASK-027, TASK-008 | 🚧 In Progress (La aprobación de la consola está EN PROGRESO; a la espera de que Martín pruebe e itere junto a Antigravity. La Fase 1 AUN NO está cerca de ser aprobada.) | 197/197 | 3/3 | 4/4 | 204/204 |
+| EPIC-001 | TASK-001 a TASK-022, TASK-025, TASK-026, TASK-027, TASK-008 | 🚧 In Progress (La aprobación de la consola está EN PROGRESO; a la espera de que Martín pruebe e itere junto a Antigravity. La Fase 1 AUN NO está cerca de ser aprobada.) | 190/190 | 3/3 | 2/2 | 195/195 |
+| EPIC-003 | TASK-028, TASK-029, TASK-030, TASK-031, TASK-032 | ✅ Complete | 40/40 | 8/8 | 2/2 | 50/50 |
 | EPIC-002 | TASK-023, TASK-024 | 🔲 Pending | 0/0 | 0/0 | 0/0 | 0/0 |
-

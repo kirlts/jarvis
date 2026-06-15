@@ -42,3 +42,5 @@ Cualquier endpoint nuevo del Admin API debe ser consumido a través de estos mé
 
 1. **Browser Subagent Prohibition**: The use of browser subagents for testing, verification, or interaction is strictly prohibited. Always verify using API tests, manual curl commands, or script validations.
 2. **Docker Image Rebuilding**: Rebuilding Docker images is mandatory whenever code changes in backend/worker services require packaging updates to visualize or verify in the execution environment (`docker compose down && docker compose up -d --build`).
+3. **Local Sandbox Execution**: To start the local environment, run `npm run sandbox:up`. To tear down, run `npm run sandbox:down`.
+4. **Port Isolation**: Database and pooler ports (`5432` and `6543`) are isolated within the internal Docker bridge network (`jarvis-net`) and must not be mapped to host ports in `docker-compose.yml`. Host-side diagnostic scripts (like `npm run sandbox:health`) require temporary manual exposure only if run directly from the host.

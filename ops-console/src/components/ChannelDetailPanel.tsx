@@ -17,7 +17,8 @@ interface Channel {
   name: string;
   phone_number: string | null;
   status: string;
-  config: Record<string, unknown>;
+  plugin_id?: string;
+  config: Record<string, any>;
   created_at: string;
   session_id: string | null;
   session_status: string | null;
@@ -156,40 +157,50 @@ export function ChannelDetailPanel({ channel, onRefresh }: Props) {
         </div>
       )}
 
-      {/* Session Metadata */}
-      <div style={{ background: "var(--surface-1)", padding: "var(--sp-3)", borderRadius: "var(--radius-md)", display: "flex", flexDirection: "column", gap: "var(--sp-2)", fontSize: "var(--text-sm)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <span style={{ color: "var(--text-secondary)" }}>Canal ID</span>
-          <span className="cell-mono" style={{ fontSize: "var(--text-xs)" }}>{channel.id}</span>
+      {/* Resumen del Canal (Metadata) */}
+      <div style={{ background: "var(--surface-1)", padding: "var(--sp-4)", borderRadius: "var(--radius-md)" }}>
+        <h4 style={{ fontWeight: 600, fontSize: "var(--text-sm)", margin: "0 0 var(--sp-3) 0", color: "var(--text-primary)" }}>
+          Resumen del Canal
+        </h4>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--sp-3)", fontSize: "var(--text-sm)" }}>
+          
+          {/* Parámetros Comunes */}
+          <div>
+            <span style={{ display: "block", color: "var(--text-tertiary)", fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Tipo</span>
+            <span style={{ color: "var(--text-primary)" }}>
+              {(!channel.plugin_id || channel.plugin_id === 'whatsapp_baileys' || channel.config?.channel_type === 'whatsapp_baileys') ? 'WhatsApp (Baileys)' : 
+               channel.plugin_id === 'telegram_bot' ? 'Telegram' : 
+               channel.plugin_id || 'Genérica'}
+            </span>
+          </div>
+
+          <div>
+            <span style={{ display: "block", color: "var(--text-tertiary)", fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Última Actividad</span>
+            <span style={{ color: "var(--text-secondary)" }}>
+              {channel.session_updated_at 
+                ? `${new Date(channel.session_updated_at).getDate()} de ${new Date(channel.session_updated_at).toLocaleString("es-CL", { month: "long" })}, ${new Date(channel.session_updated_at).toLocaleString("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false })}`
+                : "Sin actividad reciente"}
+            </span>
+          </div>
+
+          <div>
+            <span style={{ display: "block", color: "var(--text-tertiary)", fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Creado</span>
+            <span style={{ color: "var(--text-secondary)" }}>
+              {`${new Date(channel.created_at).getDate()} de ${new Date(channel.created_at).toLocaleString("es-CL", { month: "long" })}, ${new Date(channel.created_at).toLocaleString("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false })}`}
+            </span>
+          </div>
+
+          {/* Parámetros Específicos de WhatsApp Baileys */}
+          {(!channel.plugin_id || channel.plugin_id === 'whatsapp_baileys' || channel.config?.channel_type === 'whatsapp_baileys') && (
+            <div>
+              <span style={{ display: "block", color: "var(--text-tertiary)", fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Teléfono Vinculado</span>
+              <strong style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
+                {channel.phone_number ? `+${channel.phone_number.substring(0,2)} ${channel.phone_number.substring(2,3)} ${channel.phone_number.substring(3,7)} ${channel.phone_number.substring(7)}` : "No escaneado"}
+              </strong>
+            </div>
+          )}
+
         </div>
-        {channel.phone_number && (
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ color: "var(--text-secondary)" }}>Teléfono</span>
-            <strong>{channel.phone_number}</strong>
-          </div>
-        )}
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <span style={{ color: "var(--text-secondary)" }}>Creado</span>
-          <span className="cell-mono">{new Date(channel.created_at).toLocaleString("es-CL", { hour12: false })}</span>
-        </div>
-        {channel.qr_generated_at && (
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ color: "var(--text-secondary)" }}>QR generado</span>
-            <span className="cell-mono">{new Date(channel.qr_generated_at).toLocaleString("es-CL", { hour12: false })}</span>
-          </div>
-        )}
-        {channel.qr_scanned_at && (
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ color: "var(--text-secondary)" }}>QR escaneado</span>
-            <span className="cell-mono">{new Date(channel.qr_scanned_at).toLocaleString("es-CL", { hour12: false })} por {channel.qr_scanned_by}</span>
-          </div>
-        )}
-        {channel.session_updated_at && (
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ color: "var(--text-secondary)" }}>Último heartbeat</span>
-            <span className="cell-mono">{new Date(channel.session_updated_at).toLocaleString("es-CL", { hour12: false })}</span>
-          </div>
-        )}
       </div>
 
       {/* Plugin Config Editor */}

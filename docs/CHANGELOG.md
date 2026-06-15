@@ -8,6 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+- [TASK-028] Catálogo global de plugins (`plugin_catalog`) y tabla de reglas de enrutamiento por inquilino (`tenant_rules`) con soporte para RLS y validación estricta de esquemas JSONB mediante constraints de base de datos.
+- [TASK-029] Endpoints de administración RESTful en `/admin/rules` (CRUD completo) y `/admin/plugins` (GET) en Fastify, con validación estricta mediante Ajv (`additionalProperties: false`).
+- [TASK-030] Contenedor maestro para la gestión de Reglas en la Ops Console con soporte Refine v5, y flujo dinámico para crear y listar reglas.
+- [TASK-030] Trazabilidad en lenguaje natural en el "Historial de Actividad" (timeline) traduciendo los eventos técnicos a textos legibles y claros para el operador.
+- [TASK-031] Lógica de iteración regex determinista en el motor de ruteo híbrido contra la tabla `tenant_rules`, logrando un despacho dinámico hacia plugins/acciones (STT, LLM, MCP, etc.) sin dependencias estáticas de canal.
+- [TASK-032] Suite de pruebas unitarias (`boss-worker.test.js` y `routes.integration.test.js`) que validan la lógica de ruteo híbrido, políticas RLS de reglas y control de concurrencia.
+- [TASK-032] Pruebas de mutación con Stryker sobre el motor de ruteo y endpoints de API, logrando un 100% de puntuación de mutación en la ruta crítica del Inbox.
+
+### Fixed
+
+- **React Error #310 (Blackout de Usuarios)**: Resuelto el error crítico (pantalla negra) en la vista de detalle/listado de Usuarios (Inquilinos) causado por una violación en la estabilidad y orden de los hooks de React. Se estabilizó el ciclo de vida de los componentes para asegurar una renderización consistente de la interfaz.
+
+### Changed
+
+- [TASK-028] Eliminación de la columna obsoleta `processor` en la tabla `wapp_sessions` mediante migración SQL (`021_hybrid_routing.sql`).
+- [TASK-029] Especificación OpenAPI (`specs/admin-api.yaml`) modificada para reflejar el nuevo contrato de `/admin/rules`, `/admin/plugins` y la remoción de la propiedad legacy `processor` en los canales.
+- [TASK-030] Ops Console: Remoción de selectores estáticos de "Procesador/Plugin" en la vista de WhatsApp, delegando toda la orquestación a las reglas globales y por canal.
+- [TASK-031] Worker de Baileys y `boss-worker` adaptados para eliminar dependencias de `session.processor` y mimetype estáticos, delegando la toma de decisiones al motor de ruteo híbrido.
+
+### Added
+
 - [TASK-025] Migración `020_wapp_multichannel.sql`: tabla `wapp_channels` con RLS, `config JSONB`, soft-delete, y vinculación FK desde `wapp_sessions.channel_id`. Migración automática de datos existentes (1 canal "WhatsApp Principal" por sesión activa).
 - [TASK-025] Endpoints CRUD de canales WhatsApp: `GET|POST /admin/whatsapp/status/:tenant_id/channels`, `GET|PATCH|DELETE /:channel_id`, `POST /:channel_id/reconnect` con validación UUID, verificación de ownership, y audit logging completo.
 - [TASK-025] Componente `ChannelDetailDrawer` (Ops Console): panel deslizable con QR reactivo, metadata de sesión, editor inline de nombre/config, y acciones de ciclo de vida (reconectar/desconectar/eliminar) vía `useCustomMutation`.
@@ -16,13 +38,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [TASK-026] UI Dinámica para Plugins de Multicanalidad (Ops Console): componente `PluginConfigForm` que reemplaza la edición JSON pura por formularios tipados basados en un Manifest Registry en memoria (ej. Antigravity CLI, Whisper STT) con fallback a edición raw JSON.
 - [TASK-027] Integración real de **Antigravity CLI**: Ejecución asíncrona local de subprocesos (`child_process.exec`) que invocan el script local `antigravity-handler.js` en la raíz del proyecto configurado, procesando ráfagas de mensajes entrantes mediante entrada estándar (`stdin`) y variables de entorno para pruebas interactivas E2E sin recarga de infraestructura.
 - [TASK-027] Script de plantilla interactivo `antigravity-handler.js` en la raíz del repositorio local para responder automáticamente a comandos como `ping` y `status` o realizar análisis locales de multimedia.
-
+- Pestaña "Bandeja" integrada en la vista consolidada de Operaciones (`/operaciones?tab=bandeja`). Tarjeta del Dashboard vinculada a dicha pestaña.
 
 ### Changed
+
 - [TASK-025] Worker Baileys: `activeSessions` Map reescrito de `tenantId` → `channelId` como clave primaria. `startSession(channelId, tenantId, sessionId)`, `stopSession(channelId)`. Bootstrap via `JOIN wapp_channels`. Consumidores `wapp-send-process` y `wapp-session-control` con resolución por `channelId` + fallback legacy por `tenantId`.
 - [TASK-025] Trigger `cascade_tenant_soft_delete` actualizado para incluir `wapp_channels` en la cascada de eliminación lógica.
 - [TASK-025] Trigger `notify_wapp_status_change` enriquecido con `channel_id` en el payload JSON del NOTIFY para propagación SSE granular.
 - Historial de Actividad (Ops Console): La tabla de timeline de inquilinos ahora extrae y renderiza el nombre del "Canal" asociado a cada evento de la bandeja de entrada o de ciclo de vida (`whatsapp`, `operación`).
+- [TASK-022] Ops Console UI/UX Iteration 1: Refinamiento de la Vista Detalle de Inquilinos encapsulando la configuración en crudo JSON (Raw Config) y el Editor de Tiempo de Vida (TTL) de los tokens de API dentro de un componente nativo `<details>` colapsable ("Configuración Avanzada") para optimizar el espacio visual y reducir ruido cognitivo para el Super Administrador.
+
+### Fixed
+
+- **Audit Endpoint 500 Error**: Resuelto el error `operator does not exist: text = uuid` (HTTP 500) que se presentaba al consultar `GET /admin/audit?tenant_id=...`. La consulta `SQL` fallaba al asignar un parámetro `UUID` a `details->>'tenant_id'` (que es de tipo TEXT) sin castearlo. Se modificó el operador con `resource_id::text = $1` y se añadió un test automatizado en `routes.integration.test.js` para asegurar que el listado de auditoría responde con estado HTTP 200 de manera garantizada (REG-013).
+- Métrica de "Bandeja Pendiente" en el Dashboard contabilizaba elementos de tenants eliminados (soft-deleted). La consulta SQL ahora filtra con `JOIN tenants WHERE deleted_at IS NULL`.
 - Worker Baileys: Los eventos de la bandeja de entrada `sync_inbox` y los payloads encolados en pg-boss (`sync-inbox-process`, `wapp-lifecycle`) ahora arrastran el `channelId` lógico de origen a través de todo el flujo, cerrando el gap de trazabilidad de canales.
 - Planificación de la Fase 2: Documentadas en `MASTER-SPEC.md` y `TODO.md` las tareas de mitigación arquitectónica del MVP (Segregación de Conexiones Lectura/Escritura `[TASK-023]` y Pipeline de Auditoría Automatizada RLS `[TASK-024]`).
 - [TASK-022] Ops Console UI/UX Iteration 1: Agrupamiento inteligente de mensajes multimedia contiguos (imágenes, audios, videos, documentos) recibidos en ráfagas del mismo remitente con una separación menor a 5 segundos, presentándose como una única actividad interactiva en el historial de inquilinos.
@@ -37,10 +66,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pruebas de Integración POV Super Admin: Implementada suite de pruebas automatizadas en `src/features/admin/routes.integration.test.js` que valora y aserta end-to-end que el Super Administrador puede previsualizar, descargar y leer payloads de la bandeja de entrada de WhatsApp (`sync_inbox`) tanto en desarrollo local como en producción.
 
 ### Changed
+
 - [TASK-022] Alta Densidad y Legibilidad: Modificado el diseño del detalle de Tenant (Ops Console), reemplazando los contenedores gigantes por un layout de dos columnas, forzando tiempos globales al formato militar 24h (`es-CL`), depurando etiquetas innecesarias y sustituyendo los UUIDs ininteligibles por identificadores legibles. El log técnico en JSON se colapsó tras un botón interactivo.
 - Flujo de Inicialización de WhatsApp: Se modificó la base de datos y la orquestación del worker en Fastify (`routes.js` y `worker.js`) para establecer instantáneamente el estado de la sesión como `'waiting_qr'` en lugar de `'disconnected'` al crear o reconectar un canal, previniendo falsos badges rojos en la interfaz.
 
 ### Fixed
+
 - [TASK-027] Error de ejecución de subprocesos locales (`spawn /bin/sh ENOENT`) al utilizar el procesador `antigravity` en el worker. Se ha resuelto exponiendo la ruta absoluta de desarrollo (`/home/kirlts/jarvis`) a través de un mapeo de volumen local en el contenedor de `core-worker` en `docker-compose.yml`.
 - [TASK-026] Refactorizado `PluginConfigForm` (Ops Console) para consumir claves dinámicas de API (`GEMINI_API_KEY`) empleando el hook nativo `useCustom` de Refine en lugar de un `useEffect` aislado con un `fetch` impuro, respetando estrictamente la arquitectura Refine y las directivas del proyecto (ver `docs/RULES.md`), lo que asegura la correcta inserción del JWT. Además, la clave elegida ahora se propaga al contenedor aislando la configuración.
 - [TASK-025] Captura automática de número de teléfono en Baileys: Corregido error por el cual las conexiones nuevas del canal mostraban "sin número". Ahora el worker de Baileys extrae el número de teléfono desde `sock.user.id` una vez establecida la conexión y actualiza la columna `phone_number` en `wapp_channels`. Asimismo, se intercepta el evento `'creds.update'` para capturar y persistir de forma determinista el número de teléfono del usuario escaneador tan pronto como `state.creds.me.id` esté disponible.
@@ -52,14 +83,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Crucial SSE Event Bug**: Corregida función `notify_tenant_activity` en PostgreSQL que omitía los eventos Server-Sent-Events (SSE) para jobs encolados por pg-boss, debido a una validación errónea sobre el nombre físico de la tabla particionada (`job_common` vs `job`). Esto restaura la capacidad de la Ops Console de auto-refrescarse en tiempo real cuando el sistema envía mensajes por WhatsApp.
 - **Race Condition in Storage Soft Delete Endpoint**: Fixed a race condition in the admin storage delete handler (`DELETE /admin/storage/:id`) where Fastify was sending a `200 OK` response before the database transaction was committed, causing integration tests to query the database and read stale `'uploaded'` state instead of `'deleted'`. Resolved by returning the response strictly after the `withAdminClient` transaction commits.
 
-
 - [TASK-007] Previsualización Multimedia de Mensajes Duplicados: Corregida la desaparición de la sección desplegable "Multimedia Asociada" para mensajes entrantes duplicados (SHA-256 deduplicados) en el historial de actividades de inquilinos. Ahora el worker de Baileys inserta de manera redundante e idempotente el registro en la tabla `sync_inbox` con el payload y el `s3_url` correcto del archivo ya existente en MinIO, y el componente React en la Ops Console (`tenants/detail.tsx`) realiza una búsqueda fallback local dentro del array `inboxData` para extraer y resolver de forma transparente las URLs pre-firmadas originales del almacenamiento S3.
 - Previsualización y descripción del historial de actividades con mensajes multimedia + texto en Ops Console: Corregido el bug por el cual los mensajes multimedia con subtítulo (caption) o texto adjunto (ej. Imagen + Texto) omitían la indicación del tipo de multimedia en el listado de actividades y en la vista detalle de inquilinos (`tenants/detail.tsx`). Se rediseñó el componente de renderizado del detalle para que presente tanto la etiqueta del tipo multimedia (ej. `🖼️ Imagen adjunta`) como el contenido del texto adjunto, y se refinaron las descripciones dinámicas del historial para ambos flujos (`whatsapp` y `operación` / `wapp-lifecycle`) para mostrar de forma explícita composiciones como `📥 Imagen + Texto de [Remitente]`. Corregida la omisión de la columna `payload` en la consulta `GET /admin/inbox` que impedía la extracción de subtítulos/descripciones en la bandeja de entrada. Asimismo, se amplió el ámbito de `textContent` en `src/workers/baileys/worker.js` para persistir la descripción original del mensaje multimedia como propiedad `message` en el payload encolado de pg-boss `sync-inbox-process`, previniendo que se perdiera el texto que acompaña a cualquier tipo de archivo.
 - Previsualización de archivos PDF en la Ops Console: Corregida la previsualización de documentos PDF tanto en el panel de detalles del historial de actividades de inquilinos (`tenants/detail.tsx`) como en el navegador de almacenamiento (`storage/list.tsx`). Se reemplazó la integración del visor externo de Google Docs Viewer (`https://docs.google.com/gview`), que fallaba en entornos de desarrollo local y subredes privadas y constituía una fuga de privacidad, por un renderizado de `<iframe>` con el URL directo nativo que utiliza el visor seguro de PDF integrado del propio navegador.
 - Visualización y Descarga Multimedia en Ops Console (S3 Host Resolution): Corregido el error de red `ERR_CONNECTION_REFUSED` al previsualizar o descargar audios e imágenes en el detalle de la actividad de los usuarios. Se implementó el helper `resolveExternalUrl` en el backend (`src/features/admin/routes.js`) para reescribir de manera dinámica el hostname de las URLs S3 pre-firmadas generadas (`GET /admin/storage/:id/download-url`, `POST /admin/storage/batch-urls`, y `GET /admin/storage/zip/:jobId/download-url`) de `storage:9000` (interno Docker) a `admin.jarvis.local` o `localhost` según el Host de la solicitud externa, manteniendo el puerto expuesto `9000:9000`.
 - [REG-002] Invalidación de Caché de Refine en Tenant Detail: Corregida la ausencia silente de la columna `config` tras guardar la descripción en la interfaz de administración. Se modificó el endpoint `GET /admin/tenants/:id` para que el `SELECT` devuelva el payload completo (con `status` y `config`), alinado arquitectónicamente actualizando el contrato OpenAPI de `Tenant` en `specs/admin-api.yaml` e impidiendo sobrescrituras erróneas.
 - [TASK-022] Clasificación de Envío Host vs Recepción en Actividad: Corregida la renderización visual de eventos de Baileys (`whatsapp-message-received`) en el listado de actividades del Ops Console integrando el flag `isFromMe` dentro del `payload` para distinguir mensajes de recepción externa (`📥`) vs sincronización host de envíos salientes (`📤`).
+
 ### Added
+
 - [GAP-006] Purga de Trabajos de pg-boss: Implementado endpoint `DELETE /admin/jobs` en el backend para purgar de forma masiva trabajos finalizados (completados, fallidos, cancelados) según su estado, protegido por validación estricta del parámetro `confirm=true`.
 - [GAP-006] UI de Purga de Trabajos: Agregada opción interactiva `🗑️ Purge Jobs` en el panel de control de colas de la Ops Console con un modal de confirmación, selector de estado de purga y validación por frase exacta ("PURGE") para prevenir borrados accidentales en producción.
 - [GAP-003] Pruebas Unitarias de pg-boss: Creado el archivo `src/workers/boss-worker.test.js` que implementa aserciones completas sobre la cola de tareas `admin-lifecycle` y la eliminación de huérfanos físicos de almacenamiento.
@@ -68,10 +100,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [GAP-003] Eliminación Física de Almacenamiento: Implementado el consumidor de la cola de eventos `admin-lifecycle` en `src/workers/boss-worker.js` para purgar físicamente de MinIO/S3 todos los archivos de almacenamiento de tenants soft-deleted, erradicando objetos huérfanos.
 
 ### Changed
+
 - Arquitectura de pruebas del Worker de pg-boss: Refactorizado `src/workers/boss-worker.js` para exportar sus manejadores internos (`handleSyncJob`, `handleAdminLifecycleJob`, pools de conexiones) y conditionalizar la ejecución del método `start()`, permitiendo testing aislado limpio y previniendo el inicio asíncrono descontrolado de colas de fondo.
 - Pipeline global de ejecución de pruebas: Modificado el script de pruebas principal (`"test"`) en `package.json` para encadenar secuencialmente la validación del linter de base de datos Atlas (`pre_test_lint.js`) y correr explícitamente los 8 archivos de test deterministas del proyecto.
 
 ### Fixed
+
 - [UD-026] Falso Positivo en Detección de Multiplexación de Conexiones: Corregida la lógica del pre-flight check de `src/workers/boss-worker.js` para mantener el primer cliente conectado mientras se consulta el segundo, impidiendo que el pool de base de datos reutilice el mismo socket físico y devuelva falsos positivos al arrancar en limpio.
 - [UD-027] Desconexión de Stream de WhatsApp (SSE) y Heartbeat: Reducido el intervalo de latidos (`heartbeatInterval`) en `src/features/admin/routes.js` de 30s a 10s para mantener vivas las conexiones TCP ante el idle timeout de inactividad de 20s de Caddy y navegadores, resolviendo el congelamiento visual de la interfaz.
 - [UD-028] Serialización Estricta de Fastify y SSE: Corregido el error 400 Bad Request en la reconexión enviando `body: JSON.stringify({})` en React. Además, se eliminó `return reply;` tras `reply.hijack()` en el endpoint de SSE para evitar que Fastify intente resolver la promesa y cierre prematuramente el socket TCP subyacente.
@@ -103,9 +137,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PRD archivado en `docs/archive/PRD-Constitucion.md`. Contenido vigente integrado en MASTER-SPEC.
 
 ### Fixed
+
 - Error de autenticación `401 Unauthorized` sistémico en múltiples páginas de la Ops Console (`inbox/list.tsx`, `config/list.tsx`, `tokens/list.tsx`, `whatsapp/list.tsx`, `tenants/list.tsx`, `tenants/detail.tsx`) debido al uso inconsistente de claves de recuperación de tokens en `sessionStorage` (`admin_token` vs `jarvis_admin_token`) y la ausencia del prefijo `API_URL` en las rutas. Estandarizado el 100% de llamadas manuales `fetch` para consumir el helper centralizado `getAuthHeader()` de `auth.ts`, resolviendo el ciclo completo de onboarding de WhatsApp sin intervenciones manuales (Zero-CLI) de forma robusta.enciones manuales (Zero-CLI) de forma robusta.
 - Resuelto el bug en la Ops Console que provocaba que la vista de monitoreo de trabajos de pg-boss mostrara un skeleton de carga de forma infinita y 0 trabajos cargados debido a un error FST_ERR_VALIDATION (HTTP 400 Bad Request). Se incorporó el parámetro `page` en el esquema de validación querystring del endpoint `GET /admin/jobs` del backend y se implementó paginación estándar completa utilizando `LIMIT` y `OFFSET` a nivel de base de datos.
-
 
 - Implementación del test suite para el frontend (Ops Console) utilizando Vitest y React Testing Library. Validando estados de carga, manejo de errores, renderizado vacío, mutaciones e interacciones (TEST.md, TASK-018).
 - Empirical verification of resilience and security tests including session persistence, automatic retries with backoff, offline forms, API degradation fallback, and Caddy SPA proxy fallback (TASK-018).
@@ -145,6 +179,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Runner de contract testing Specmatic para Admin API (`scripts/run-admin-contract-tests.js`): 24/24 scenarios pasando.
 
 ### Changed
+
 - Desacoplamiento de sesiones de WhatsApp: Eliminado el bucle de polling de base de datos de 3 segundos en el worker de Baileys, convirtiendo el sistema en 100% reactivo y orientado a eventos mediante la cola `wapp-session-control` de pg-boss.
 - Eliminación y desconexión síncrona/asíncrona de WhatsApp: El endpoint `DELETE /admin/whatsapp/status/:tenant_id` ahora marca de forma estrictamente síncrona la sesión como eliminada (`deleted_at = now()`), borrando credenciales y estado en la base de datos de Fastify de forma inmediata para una UX sin lag, despachando luego la desconexión del socket de forma asíncrona al worker de Baileys vía pg-boss.
 - Migracion `008_admin_role.sql` reescrita: pre-crea el schema `pgboss` via `CREATE SCHEMA IF NOT EXISTS` para eliminar la dependencia temporal con el arranque del worker. pg-boss reutiliza el schema existente sin conflicto.
@@ -167,6 +202,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TEST.md: E2E Policy actualizada (referencia Appsmith eliminada), Coverage Metrics actualizadas con valores reales, OpenAPI Spec Requirements marcadas como creadas.
 
 ### Fixed
+
 - Reparada la visibilidad de mensajes salientes del Chatbot (`isFromMe = true`) en el historial de actividades del Ops Console: Se eliminó el placeholder estático `"Mensaje enviado por mí"` en `timeline-utils.ts` y se reemplazó por el texto real del mensaje y la indicación direccional correcta en la vista de detalle.
 - Sincronizado el ciclo de vida del contenedor `jarvis-baileys-worker` para aplicar de forma efectiva los cambios de código fuente, resolviendo la supresión anómala (silenciosa) de la inserción de mensajes de salida hacia la tabla `sync_inbox` provocada por caché de la imagen Docker en la sesión previa.
 - Corregida discrepancia de métricas en el Dashboard (`GET /admin/dashboard/summary`): La consulta de agregación para el conteo de estados de WhatsApp incluía erróneamente sesiones inactivas o eliminadas lógicamente. Se añadió el filtro `WHERE deleted_at IS NULL` para alinear las métricas globales del Dashboard con el estado real de la lista de canales de WhatsApp.
@@ -206,9 +242,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TODO.md expandido con 5 tasks nuevas (TASK-009 a TASK-013) cubriendo Caddy, Admin API, Appsmith, Loki+Grafana+Uptime Kuma, y Testing Infrastructure (Specmatic, Stryker, K6).
 - Doctrina de testing formalizada en docs/TEST.md: Specmatic (contratos), Stryker (mutacion), Testcontainers (integracion), fast-check (propiedades), K6 (stress).
 - TASK-014 en TODO.md: re-validacion empirica de 9 falsos positivos revertidos, mapeados 1:1 a ST-001→ST-009 del TEST.md.
-- Trazabilidad formal HP-* → VERIFICATION.md en tabla de High Priority Tests del TEST.md.
+- Trazabilidad formal HP-\* → VERIFICATION.md en tabla de High Priority Tests del TEST.md.
 
 ### Removed
+
 - Actor OPSUI (Appsmith) de VERIFICATION.md: 12 checks archivados por decisión arquitectónica UD-007. Reemplazado por 57 checks distribuidos en 5 actores de la Ops Console Refine.
 
 <!--

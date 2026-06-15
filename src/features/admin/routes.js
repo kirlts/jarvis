@@ -611,12 +611,13 @@ export async function registerAdminRoutes(app) {
           action:   { type: 'string' },
           resource: { type: 'string' },
           resource_id: { type: 'string' },
+          tenant_id: { type: 'string', format: 'uuid' },
         },
         additionalProperties: false,
       },
     },
   }, async (request, _reply) => {
-    const { page, limit, action, resource, resource_id } = request.query;
+    const { page, limit, action, resource, resource_id, tenant_id } = request.query;
     const offset = (page - 1) * limit;
 
     return withAdminClient(async (client) => {
@@ -635,6 +636,11 @@ export async function registerAdminRoutes(app) {
       if (resource_id) {
         conditions.push(`resource_id = $${paramIdx++}`);
         params.push(resource_id);
+      }
+      if (tenant_id) {
+        conditions.push(`(resource_id::text = $${paramIdx} OR details->>'tenant_id' = $${paramIdx})`);
+        params.push(tenant_id);
+        paramIdx++;
       }
 
       const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -693,14 +699,15 @@ export async function registerAdminRoutes(app) {
         WHERE status = 'uploaded' AND deleted_at IS NULL
       `);
 
-      // Sync inbox backlog
+      // Sync inbox backlog (exclude items from soft-deleted tenants)
       const inboxBacklog = await client.query(`
         SELECT
-          count(*) FILTER (WHERE status = 'pending')::int AS pending,
-          count(*) FILTER (WHERE status = 'processing')::int AS processing,
-          count(*) FILTER (WHERE status = 'done')::int AS done,
-          count(*) FILTER (WHERE status = 'failed')::int AS failed
-        FROM sync_inbox
+          count(*) FILTER (WHERE si.status = 'pending')::int AS pending,
+          count(*) FILTER (WHERE si.status = 'processing')::int AS processing,
+          count(*) FILTER (WHERE si.status = 'done')::int AS done,
+          count(*) FILTER (WHERE si.status = 'failed')::int AS failed
+        FROM sync_inbox si
+        JOIN tenants t ON t.id = si.tenant_id AND t.deleted_at IS NULL
       `);
 
       // Flatten job counts into an object
@@ -2162,5 +2169,313 @@ export async function registerAdminRoutes(app) {
     });
 
     return reply.status(200).send();
+  });
+
+  // ── GET /admin/plugins ──────────────────────────────────────────────
+  app.get('/plugins', async (request, reply) => {
+    return withAdminClient(async (client) => {
+      const res = await client.query('SELECT id, name, display_name, description, fields, created_at FROM plugins ORDER BY display_name ASC');
+      return res.rows;
+    });
+  });
+
+  // ── GET /admin/rules ────────────────────────────────────────────────
+  app.get('/rules', {
+    schema: {
+      querystring: {
+        type: 'object',
+        properties: {
+          page:      { type: 'integer', minimum: 1, default: 1 },
+          limit:     { type: 'integer', minimum: 1, default: 50 },
+          tenant_id: { type: 'string' },
+        },
+        additionalProperties: false,
+      },
+    },
+  }, async (request, reply) => {
+    const { page, limit, tenant_id } = request.query;
+    const offset = (page - 1) * limit;
+
+    if (tenant_id && !UUID_REGEX.test(tenant_id)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid tenant_id UUID format' });
+    }
+
+    return withAdminClient(async (client) => {
+      const conditions = ['deleted_at IS NULL'];
+      const params = [];
+      let paramIdx = 1;
+
+      if (tenant_id) {
+        conditions.push(`tenant_id = $${paramIdx++}`);
+        params.push(tenant_id);
+      }
+
+      const where = `WHERE ${conditions.join(' AND ')}`;
+
+      const countResult = await client.query(
+        `SELECT COUNT(*)::int AS total FROM tenant_rules ${where}`,
+        params
+      );
+      const total = countResult.rows[0].total;
+
+      params.push(limit, offset);
+      const result = await client.query(
+        `SELECT id, tenant_id, channel_id, name, trigger_type, trigger_value, actions, priority, active, created_at, deleted_at 
+         FROM tenant_rules ${where} ORDER BY priority DESC, created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx}`,
+        params
+      );
+
+      return { data: result.rows, meta: { total, page, limit } };
+    });
+  });
+
+  // ── POST /admin/rules ───────────────────────────────────────────────
+  app.post('/rules', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['tenant_id', 'name', 'trigger_type', 'actions'],
+        properties: {
+          tenant_id:     { type: 'string' },
+          channel_id:    { type: 'string', nullable: true },
+          name:          { type: 'string', minLength: 1, maxLength: 255 },
+          trigger_type:  { type: 'string', enum: ['all', 'regex', 'media_type'] },
+          trigger_value: { type: 'string', nullable: true },
+          actions:       { type: 'array', items: { type: 'object' } },
+          priority:      { type: 'integer', default: 0 },
+          active:        { type: 'boolean', default: true },
+        },
+        additionalProperties: false,
+      },
+    },
+  }, async (request, reply) => {
+    const { tenant_id, channel_id, name, trigger_type, trigger_value, actions, priority, active } = request.body;
+    const id = uuidv7();
+
+    if (!UUID_REGEX.test(tenant_id)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid tenant_id UUID format' });
+    }
+    if (channel_id && !UUID_REGEX.test(channel_id)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid channel_id UUID format' });
+    }
+    if (!Array.isArray(actions) || actions.length === 0) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'actions must be a non-empty array' });
+    }
+
+    try {
+      const result = await withAdminClient(async (client) => {
+        return client.query(
+          `INSERT INTO tenant_rules (id, tenant_id, channel_id, name, trigger_type, trigger_value, actions, priority, active)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           RETURNING id, tenant_id, channel_id, name, trigger_type, trigger_value, actions, priority, active, created_at`,
+          [id, tenant_id, channel_id || null, name, trigger_type, trigger_value || null, JSON.stringify(actions), priority, active]
+        );
+      });
+
+      await logAudit({
+        actor: request.user?.sub || 'system',
+        action: 'create_rule',
+        resource: 'tenant_rules',
+        resourceId: id,
+        details: { tenant_id, name, trigger_type, actions },
+      });
+
+      return reply.status(201).send(result.rows[0]);
+    } catch (err) {
+      if (err.message && err.message.includes('chk_tenant_rules_actions_array')) {
+        return reply.status(400).send({ error: 'Bad Request', message: 'actions must be a JSON array' });
+      }
+      throw err;
+    }
+  });
+
+  // ── PATCH /admin/rules/:id ──────────────────────────────────────────
+  app.patch('/rules/:id', {
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          name:          { type: 'string', minLength: 1, maxLength: 255 },
+          channel_id:    { type: 'string', nullable: true },
+          trigger_type:  { type: 'string', enum: ['all', 'regex', 'media_type'] },
+          trigger_value: { type: 'string', nullable: true },
+          actions:       { type: 'array', items: { type: 'object' } },
+          priority:      { type: 'integer' },
+          active:        { type: 'boolean' },
+        },
+        additionalProperties: false,
+        minProperties: 1,
+      },
+    },
+  }, async (request, reply) => {
+    const { id } = request.params;
+    if (!UUID_REGEX.test(id)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid rule ID UUID format' });
+    }
+
+    const { name, channel_id, trigger_type, trigger_value, actions, priority, active } = request.body;
+
+    if (channel_id && !UUID_REGEX.test(channel_id)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid channel_id UUID format' });
+    }
+    if (actions !== undefined && (!Array.isArray(actions) || actions.length === 0)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'actions must be a non-empty array' });
+    }
+
+    const setClauses = [];
+    const params = [];
+    let paramIdx = 1;
+
+    if (name !== undefined) {
+      setClauses.push(`name = $${paramIdx++}`);
+      params.push(name);
+    }
+    if (channel_id !== undefined) {
+      setClauses.push(`channel_id = $${paramIdx++}`);
+      params.push(channel_id || null);
+    }
+    if (trigger_type !== undefined) {
+      setClauses.push(`trigger_type = $${paramIdx++}`);
+      params.push(trigger_type);
+    }
+    if (trigger_value !== undefined) {
+      setClauses.push(`trigger_value = $${paramIdx++}`);
+      params.push(trigger_value || null);
+    }
+    if (actions !== undefined) {
+      setClauses.push(`actions = $${paramIdx++}`);
+      params.push(JSON.stringify(actions));
+    }
+    if (priority !== undefined) {
+      setClauses.push(`priority = $${paramIdx++}`);
+      params.push(priority);
+    }
+    if (active !== undefined) {
+      setClauses.push(`active = $${paramIdx++}`);
+      params.push(active);
+    }
+
+    params.push(id);
+
+    try {
+      const result = await withAdminClient(async (client) => {
+        return client.query(
+          `UPDATE tenant_rules SET ${setClauses.join(', ')} WHERE id = $${paramIdx} AND deleted_at IS NULL 
+           RETURNING id, tenant_id, channel_id, name, trigger_type, trigger_value, actions, priority, active, created_at`,
+          params
+        );
+      });
+
+      if (result.rowCount === 0) {
+        return reply.status(404).send({ error: 'Not Found', message: 'Rule not found or already deleted' });
+      }
+
+      await logAudit({
+        actor: request.user?.sub || 'system',
+        action: 'update_rule',
+        resource: 'tenant_rules',
+        resourceId: id,
+        details: request.body,
+      });
+
+      return result.rows[0];
+    } catch (err) {
+      if (err.message && err.message.includes('chk_tenant_rules_actions_array')) {
+        return reply.status(400).send({ error: 'Bad Request', message: 'actions must be a JSON array' });
+      }
+      throw err;
+    }
+  });
+
+  // ── DELETE /admin/rules/:id ─────────────────────────────────────────
+  app.delete('/rules/:id', {
+    schema: {
+      querystring: {
+        type: 'object',
+        required: ['confirm'],
+        properties: {
+          confirm: { type: 'string', const: 'true' },
+        },
+        additionalProperties: false,
+      },
+    },
+  }, async (request, reply) => {
+    const { id } = request.params;
+    if (!UUID_REGEX.test(id)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid rule ID UUID format' });
+    }
+
+    const result = await withAdminClient(async (client) => {
+      return client.query(
+        'UPDATE tenant_rules SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL RETURNING id, tenant_id',
+        [id]
+      );
+    });
+
+    if (result.rowCount === 0) {
+      return reply.status(404).send({ error: 'Not Found', message: 'Rule not found or already deleted' });
+    }
+
+    const { tenant_id } = result.rows[0];
+
+    await logAudit({
+      actor: request.user?.sub || 'system',
+      action: 'delete_rule',
+      resource: 'tenant_rules',
+      resourceId: id,
+      details: { tenant_id },
+    });
+
+    return reply.status(200).send();
+  });
+
+  // ── GET /admin/activity ─────────────────────────────────────────────
+  app.get('/activity', {
+    schema: {
+      querystring: {
+        type: 'object',
+        properties: {
+          page:      { type: 'integer', minimum: 1, default: 1 },
+          limit:     { type: 'integer', minimum: 1, default: 50 },
+          tenant_id: { type: 'string' },
+        },
+        additionalProperties: false,
+      },
+    },
+  }, async (request, reply) => {
+    const { page, limit, tenant_id } = request.query;
+    const offset = (page - 1) * limit;
+
+    if (tenant_id && !UUID_REGEX.test(tenant_id)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid tenant_id UUID format' });
+    }
+
+    return withAdminClient(async (client) => {
+      const conditions = [];
+      const params = [];
+      let paramIdx = 1;
+
+      if (tenant_id) {
+        conditions.push(`tenant_id = $${paramIdx++}`);
+        params.push(tenant_id);
+      }
+
+      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+      const countResult = await client.query(
+        `SELECT COUNT(*)::int AS total FROM activity_logs ${where}`,
+        params
+      );
+      const total = countResult.rows[0].total;
+
+      params.push(limit, offset);
+      const result = await client.query(
+        `SELECT id, tenant_id, channel_id, rule_id, event_type, description, metadata, created_at 
+         FROM activity_logs ${where} ORDER BY created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx}`,
+        params
+      );
+
+      return { data: result.rows, meta: { total, page, limit } };
+    });
   });
 }

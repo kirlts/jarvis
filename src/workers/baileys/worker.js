@@ -44,6 +44,14 @@ export async function startSession(channelId, tenantId, sessionId) {
   }
 
   try {
+    let channelConfig = {};
+    if (channelId) {
+      const configRes = await pool.query('SELECT config FROM wapp_channels WHERE id = $1 AND tenant_id = $2', [channelId, tenantId]);
+      if (configRes.rows.length > 0 && configRes.rows[0].config) {
+        channelConfig = configRes.rows[0].config;
+      }
+    }
+
     let { state, saveCreds } = await usePgAuthState(tenantId, sessionId);
     const { version, isLatest } = await deps.fetchLatestBaileysVersion();
     
@@ -54,9 +62,9 @@ export async function startSession(channelId, tenantId, sessionId) {
       logger: sessionLog,
       printQRInTerminal: false, // We update DB instead
       auth: state,
-      markOnlineOnConnect: false, // Prevents presence update hang
+      markOnlineOnConnect: channelConfig.markOnlineOnConnect !== false, 
       browser: ['Ubuntu', 'Chrome', '120.0.0.0'], // Prevents generic throttling
-      syncFullHistory: false, // Don't hang on massive history syncs
+      syncFullHistory: channelConfig.syncHistory === true, 
       generateHighQualityLinkPreview: false,
       getMessage: async () => {
         return { conversation: 'hello' };
@@ -277,6 +285,14 @@ export async function startSession(channelId, tenantId, sessionId) {
             }
 
             sessionLog.info({ from, type, isFromMe }, 'Received valid message');
+            
+            if (!isFromMe && channelConfig.readReceipts !== false) {
+              try {
+                await sock.readMessages([msg.key]);
+              } catch (e) {
+                sessionLog.warn({ err: e.message }, 'Failed to send read receipt');
+              }
+            }
             
             try {
               const msgId = uuidv7();
@@ -501,7 +517,7 @@ export async function startSession(channelId, tenantId, sessionId) {
       }
     });
 
-    activeSessions.set(channelId, { sock, sessionId, tenantId, log: sessionLog, qrAttempts: qrAttemptCount, hadCredentials });
+    activeSessions.set(channelId, { sock, sessionId, tenantId, log: sessionLog, qrAttempts: qrAttemptCount, hadCredentials, config: channelConfig });
   } catch (err) {
     sessionLog.error({ err: err.message }, 'Failed to initialize session socket');
   }
@@ -574,6 +590,20 @@ export async function runOrchestrator() {
 
       session.log.info({ jobId: job.id, to }, 'Sending outgoing WhatsApp message');
       try {
+        const config = session.config || {};
+        const useTyping = config.typingIndicator !== false;
+        const delay = config.delayMs !== undefined ? parseInt(config.delayMs) : 1000;
+
+        if (useTyping) {
+          await session.sock.sendPresenceUpdate('composing', to);
+        }
+        if (delay > 0) {
+          await new Promise(r => setTimeout(r, delay));
+        }
+        if (useTyping) {
+          await session.sock.sendPresenceUpdate('paused', to);
+        }
+
         await session.sock.sendMessage(to, { text });
       } catch (err) {
         session.log.error({ err: err.message, to }, 'Failed to send WhatsApp message');

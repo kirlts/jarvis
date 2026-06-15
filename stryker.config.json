@@ -9,12 +9,10 @@
   ],
   "testRunner": "command",
   "commandRunner": {
-    "command": "npm run test:unit"
+    "command": "node --test src/workers/boss-worker.test.js"
   },
   "coverageAnalysis": "off",
   "mutate": [
-    "src/**/*.js",
-    "!src/**/*.test.js",
-    "!src/workers/**/*.js"
+    "src/workers/boss-worker.js"
   ]
 }

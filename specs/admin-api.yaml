@@ -1378,6 +1378,251 @@ paths:
           description: Missing or invalid Admin JWT
         '404':
           description: Zip not found
+  /admin/plugins:
+    get:
+      summary: List all plugins in the global catalog
+      operationId: getPlugins
+      security:
+      - adminBearerAuth: []
+      responses:
+        '200':
+          description: Master plugin catalog
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Plugin'
+        '401':
+          description: Missing or invalid Admin JWT
+  /admin/rules:
+    get:
+      summary: List routing rules (paginated)
+      operationId: getRules
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+      - name: tenant_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: List of routing rules
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TenantRule'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Missing or invalid Admin JWT
+    post:
+      summary: Create a routing rule
+      operationId: createRule
+      security:
+      - adminBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - tenant_id
+              - name
+              - trigger_type
+              - actions
+              properties:
+                tenant_id:
+                  type: string
+                  format: uuid
+                channel_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                trigger_type:
+                  type: string
+                  enum: [all, regex, media_type]
+                trigger_value:
+                  type: string
+                  nullable: true
+                actions:
+                  type: array
+                  items:
+                    type: object
+                priority:
+                  type: integer
+                  default: 0
+                active:
+                  type: boolean
+                  default: true
+              additionalProperties: false
+      responses:
+        '201':
+          description: Rule created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantRule'
+        '400':
+          description: Invalid payload or empty actions object/not array
+        '401':
+          description: Missing or invalid Admin JWT
+  /admin/rules/{id}:
+    patch:
+      summary: Update a routing rule
+      operationId: updateRule
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                channel_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                trigger_type:
+                  type: string
+                  enum: [all, regex, media_type]
+                trigger_value:
+                  type: string
+                  nullable: true
+                actions:
+                  type: array
+                  items:
+                    type: object
+                priority:
+                  type: integer
+                active:
+                  type: boolean
+              additionalProperties: false
+              minProperties: 1
+      responses:
+        '200':
+          description: Rule updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantRule'
+        '400':
+          description: Invalid payload or empty actions object/not array
+        '401':
+          description: Missing or invalid Admin JWT
+        '404':
+          description: Rule not found
+    delete:
+      summary: Delete a routing rule
+      operationId: deleteRule
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: confirm
+        in: query
+        required: true
+        schema:
+          type: string
+          enum: ['true']
+      responses:
+        '200':
+          description: Rule deleted
+        '400':
+          description: Missing confirm query parameter
+        '401':
+          description: Missing or invalid Admin JWT
+        '404':
+          description: Rule not found
+  /admin/activity:
+    get:
+      summary: List activity logs (paginated)
+      operationId: getActivityLogs
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+      - name: tenant_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: List of activity logs
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ActivityLog'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Missing or invalid Admin JWT
 components:
   parameters:
     TenantId:
@@ -1525,6 +1770,108 @@ components:
         details:
           type: object
           nullable: true
+        created_at:
+          type: string
+          format: date-time
+    Plugin:
+      type: object
+      required:
+      - id
+      - name
+      - display_name
+      - fields
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        display_name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        fields:
+          type: array
+          items:
+            type: object
+        created_at:
+          type: string
+          format: date-time
+    TenantRule:
+      type: object
+      required:
+      - id
+      - tenant_id
+      - name
+      - trigger_type
+      - actions
+      - priority
+      - active
+      - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        channel_id:
+          type: string
+          format: uuid
+          nullable: true
+        name:
+          type: string
+        trigger_type:
+          type: string
+          enum: [all, regex, media_type]
+        trigger_value:
+          type: string
+          nullable: true
+        actions:
+          type: array
+          items:
+            type: object
+        priority:
+          type: integer
+        active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+    ActivityLog:
+      type: object
+      required:
+      - id
+      - tenant_id
+      - event_type
+      - description
+      - metadata
+      - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        channel_id:
+          type: string
+          format: uuid
+          nullable: true
+        rule_id:
+          type: string
+          format: uuid
+          nullable: true
+        event_type:
+          type: string
+        description:
+          type: string
+        metadata:
+          type: object
         created_at:
           type: string
           format: date-time

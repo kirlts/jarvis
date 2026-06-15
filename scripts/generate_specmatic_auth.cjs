@@ -1,0 +1,74 @@
+const { createSigner } = require('fast-jwt');
+const fs = require('fs');
+
+const privateKey = `-----BEGIN RSA PRIVATE KEY-----
+MIIEowIBAAKCAQEAkQ/s4htokfmaO6OtSiVlv7U5wbWtdCUPDQZEpVocx0alH06U
+DrvPR7bSvdJmS7/FlKk/phZzkufTVTd+TxaHRaT8TUmkgZ9cRFFFZctq8dwQIZxN
+ND0oyIxY8qTyAaoo5l0yYlXH2pL7yTLuO2VzOdij4AJwUKo8cSdbb6a7hUdPjy0a
+D7XL3lV3nY37z7N5GSOEXjQAdnUmGdU2glUgt2uVvaUra9XpBaWIkC3cMgjXz0bT
+avBaDOvWnc+0EoY5kA1kvi2g022FEAsBcOzaR0L4GD/aqVOX39cQPE3bcrQGL4ok
+V1mxqg7snv1ebEK8nUSdMaOnnKO2N7WQTA2LGQIDAQABAoIBABfBwOzCylxlwWGV
+C7NB7qj32A6mX1LPIujiJunhmSb1peM7rjm/flHjWh4mUASF0qjnEvpzYNglSVIC
+dZgkO2EnhP5vWha0b5rsqG3kY45amPW4MFimz4AQpByQ8OVe5bXce3zpSYK9Yajw
+w11M3xMRLL1qCNTdHGr3pBzj9H/+D4vwG0Rc2PWXBL30l8nPhV1HrtbwUlruvmSF
++QvKLxZb91masNxFe5sO2hvvz3A663IKrtg8kCzKOOkfYsjWfyOc8ReiMGHoxSWU
+kMsuiZjIHQEmCMZIOOcCR9VauK5EsTY2NkD8kfPW1HIU7nBcMDeKltxMnWFcHCyv
+Fai8FJECgYEAy+mTM2hVL99SUm7AFukhdC6Ow3TZkLbjiCuBWzbEEE5VQdm/Vjf+
+vAod4Pm8oZcKr0dmmuQv7Ox8rYKtjstnXif/sbWyuxg3ihPSzI4g5pf/8HqsMA9E
+laoq2DQ7tIoPQdvR9M3vgll9LuNFUQs8nWGc75gEMYe20/5HSsM0h60CgYEAth33
+CXE1Hr2WcfxftJ2BXdcRu8TCze64oWgtUpVDSWcthLmPYh58LzxM1RoIrZfoS0iY
+JM2Ou8HaVVGagNzm/zqjU/JWyRtgjec2jUlHiF5K1ZejB1p4W2jObQnk7ao9HrQL
+2KPxKbMnSMpnEDv3oVmwWb2CIZ+ijJPxEOXybp0CgYEAqW6IcEO13NRL+9CobaEC
+uh3hZAkYqkU85C16C4eC/CWKc+/xKzvVvvsM/p2kHgR5zVCfsf3+0Hdj1Wxqt+bN
+GhBURp46R3mE1IdKNcu3DMOp13Cm2DwnedBuTz1/irDYopl7aFUhOQcQnEAdnYyf
+rgmos/B1M46X3KhBJp7ya/UCgYBilnojXGubRpro/ex5hEKCIGlzMqMahD7i8diH
+OlKArCBSF3ntbf9gOs6FFmDYSMHx70ydr8GzFtAxG8n+NJfAV2gPi8M7f1yXtTEs
+7xyQUCtG0Z3p3yoEogoNsSuDFYOc2W8ISkfFgTylBR0iBrSZXko/an3F4ftHCteX
+hEPnaQKBgG/Lg2GQ379l2AKcYhfaSdQ2Wd33uvrR4VsuFROxt+1pnQfe2QYCBGLz
+OUXv9sIX3S3H9xHZgPcLZDdIg/97YHivlZbMQBTTw8s+c88kboZJeFvfYkSmvWac
+LW++M3xZmSqcGUhEM/B8JYnljvRxlrEmuDQMs6u0VvnHv/ZMuD2p
+-----END RSA PRIVATE KEY-----`;
+
+const signer = createSigner({ key: privateKey, algorithm: 'RS256' });
+const token = signer({ role: 'super_admin' });
+
+const examples = {
+  "GET /admin/plugins": {
+    "request": {
+      "headers": {
+        "Authorization": `Bearer ${token}`
+      }
+    }
+  },
+  "GET /admin/rules": {
+    "request": {
+      "headers": {
+        "Authorization": `Bearer ${token}`
+      }
+    }
+  },
+  "POST /admin/rules": {
+    "request": {
+      "headers": {
+        "Authorization": `Bearer ${token}`
+      }
+    }
+  },
+  "PATCH /admin/rules/{id}": {
+    "request": {
+      "headers": {
+        "Authorization": `Bearer ${token}`
+      }
+    }
+  },
+  "DELETE /admin/rules/{id}": {
+    "request": {
+      "headers": {
+        "Authorization": `Bearer ${token}`
+      }
+    }
+  }
+};
+
+fs.writeFileSync('specs/admin-api_examples.json', JSON.stringify(examples, null, 2));
+console.log("Examples file created with valid JWT token.");

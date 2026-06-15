@@ -3,9 +3,9 @@
 > Repository of patterns and lessons that would be useful in any project, regardless of the domain.
 > Append-Only file. Forbidden to reduce, delete, or synthesize prior content.
 
-| Symbol | Meaning |
-|---|---|
-| 🧠 | Transferable heuristic learned |
+| Symbol | Meaning                        |
+| ------ | ------------------------------ |
+| 🧠     | Transferable heuristic learned |
 
 ---
 
@@ -137,7 +137,7 @@ RULES:
 
 **Date:** 2026-05-27
 **Origin:** Pruebas unitarias de pg-boss worker (`boss-worker.test.js`)
-**Pattern:** En ES Modules (ESM), todas las sentencias estáticas `import` son hoisted (elevadas) al inicio de la carga del archivo y ejecutadas *antes* de cualquier sentencia de asignación sincrónica local. Si un test setea `process.env.NODE_ENV = 'test'` de forma sincrónica e importa estáticamente un módulo que lee esta variable al inicio de su código para auto-iniciar tareas en segundo plano, la variable se lee como `undefined`, provocando que el worker intente conectarse prematuramente a la base de datos de producción o sandbox local.
+**Pattern:** En ES Modules (ESM), todas las sentencias estáticas `import` son hoisted (elevadas) al inicio de la carga del archivo y ejecutadas _antes_ de cualquier sentencia de asignación sincrónica local. Si un test setea `process.env.NODE_ENV = 'test'` de forma sincrónica e importa estáticamente un módulo que lee esta variable al inicio de su código para auto-iniciar tareas en segundo plano, la variable se lee como `undefined`, provocando que el worker intente conectarse prematuramente a la base de datos de producción o sandbox local.
 **Lesson:** Utilizar `await import('./modulo.js')` de forma dinámica después de realizar asignaciones sincrónicas a variables de entorno globales en los archivos de test para garantizar que el módulo se evalúe con el entorno correcto ya configurado.
 **Source:** Especificación oficial de ECMAScript (hoisting de imports estáticos en ESM).
 
@@ -148,8 +148,6 @@ RULES:
 **Pattern:** Al ejecutar pruebas unitarias con el runner nativo `node --test`, si el módulo importado (o el test mismo) instancia un pool de conexiones persistentes de PostgreSQL (`new Pool(...)`), el bucle de eventos (event loop) de Node mantiene descriptores de socket de red y temporizadores de inactividad activos. Esto evita que el proceso de Node.js finalice de forma limpia al terminar de ejecutar los tests de la suite, dejando la terminal colgada indefinidamente.
 **Lesson:** Es obligatorio registrar un hook `after(async () => { await pool.end(); })` al final de cada suite de pruebas unitarias que cierre explícitamente cualquier pool de conexiones instanciado por los módulos importados, permitiendo una liberación limpia del bucle de eventos.
 **Source:** Comportamiento nativo de sockets y temporizadores de pg.Pool en Node.js.
-
-
 
 ## [HEU-016] Simulación Criptográfica y Trampas de Testeo E2E Cero-Latencia
 
@@ -167,3 +165,18 @@ RULES:
 **Lesson:** Evitar el uso de comodines de texto glob para URLs con query parameters en Playwright. Utilizar patrones de expresión regular (ej. `/\/admin\/jobs/` o `/\/admin\/whatsapp\/status\/.*\/channels/`) que son 1000% más robustos, independientes del puerto o protocolo, e integran métodos cruzados (GET/DELETE/PATCH) de forma limpia y centralizada.
 **Source:** [Confirmed by user - no external source]
 
+## [HEU-018] Regex Pattern Matching en PostgreSQL para Desacoplamiento de Lógica Core
+
+**Date:** 2026-06-14
+**Origin:** [TASK-031] Lógica de iteración regex en motor de ruteo híbrido contra la tabla `tenant_rules`
+**Pattern:** Codificar lógicas de ruteo complejas directamente en el código de aplicación (workers) usando condicionales rígidos (`if/else`) o mimetypes estáticos limita la extensibilidad del sistema. Al migrar la evaluación regex a PostgreSQL mediante consultas de coincidencia (`message ~* rule.regex`), se logra un motor de ruteo dinámico administrado en caliente desde la base de datos.
+**Lesson:** Delegar el filtrado y matching por expresiones regulares directamente al motor de base de datos (`~*` en PG). Esto simplifica el código del worker, reduce el uso de memoria en Node.js y permite agregar o modificar reglas y destinos de enrutamiento sin necesidad de desplegar código ni reiniciar procesos.
+**Source:** [Confirmed by user - no external source]
+
+## [HEU-019] Typecasting Explícito en Comparaciones JSONB ->> UUID en PostgreSQL
+
+**Date:** 2026-06-15
+**Origin:** [REG-013] Resolución de Error 500 en endpoint `/admin/audit`
+**Pattern:** Al extraer un valor de texto desde un campo JSONB utilizando el operador `->>` y compararlo contra un parámetro o columna de tipo `UUID` (o viceversa) en consultas parametrizadas de PostgreSQL (ej. pg node-postgres), se produce un error fatal en tiempo de ejecución: `operator does not exist: text = uuid` si no se fuerza la coerción de tipos.
+**Lesson:** Siempre aplicar un cast explícito a texto (`::text`) al valor UUID (ej. `resource_id::text = $1`) al compararlo contra variables de texto extraídas desde JSONB. Nunca depender del casting implícito del driver o motor de base de datos entre UUID y TEXT.
+**Source:** [Confirmed by user - no external source]

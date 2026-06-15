@@ -43,7 +43,8 @@
     "start": "refine start",
     "refine": "refine",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
   },
   "browserslist": {
     "production": [

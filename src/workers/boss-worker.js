@@ -86,104 +86,209 @@ async function handleSyncJob(jobs) {
         [tenantId]
       );
 
-      // Fetch channel config if channelId is provided
-      let channelConfig = {};
-      if (payload?.channelId) {
-        try {
-          const channelRes = await client.query(
-            `SELECT config FROM wapp_channels WHERE id = $1 AND deleted_at IS NULL`,
-            [payload.channelId]
-          );
-          if (channelRes.rows.length > 0) {
-            channelConfig = channelRes.rows[0].config || {};
-          }
-        } catch (dbErr) {
-          log.error({ err: dbErr.message, channelId: payload.channelId }, 'Failed to fetch channel config');
-        }
-      }
-
       // Mark inbox entry as processing
       await client.query(
         `UPDATE sync_inbox SET status = 'processing' WHERE id = $1`,
         [inboxId]
       );
 
-      // The Stub (Simulated Transducer) or Antigravity Real CLI
-      let finalPayload = payload;
-      const isAntigravity = channelConfig.processor === 'antigravity';
+      // Fetch active rules sorted by priority descending (exclusively for this tenant due to RLS/where clause)
+      const rulesRes = await client.query(
+        `SELECT id, channel_id, name, trigger_type, trigger_value, actions, priority
+         FROM tenant_rules
+         WHERE tenant_id = $1 AND active = true AND deleted_at IS NULL
+         ORDER BY priority DESC`,
+        [tenantId]
+      );
+      const tenantRules = rulesRes.rows;
 
-      if (isAntigravity) {
-        const targetProject = channelConfig.target_project || '/home/kirlts/jarvis';
-        const timeoutSec = Number(channelConfig.timeout_sec) || 120;
-        const handlerPath = join(targetProject, 'antigravity-handler.js');
+      let matchedRule = null;
+      const startTime = performance.now();
+      for (const rule of tenantRules) {
+        // If rule specifies a channel, it must match payload's channelId.
+        // If rule has no channel_id, it is a global rule and matches any channel (or lack thereof).
+        if (rule.channel_id && payload?.channelId && rule.channel_id !== payload.channelId) {
+          continue;
+        }
 
-        log.info({ inboxId, tenantId, targetProject, handlerPath }, 'Executing Antigravity CLI Processor');
-
-        // We run the CLI script using Node.js exec within a Promise
-        const executionResult = await new Promise((resolve) => {
-          const childEnv = {
-            ...process.env,
-            JARVIS_SENDER: payload.sender || '',
-            JARVIS_MESSAGE: payload.message || '',
-            JARVIS_MEDIA_TYPE: payload.type || 'text',
-            JARVIS_S3_URL: payload.s3_url || ''
-          };
-
-          const child = exec(
-            `node "${handlerPath}"`,
-            {
-              cwd: targetProject,
-              timeout: timeoutSec * 1000,
-              maxBuffer: 1024 * 1024, // 1MB buffer
-              env: childEnv
-            },
-            (error, stdout, stderr) => {
-              if (error) {
-                log.error({ err: error.message, stderr }, 'Antigravity CLI execution error');
-                resolve({
-                  success: false,
-                  output: `[Antigravity CLI Error]: ${error.message}${stderr ? `\nStderr: ${stderr}` : ''}`
-                });
-              } else {
-                resolve({
-                  success: true,
-                  output: stdout.trim()
-                });
+        let isMatch = false;
+        if (rule.trigger_type === 'all') {
+          isMatch = true;
+        } else if (rule.trigger_type === 'regex') {
+          if (rule.trigger_value) {
+            try {
+              const regex = new RegExp(rule.trigger_value, 'i');
+              if (regex.test(payload?.message || '')) {
+                isMatch = true;
               }
+            } catch (regErr) {
+              log.error({ err: regErr.message, ruleId: rule.id }, 'Invalid regex pattern in tenant rule');
             }
+          }
+        } else if (rule.trigger_type === 'media_type') {
+          if (payload?.type === rule.trigger_value) {
+            isMatch = true;
+          }
+        }
+
+        if (isMatch) {
+          matchedRule = rule;
+          break;
+        }
+      }
+      const matchDuration = performance.now() - startTime;
+      log.info({ matchedRuleId: matchedRule?.id, durationMs: matchDuration }, 'Rule matching evaluation complete');
+
+      let finalPayload = { ...payload };
+
+      if (matchedRule) {
+        const actions = Array.isArray(matchedRule.actions) ? matchedRule.actions : [];
+
+        for (const action of actions) {
+          const { plugin_id, config: actionConfig = {} } = action;
+
+          // CORE.CR.01: Log narrative trace in activity_logs
+          await client.query(
+            `INSERT INTO activity_logs (tenant_id, channel_id, rule_id, event_type, description, metadata)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [
+              tenantId,
+              payload?.channelId || null,
+              matchedRule.id,
+              'rule_matched',
+              `Regla "${matchedRule.name}" coincidente. Ejecutando plugin "${plugin_id}".`,
+              JSON.stringify({ action, payload })
+            ]
           );
 
-          // Write payload to stdin
-          child.stdin.write(JSON.stringify({
-            inboxId,
-            tenantId,
-            channelId: payload.channelId,
-            channelConfig: channelConfig,
-            sender: payload.sender,
-            message: payload.message,
-            type: payload.type,
-            s3_url: payload.s3_url
-          }));
-          child.stdin.end();
-        });
+          if (plugin_id === 'antigravity') {
+            const targetProject = actionConfig.target_project || '/home/kirlts/jarvis';
+            const timeoutSec = Number(actionConfig.timeout_sec) || 120;
+            const handlerPath = join(targetProject, 'antigravity-handler.js');
 
-        finalPayload = {
-          ...payload,
-          transcription: executionResult.output
-        };
+            log.info({ inboxId, tenantId, targetProject, handlerPath }, 'Executing Antigravity CLI Processor');
+
+            // We run the CLI script using Node.js exec within a Promise
+            const executionResult = await new Promise((resolve) => {
+              const childEnv = {
+                ...process.env,
+                JARVIS_SENDER: payload.sender || '',
+                JARVIS_MESSAGE: payload.message || '',
+                JARVIS_MEDIA_TYPE: payload.type || 'text',
+                JARVIS_S3_URL: payload.s3_url || ''
+              };
+
+              const child = exec(
+                `node "${handlerPath}"`,
+                {
+                  cwd: targetProject,
+                  timeout: timeoutSec * 1000,
+                  maxBuffer: 1024 * 1024, // 1MB buffer
+                  env: childEnv
+                },
+                (error, stdout, stderr) => {
+                  if (error) {
+                    log.error({ err: error.message, stderr }, 'Antigravity CLI execution error');
+                    resolve({
+                      success: false,
+                      output: `[Antigravity CLI Error]: ${error.message}${stderr ? `\nStderr: ${stderr}` : ''}`
+                    });
+                  } else {
+                    resolve({
+                      success: true,
+                      output: stdout.trim()
+                    });
+                  }
+                }
+              );
+
+              // Write payload to stdin
+              child.stdin.write(JSON.stringify({
+                inboxId,
+                tenantId,
+                channelId: payload.channelId,
+                channelConfig: actionConfig,
+                sender: payload.sender,
+                message: payload.message,
+                type: payload.type,
+                s3_url: payload.s3_url
+              }));
+              child.stdin.end();
+            });
+
+            finalPayload.transcription = executionResult.output;
+
+          } else if (plugin_id === 'whisper') {
+            log.info({ inboxId, tenantId }, 'Executing Whisper STT Action');
+            finalPayload.transcription = `[MOCK_AUDIO_TRANSCRIPTION: Procesado por Whisper]`;
+
+          } else if (plugin_id === 'dinowiki') {
+            log.info({ inboxId, tenantId }, 'Executing DinoWiki Action');
+
+            // CORE.IN.02: HTTP call to DinoWiki. If it fails, let it throw to rollback.
+            const dinowikiUrl = process.env.DINOWIKI_URL || 'http://localhost:8080/api/wiki';
+
+            // We set a strict timeout of 5 seconds (CORE.RS.02)
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), 5000);
+
+            try {
+              const response = await fetch(dinowikiUrl, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  tenantId,
+                  message: payload.message,
+                  config: actionConfig
+                }),
+                signal: controller.signal
+              });
+              clearTimeout(id);
+
+              if (!response.ok) {
+                throw new Error(`DinoWiki HTTP error! status: ${response.status}`);
+              }
+              const result = await response.json();
+              finalPayload.transcription = result.transcription || '[MOCK_DINOWIKI: Respuesta de base de conocimiento]';
+            } catch (fetchErr) {
+              clearTimeout(id);
+              log.error({ err: fetchErr.message }, 'DinoWiki communication failed, throwing to trigger transaction rollback');
+              throw new Error(`DinoWiki failed: ${fetchErr.message}`);
+            }
+
+          } else {
+            log.warn({ plugin_id }, 'Unknown plugin ID, skipping execution');
+          }
+        }
       } else {
+        // CORE.IN.01: Orphan or no matched rule fallback
+        log.info({ inboxId }, 'No rule matched. Fallback to default completion.');
+
+        await client.query(
+          `INSERT INTO activity_logs (tenant_id, channel_id, rule_id, event_type, description, metadata)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            tenantId,
+            payload?.channelId || null,
+            null,
+            'no_rule_matched',
+            `No se encontró ninguna regla coincidente. Ejecutando procesamiento por defecto.`,
+            JSON.stringify({ payload })
+          ]
+        );
+
         if (payload?.type === 'audio') {
-          log.info({ inboxId, tenantId, url: payload.s3_url }, 'Executing Audio Stub (Transducer)');
-          finalPayload = { ...payload, transcription: `[MOCK_AUDIO_TRANSCRIPTION: Audio recibido]` };
+          finalPayload.transcription = `[MOCK_AUDIO_TRANSCRIPTION: Audio recibido (Fallback)]`;
         } else if (payload?.type === 'image') {
-          log.info({ inboxId, tenantId, url: payload.s3_url }, 'Executing Image Stub (Transducer)');
-          finalPayload = { ...payload, transcription: `[MOCK_IMAGE_OCR: Imagen analizada]` };
+          finalPayload.transcription = `[MOCK_IMAGE_OCR: Imagen analizada (Fallback)]`;
         } else if (payload?.type === 'video') {
-          log.info({ inboxId, tenantId, url: payload.s3_url }, 'Executing Video Stub (Transducer)');
-          finalPayload = { ...payload, transcription: `[MOCK_VIDEO: Video recibido y almacenado]` };
+          finalPayload.transcription = `[MOCK_VIDEO: Video recibido y almacenado (Fallback)]`;
         } else if (payload?.type === 'document') {
-          log.info({ inboxId, tenantId, url: payload.s3_url }, 'Executing Document Stub (Transducer)');
-          finalPayload = { ...payload, transcription: `[MOCK_DOCUMENT: Documento recibido y almacenado]` };
+          finalPayload.transcription = `[MOCK_DOCUMENT: Documento recibido y almacenado (Fallback)]`;
+        } else {
+          finalPayload.transcription = `[LLM_FALLBACK: Mensaje recibido: ${payload?.message || ''}]`;
         }
       }
 

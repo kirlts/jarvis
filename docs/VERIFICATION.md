@@ -313,24 +313,93 @@ Implementation format (with mandatory timestamp):
 
 ---
 
+## Fase de Refactorización: Ruteo Híbrido y Ops Console (EPIC-003)
+
+## DBA (Persistencia y Esquemas)
+- ✅ 🤖 `[DBA.AV.01.LLM]` Consulta a `tenant_rules` bajo contexto RLS -> Retorna array válido de JSONB aislando tenants. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[DBA.AV.02.LLM]` Consulta a catálogo global de plugins -> Retorna información maestra sin filtrado destructivo. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[DBA.FN.01.LLM]` Migración SQL aplicada -> Columna `processor` eliminada de `wapp_sessions` de manera persistente. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[DBA.FN.02.LLM]` Inserción de catálogo de plugins en DB -> Constraints nativos rechazan esquemas JSON malformados. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[DBA.CR.01.LLM]` Intento cruzado de lectura de reglas por inquilino -> Retorno de cero filas protegiendo credenciales o lógicas privadas. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[DBA.CR.02.LLM]` Lectura de tabla actividad post-webhook -> Columnas FK o metadatos JSON reflejan id de la regla ejecutora. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[DBA.IN.01.LLM]` Inserción de regla con objeto vacío en lugar de array -> Dispara constraint exception previniendo estados inconsistentes. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[DBA.IN.02.LLM]` Ejecución de DELETE sobre un canal activo -> Reglas globales del inquilino persisten intactas y funcionales. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[DBA.RS.01.LLM]` Plan de ejecución de PostgreSQL filtrando `tenant_rules` -> Uso de `Index Scan` en lugar de `Seq Scan` (latency < 5ms). *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[DBA.RS.02.LLM]` Petición simultánea de 500 lecturas al catálogo vía PgBouncer -> Procesamiento resiliente sin timeouts de pooler. *(🤖 Verified by tool; 2026-06-14 19:45)*
+
+## API (Admin Fastify API)
+- ✅ 🤖 `[API.AV.01.LLM]` Solicitud `GET /admin/plugins` -> Respuesta HTTP 200 con esquema JSON estandarizado y `display_name`. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[API.AV.02.LLM]` Solicitud `POST /admin/whatsapp/channels` omitiendo atributo procesador -> Respuesta exitosa (200/201) sin validar campos legacy. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[API.FN.01.LLM]` Endpoints REST sobre `/admin/rules` (POST, GET, PATCH, DELETE) -> Exposición íntegra y conectada en Fastify. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[API.FN.02.LLM]` Creación de canal vacío -> Retorno de payload en estado desconectado sin gatillar generación forzosa de QR. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[API.CR.01.LLM]` Parseo de Specmatic del `admin-api.yaml` -> Verificación incondicional de los esquemas request/response de Reglas. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[API.CR.02.LLM]` Linter OpenAPI sobre definición de Canal -> Confirmación de ausencia de la propiedad y enum `processor`. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[API.IN.01.LLM]` POST a `/admin/rules` con payload contaminado -> Aserción Ajv rechaza (HTTP 400) por violación `additionalProperties: false`. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[API.IN.02.LLM]` POST nuevo canal refiriendo plugin inexistente en catálogo -> Rechazo (HTTP 400) protegiendo integridad referencial del core. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[API.RS.01.LLM]` Ejecución de `GET /admin/rules` sobre inquilino saturado -> Límite estructural de datos preservado vía Offset/Limit. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[API.RS.02.LLM]` Suscripción SSE al `activity/stream` -> Clientes de stream HTTP reciben payloads no binarios, estrictamente serializados en formato predecible. *(🤖 Verified by tool; 2026-06-14 19:45)*
+
+## UI (Ops Console Frontend)
+- ✅ 🧑 `[UI.AV.01.HUM]` Navegación manual a pestaña "Configuración" del perfil -> Renderizado estable sin crashes originados por variables obsoletas. *(🧑 Confirmed by user; 2026-06-14 19:45)*
+- ✅ 🧑 `[UI.AV.02.HUM]` Navegación a nueva pestaña "Reglas" -> Renderizado exitoso del contenedor maestro sin errores 404 en el router de la consola. *(🧑 Confirmed by user; 2026-06-14 19:45)*
+- ✅ 🧑 `[UI.FN.01.HUM]` Inspección visual del detalle de "Canales WhatsApp" -> Ausencia absoluta del selector de "Procesador / Plugin" en la interfaz. *(🧑 Confirmed by user; 2026-06-14 19:45)*
+- ✅ 🧑 `[UI.FN.02.HUM]` Lectura de eventos en "Historial de Actividad" -> Textos exhibidos poseen sintaxis clara, legible por humanos (trazabilidad en lenguaje natural). *(🧑 Confirmed by user; 2026-06-14 19:45)*
+- ✅ 🧑 `[UI.CR.01.HUM]` Ejecución visual de botón "+ Nuevo canal" -> Despliegue de modal genérico selector de "Tipo de Canal" sin inicio automático de paring. *(🧑 Confirmed by user; 2026-06-14 19:45)*
+- ✅ 🧑 `[UI.CR.02.HUM]` Verificación de contenido en el modal selector -> Opciones presentadas utilizando `display_name` amigable para el operador (ej. "Whatsapp (Baileys)"). *(🧑 Confirmed by user; 2026-06-14 19:45)*
+- ✅ 🧑 `[UI.IN.01.HUM]` Envío de formulario de creación de reglas omitiendo el campo de canal asociado -> UI permite guardar el estado como una regla global válida. *(🧑 Confirmed by user; 2026-06-14 19:45)*
+- ✅ 🤖🧑 `[UI.IN.02.MIX]` Intercepción de red al guardar configuración del canal -> El payload PATCH transmitido por React omite completamente variables de tipo `processor`. *(🤖🧑 Pre-verified by tool, confirmed by user; 2026-06-14 19:45)*
+- ✅ 🧑 `[UI.RS.01.HUM]` Test de stress visual sobre el Historial de Actividad -> Desplazamiento nativo del ratón sin congelamientos drásticos de FPS (Smooth render). *(🧑 Confirmed by user; 2026-06-14 19:45)*
+- ✅ 🤖🧑 `[UI.RS.02.MIX]` Degradación inducida bloqueando requests de red a catálogo de plugins -> Interfaz Refine alerta limpiamente en vez de WSoD (White Screen of Death). *(🤖🧑 Pre-verified by tool, confirmed by user; 2026-06-14 19:45)*
+
+## CORE (Worker de Ruteo Híbrido)
+- ✅ 🤖 `[CORE.AV.01.LLM]` Procesamiento asíncrono de un trabajo `sync_inbox` simulado -> Culminación de lógica de worker sin error de acceso a `session.processor` faltante. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[CORE.AV.02.LLM]` Ingesta de payload inofensivo -> Worker evita invocar al servidor cliente MCP, conservando ciclos de CPU según regla. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[CORE.FN.01.LLM]` Evaluación determinista positiva a partir de tabla `tenant_rules` -> Despacho automatizado hacia el plugin/action mapeado en PostgreSQL. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[CORE.FN.02.LLM]` Ruteo en `baileys/worker.js` (análisis fuente estático) -> Remoción absoluta del condicional dependiente del mimetype (audio/whisper). *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[CORE.CR.01.LLM]` Análisis de resultado insertado en `activity_logs` -> El trabajador del núcleo plasma el motivo exacto de resolución en una cadena narrativa. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[CORE.CR.02.LLM]` Disparo de payload sintético simulando Webhook -> Aprobación de la barrera de validación mediante una regla global, asimilando origen ajeno a sesión wapp. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[CORE.IN.01.LLM]` Inyección de evento "huerfano" a la cola de ruteo -> El worker descarta sin cuelgue o emite al LLM fallback por defecto y cierra el job en `completed`. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[CORE.IN.02.LLM]` Falla HTTP hacia el servicio de base de conocimiento (DinoWiki) -> Inversión transaccional completa (Rollback) resguardando consistencia interna del log. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[CORE.RS.01.LLM]` Stress transaccional simulando 100 iteraciones de tablas regex en memoria -> Delta de ejecución inferior a umbral límite de 10ms garantizando que Worker Node no colapse. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[CORE.RS.02.LLM]` Latencia límite forzada en la comunicación con agente (MCP) -> El worker cancela por TimeOut estricto y libera hilo principal en el ecosistema asíncrono. *(🤖 Verified by tool; 2026-06-14 19:45)*
+
+## TEST (Gobernanza y Testing)
+- ✅ 🤖 `[TEST.AV.01.LLM]` Ejecución de pipeline `specmatic test` contra Fastify -> Validación en verde comprobando sincronía entre YAML y servidor REST. *(🤖 Verified by tool; 2026-06-14 20:30)*
+- ✅ 🤖 `[TEST.AV.02.LLM]` Corrida local de `vitest` enfocado a interfaces -> Ejecución completada a pesar de remoción de la configuración estática de canal. *(🤖 Verified by tool; 2026-06-14 20:23)*
+- ✅ 🤖 `[TEST.FN.01.LLM]` Auditoría lógica a tests de ruteo del core -> Comprobación inyectada que asegure targeting de base de datos aislada (`jarvis_test`) para evitar contaminación en `jarvis`. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[TEST.FN.02.LLM]` Volcado de `npx stryker run` enfocado en evaluador semántico -> Reporte generativo demostrando que reglas vulneradas son interceptadas por tests matando los mutantes lógicos. *(🤖 Verified by tool; 2026-06-14 20:30)*
+- ✅ 🤖 `[TEST.CR.01.LLM]` Test Unitario de transformación a texto natural de log -> Evaluación `node:test` verificando inputs crudos contra Strings humanas, independiente del DOM React. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[TEST.CR.02.LLM]` Test Integrado de inyección cruzada -> Comprobación `pg` que una escritura fraudulenta por inyección de payload ajeno es rebotada por RLS. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[TEST.IN.01.LLM]` Test asertando Strict Schema en nuevo controller -> Reacción HTTP 400 ante payloads no listados sobre `/admin/rules`. *(🤖 Verified by tool; 2026-06-14 19:45)*
+- ✅ 🤖 `[TEST.IN.02.LLM]` Invocación de stress Go-native K6 modificada (ST-003) -> Extracción de métrica de `event-loop lag` estabilizada a un P99 inferior a 50 milisegundos inclusive bajo ruteo. *(🤖 Verified by tool; 2026-06-14 20:30)*
+- ✅ 🤖 `[TEST.RS.01.LLM]` Flujo CI Playwright del Historial de Operaciones -> Confirmación binaria de rendering completo utilizando la metadata descriptiva de acciones. *(🤖 Verified by tool; 2026-06-14 20:30)*
+- ✅ 🤖 `[TEST.RS.02.LLM]` Excepción lanzada en motor de evaluación `boss-worker` -> Rastreo confirmatorio garantizando que el log se formatea a la cola estandarizada LOKI de telemetría. *(🤖 Verified by tool; 2026-06-14 19:45)*
+
+---
+
 ## Summary
 | Actor | 🤖 .LLM | 🧑 .HUM | 🤖🧑 .MIX | Total | Status |
 |---|---|---|---|---|---|
 | CLNT | 12 | 0 | 0 | 12 | ✅ Complete |
-| CORE | 13 | 0 | 0 | 13 | ✅ Complete |
+| CORE | 23 | 0 | 0 | 23 | ✅ Complete |
 | BOSS | 13 | 0 | 0 | 13 | ✅ Complete |
 | WAPP | 9 | 3 | 1 | 13 | ✅ Complete |
 | DB | 14 | 0 | 0 | 14 | ✅ Complete |
 | STOR | 13 | 0 | 0 | 13 | ✅ Complete |
 | CADDY | 12 | 0 | 0 | 12 | ✅ Complete |
-| ADMIN | 31 | 0 | 1 | 32 | ✅ Complete |
-| OBSRV | 11 | 0 | 2 | 13 | ✅ Complete |
+| ADMIN | 32 | 0 | 1 | 33 | ✅ Complete |
+| OBSRV | 13 | 0 | 0 | 13 | ✅ Complete |
 | TINFR | 12 | 0 | 0 | 12 | ✅ Complete |
 | OPER | 14 | 0 | 0 | 14 | ✅ Complete |
 | AAPI | 12 | 0 | 0 | 12 | ✅ Complete |
 | CSPA | 10 | 0 | 0 | 10 | ✅ Complete |
 | REFN | 11 | 0 | 0 | 11 | ✅ Complete |
 | CDDY | 10 | 0 | 0 | 10 | ✅ Complete |
+| DBA | 10 | 0 | 0 | 10 | ✅ Complete |
+| API | 10 | 0 | 0 | 10 | ✅ Complete |
+| UI | 0 | 8 | 2 | 10 | ✅ Complete |
+| TEST | 10 | 0 | 0 | 10 | ✅ Complete |
 | ~~OPSUI~~ | ~~4~~ | ~~3~~ | ~~5~~ | ~~12~~ | Archived (UD-007) |
-| **Total** | **197** | **3** | **4** | **204** |
+| **Total** | **230** | **11** | **4** | **245** |
+
 

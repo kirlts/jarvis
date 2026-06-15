@@ -205,6 +205,9 @@ export function DashboardPage() {
         <div
           className="dashboard-card"
           id="dashboard-card-inbox"
+          onClick={() => navigate('/operaciones?tab=bandeja')}
+          role="button"
+          tabIndex={0}
           style={
             summary.inbox.pending > 1000
               ? { borderColor: 'var(--danger)' }

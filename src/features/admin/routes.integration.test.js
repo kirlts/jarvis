@@ -982,6 +982,37 @@ describe('Admin Routes – Integration (Testcontainers PG 17)', () => {
       assert.strictEqual(res.statusCode, 400);
     });
   });
-});
 
+  // ── GET /admin/audit ──────────────────────────────────────────────────
+  test('GET /admin/audit filters by tenant_id correctly (resolving 500 error)', async () => {
+    // Create a tenant
+    const tRes = await app.inject({
+      method: 'POST',
+      url: '/admin/tenants',
+      headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+      payload: { name: `Audit Tenant ${Date.now()}` },
+    });
+    const tenantId = tRes.json().id;
+
+    // Direct insert into admin_audit_log
+    const logId = '01900000-0000-7000-8000-000000000888';
+    await directPool.query(
+      `INSERT INTO admin_audit_log (id, action, resource, resource_id, details, actor)
+       VALUES ($1, 'test_action', 'test_resource', $2, jsonb_build_object('tenant_id', $3::text), 'system')`,
+      [logId, tenantId, tenantId]
+    );
+
+    // Hit the endpoint
+    const res = await app.inject({
+      method: 'GET',
+      url: `/admin/audit?tenant_id=${tenantId}&limit=50`,
+      headers: { authorization: 'Bearer test' },
+    });
+
+    assert.strictEqual(res.statusCode, 200);
+    const body = res.json();
+    assert.ok(body.data.length >= 1, 'Should find at least one audit log');
+  });
+
+});
 

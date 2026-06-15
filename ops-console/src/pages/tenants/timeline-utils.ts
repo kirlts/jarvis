@@ -98,11 +98,23 @@ export function buildTimelineEvents(
   auditData: any[] | null | undefined,
   jobsData: any[] | null | undefined,
   inboxData: any[] | null | undefined,
-  channels: any[] = []
+  channels: any[] = [],
+  activityData?: any[] | null | undefined
 ): TimelineEvent[] {
   const evts: TimelineEvent[] = [];
 
   const getChannelName = (id: string) => channels.find(c => c.id === id)?.name || id;
+
+  if (activityData) {
+    evts.push(...activityData.map((i: any) => ({
+      type: 'actividad',
+      id: i.id,
+      date: i.created_at,
+      content: i.description,
+      item: i,
+      channelName: i.channel_id ? getChannelName(i.channel_id) : undefined
+    })));
+  }
 
   if (auditData) {
     evts.push(...auditData
@@ -202,8 +214,13 @@ function getGroupKey(evt: TimelineEvent): string | null {
       const to = evt.item.data?.to;
       return to ? `op:send:${to}` : null;
     }
-    // Future: add more job types here if they should group
+    if (!['wapp-send-process', 'core-process-message', 'sync-inbox-process'].includes(name)) {
+      return `admin_action_cluster:${evt.channelName || 'global'}`;
+    }
     return null;
+  }
+  if (evt.type === 'auditoría') {
+    return `admin_action_cluster:${evt.channelName || 'global'}`;
   }
   return null;
 }
@@ -240,6 +257,19 @@ function getGroupLabel(evt: TimelineEvent, count: number): string {
     const to = evt.item.data?.to;
     return `📤 ${count} Mensajes enviados a ${formatJid(to)}`;
   }
+
+  // Admin action cluster
+  if (evt.type === 'auditoría' || evt.type === 'operación') {
+    const allItems = [evt, ...(evt.additionalItems || [])];
+    const types = new Set(allItems.map(e => e.type === 'auditoría' ? e.item.action : e.item.name));
+    
+    if (types.has('create_tenant') || types.has('provision-tenant')) return 'Inicialización de Inquilino';
+    if (types.has('create_channel') || types.has('update_config')) return 'Configuración de Canal';
+    if (types.has('session_started') || types.has('wapp-lifecycle') || types.has('qr_scanned')) return 'Ciclo de Conexión WhatsApp';
+    
+    return `Operación Compuesta (${count} eventos)`;
+  }
+
   return `${count}x ${evt.content}`;
 }
 
@@ -255,8 +285,9 @@ export function groupTimelineEvents(events: TimelineEvent[]): TimelineEvent[] {
       const lastGroup = grouped[grouped.length - 1];
       const lastKey = lastGroup ? getGroupKey(lastGroup) : null;
       const timeDiff = lastGroup ? Math.abs(new Date(lastGroup.date).getTime() - new Date(current.date).getTime()) : Infinity;
+      const maxDiff = currentKey.startsWith('admin_action_cluster') ? 60000 : 5000;
 
-      if (lastGroup && lastKey === currentKey && timeDiff <= 5000) {
+      if (lastGroup && lastKey === currentKey && timeDiff <= maxDiff) {
         if (!lastGroup.additionalItems) {
           lastGroup.additionalItems = [];
         }
@@ -272,6 +303,12 @@ export function groupTimelineEvents(events: TimelineEvent[]): TimelineEvent[] {
 
         const count = 1 + lastGroup.additionalItems.length;
         lastGroup.content = getGroupLabel(lastGroup, count);
+        
+        // Ensure the group type is "acción" if it's an admin cluster
+        if (currentKey.startsWith('admin_action_cluster')) {
+          lastGroup.type = 'acción';
+        }
+        
         continue;
       }
     }

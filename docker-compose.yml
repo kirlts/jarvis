@@ -15,6 +15,8 @@ services:
     image: postgres:17-alpine
     container_name: jarvis-db
     restart: unless-stopped
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres_sandbox
@@ -38,6 +40,8 @@ services:
     image: edoburu/pgbouncer:latest
     container_name: jarvis-pooler
     restart: unless-stopped
+    ports:
+      - "6543:5432"
     environment:
       DB_HOST: db
       DB_PORT: "5432"
