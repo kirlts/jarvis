@@ -31,7 +31,7 @@ Los componentes implementados hasta la fecha incluyen:
 Los siguientes hitos deben cumplirse antes de completar la Fase 1 y planificar el paso a producción:
 
 * Aprobación de la arquitectura y flujo de la consola de operaciones tras sesiones de prueba interactivas.
-* Diseño del sistema de enrutamiento para el centro de agentes. Este sistema conectará solicitudes entrantes con herramientas como servidores Model Context Protocol (MCP), procesamiento de lenguaje natural y scripts locales.
+* Diseño de un motor de enrutamiento agnóstico a los canales de comunicación. Este núcleo determinista orquestará flujos de entrada y los dirigirá hacia sus destinos lógicos, ya sean consultas puramente transaccionales o, de forma opcional, capacidades cognitivas (como LLMs o servidores MCP).
 * Separación de los pools de conexiones de base de datos para separar las cargas de lectura y escritura.
 * Integración de controles automatizados en CI para medir el rendimiento (`EXPLAIN ANALYZE`) en consultas que atraviesan políticas RLS.
 * Despliegue del entorno productivo utilizando Kamal 2 en instancias Oracle ARM.
