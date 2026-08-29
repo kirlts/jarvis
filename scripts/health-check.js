@@ -1,4 +1,15 @@
 #!/usr/bin/env node
+// Los puertos salen del entorno, no escritos acá.
+//
+// Cuando Jarvis convive con otra plataforma en la misma máquina de desarrollo, sus puertos se corren
+// para no chocar, y una comprobación contra un puerto fijo termina midiendo el sistema del
+// vecino. Se cobró el 29-08: esta batería reportaba «database jarvis does not exist» porque
+// estaba hablando con la base de la otra, que sí escucha en el 5432.
+const P = {
+  db: process.env.JARVIS_PUERTO_DB ?? '5432',
+  pooler: process.env.JARVIS_PUERTO_POOLER ?? '6543',
+  storage: process.env.JARVIS_PUERTO_STORAGE ?? '9000',
+};
 
 // Jarvis – Sandbox Infrastructure Health Check
 // Validates: CORE.AV.01, DB.AV.01, STOR.AV.01
@@ -17,7 +28,7 @@ function report(name, ok, detail = '') {
 async function checkPostgres() {
   const client = new pg.Client({
     host: 'localhost',
-    port: 5432,
+    port: Number(P.db),
     user: 'postgres',
     password: 'postgres_sandbox',
     database: 'jarvis',
@@ -26,17 +37,17 @@ async function checkPostgres() {
   try {
     await client.connect();
     const res = await client.query('SELECT version()');
-    report('PostgreSQL (direct:5432)', true, res.rows[0].version.split(',')[0]);
+    report(`PostgreSQL (direct:${P.db})`, true, res.rows[0].version.split(',')[0]);
     await client.end();
   } catch (err) {
-    report('PostgreSQL (direct:5432)', false, err.message);
+    report(`PostgreSQL (direct:${P.db})`, false, err.message);
   }
 }
 
 async function checkPooler() {
   const client = new pg.Client({
     host: 'localhost',
-    port: 6543,
+    port: Number(P.pooler),
     user: 'postgres',
     password: 'postgres_sandbox',
     database: 'jarvis',
@@ -45,28 +56,28 @@ async function checkPooler() {
   try {
     await client.connect();
     await client.query('SELECT 1');
-    report('Pooler (pgbouncer:6543)', true, 'transaction mode');
+    report(`Pooler (pgbouncer:${P.pooler})`, true, 'transaction mode');
     await client.end();
   } catch (err) {
-    report('Pooler (pgbouncer:6543)', false, err.message);
+    report(`Pooler (pgbouncer:${P.pooler})`, false, err.message);
   }
 }
 
 async function checkStorage() {
   try {
-    const res = await fetch('http://localhost:9000/minio/health/live', {
+    const res = await fetch(`http://localhost:${P.storage}/minio/health/live`, {
       signal: AbortSignal.timeout(3000),
     });
-    report('Storage S3 (minio:9000)', res.ok, `HTTP ${res.status}`);
+    report(`Storage S3 (minio:${P.storage})`, res.ok, `HTTP ${res.status}`);
   } catch (err) {
-    report('Storage S3 (minio:9000)', false, err.message);
+    report(`Storage S3 (minio:${P.storage})`, false, err.message);
   }
 }
 
 async function checkTables() {
   const client = new pg.Client({
     host: 'localhost',
-    port: 5432,
+    port: Number(P.db),
     user: 'postgres',
     password: 'postgres_sandbox',
     database: 'jarvis',

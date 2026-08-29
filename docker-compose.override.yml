@@ -1,0 +1,53 @@
+# Puertos desplazados para convivir con otra plataforma en la misma máquina de desarrollo.
+#
+# Esa otra comparte arquitectura con Jarvis, así que las dos piden los mismos nueve puertos: 80,
+# 443, 3000, 3001, 3002, 3100, 5432, 6543 y 9000. Levantar la segunda con los puertos de la
+# primera no da un
+# error claro: da contenedores que no arrancan y un sistema que se ve caído.
+#
+# Acá los puertos de FUERA pasan al rango 4xxx —verificado libre entero antes de elegirlo— y los
+# de dentro quedan igual, así que nada de la configuración interna cambia. El primer intento usó
+# +100 sobre cada uno y el 3100 ya estaba tomado: desplazar a ciegas mueve el choque
+# de lugar en vez de resolverlo. Y se atan a 127.0.0.1, que el compose original no hacía: publicar
+# en todas las interfaces expone la base de datos a cualquiera que alcance la máquina.
+#
+# Cada lista va con `!override` y eso es obligatorio, no estilo: Compose SUMA las listas entre
+# archivos en vez de reemplazarlas, así que sin la marca cada servicio termina pidiendo el puerto
+# nuevo Y el viejo. Se cobró al primer intento: «Bind for 127.0.0.1:9000 failed: port is already
+# allocated», con el 4900 correctamente declarado al lado.
+#
+# Este archivo lo lee `docker compose` solo, sin parámetros extra.
+services:
+  db:
+    ports: !override ["127.0.0.1:4432:5432"]
+  pooler:
+    ports: !override ["127.0.0.1:4543:5432"]
+  storage:
+    ports: !override ["127.0.0.1:4900:9000"]
+  core-api:
+    ports: !override ["127.0.0.1:4000:3000"]
+  ops-console:
+    # Su nginx escucha en 80 dentro del contenedor, no en 3000: su propia comprobación de salud
+    # apunta a 127.0.0.1:80. Con el 3000 el puerto quedaba publicado contra nada.
+    ports: !override ["127.0.0.1:4001:80"]
+    build:
+      # La URL de la API se compila dentro del paquete, y venía como `http://api.jarvis.local`
+      # sin puerto: el navegador pegaba en el 80, que en esta máquina lo tiene otro servicio, y
+      # el fetch
+      # moría con «Failed to fetch» aunque jarvis estuviera funcionando. Vacía significa «el
+      # mismo origen», y el nginx de la consola ya proxea /admin/ al núcleo, así que sirve por
+      # cualquier puerto sin recompilar y sin una sola regla de CORS.
+      args:
+        VITE_API_URL: ""
+  caddy:
+    ports: !override ["127.0.0.1:4080:80", "127.0.0.1:4443:443"]
+  loki:
+    ports: !override ["127.0.0.1:4100:3100"]
+  grafana:
+    ports: !override ["127.0.0.1:4002:3000"]
+  uptime-kuma:
+    ports: !override ["127.0.0.1:4003:3001"]
+
+# Y los mismos puertos para la batería de salud, que corre desde el árbol y no dentro de la red
+# de Docker: sin esto medía el 5432 y el 9000 de la máquina, que son los de la otra plataforma, y
+# concluía que la base de Jarvis no existe. Se lee con `node --env-file`.
