@@ -176,7 +176,7 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {/* A.3 — Estado WhatsApp */}
+        {/* A.3 — Estado Canales */}
         <div
           className="dashboard-card"
           onClick={() => navigate('/usuarios')}
@@ -184,7 +184,7 @@ export function DashboardPage() {
           tabIndex={0}
           id="dashboard-card-whatsapp"
         >
-          <div className="dashboard-card-label">WhatsApp</div>
+          <div className="dashboard-card-label">Canales</div>
           <div className="metric-pills">
             <span className="badge badge-success">{waConnected} Conectados</span>
             {waQrPending > 0 && <span className="badge badge-warning">{waQrPending} QR Pendiente</span>}

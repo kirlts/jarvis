@@ -88,6 +88,7 @@ The traditional pyramid (many unit tests → few integration → fewer E2E) is *
 | Modification of `src/middleware/jwt.js` | Property tests (fast-check: JWT edge cases) + Integration (RLS isolation) |
 | Modification of `src/workers/boss-worker.js` | Integration (Testcontainers pg-boss lifecycle) |
 | Modification of `src/workers/baileys/*` | Integration (Testcontainers PG JSONB auth state) |
+| Modification of `src/lib/cloudevent.js` | Unit tests (CloudEvent TDD suite) + Integration (flow-engine) |
 | Modification of `src/db.js` or `src/config.js` | Full suite (all layers affected) |
 | Modification of SSE endpoints or LISTEN/NOTIFY triggers | Integration (PG direct pool ≠ pooler assertion) |
 | Closing any TASK in EPIC-001 | Stryker mutation audit on affected test files |
@@ -111,6 +112,7 @@ The traditional pyramid (many unit tests → few integration → fewer E2E) is *
 | HP-008 | No `SET LOCAL` injection uses global variables (must be local to transaction) | §4.5 | 🤖 .LLM | `BOSS.FN.03` |
 | HP-009 | Atlas linter rejects `DROP COLUMN` and non-`CONCURRENTLY` index creation | §4.6 | 🤖 .LLM | `DB.IN.02`, `DB.RS.01` |
 | HP-010 | SCRAM-SHA-256 authentication enforced on all PG connections | §4.8 | 🤖 .LLM | `DB.AV.01` |
+| HP-011 | All pg-boss queue payloads use CloudEvent spec 1.0 envelopes; ad-hoc payloads prohibited | §4.13 | 🤖 .LLM | `CANL.FN.01`, `CANL.FN.02`, `MOTR.CR.01` |
 
 ---
 
@@ -152,6 +154,7 @@ The traditional pyramid (many unit tests → few integration → fewer E2E) is *
 | `REG-011` | Storage page did not auto-update when new files were uploaded. The `useList` query was not connected to SSE events. No PG trigger existed on `storage_objects` to fire `NOTIFY tenant_activity`. | PG trigger `trg_storage_objects_activity` added on INSERT. `notify_tenant_activity()` function updated to handle `storage_objects` table. Storage page wired to `useWhatsAppSSE` hook with `query.refetch()` on `activity_update` events. | 2026-05-29 |
 | `REG-012` | Each incoming WhatsApp message produced two events in the Admin Console timeline: one from `sync_inbox` (type `whatsapp`) and one from `pgboss.job` `wapp-lifecycle message_received` (type `operación`). Baileys synthetic `albumMessage` events inflated counts further (1 image → "2 imágenes"). | `buildTimelineEvents` filters `wapp-lifecycle message_received` from jobs feed. `sync_inbox` is the single source of truth for incoming messages. PG trigger `trg_sync_inbox_activity` added for SSE auto-refresh. Pure-function tests in `detail.test.tsx` assert single-image = 1 event. | 2026-05-29 |
 | `REG-013` | `GET /admin/audit?tenant_id=...` returned 500 `operator does not exist: text = uuid` because `tenant_id` was passed as a single SQL parameter `$1` to query both `resource_id` (uuid) and `details->>'tenant_id'` (text), causing PG type inference to fail. | Integration test asserting `GET /admin/audit?tenant_id=...` returns 200 via `Testcontainers`. Route fixed with explicit cast `resource_id::text = $1`. | 2026-06-14 |
+| `REG-014` | Baileys WebSocket failed to connect (statusCode 408) before generating any QR code, but `qrAttemptCount === 0` caused it to fall into the "unknown state" block and abruptly disconnect instead of retrying. | Integration test: simulate `connection.update` with `statusCode=408` and `qrAttemptCount=0`, assert `startSession` is retried after a delay. | 2026-06-20 |
 
 ---
 
@@ -232,12 +235,12 @@ These specs are the **contracts** between the Core and all consumers (Appsmith, 
 
 | Metric | Current Value | Target |
 |---|---|---|
-| Specmatic contract coverage | 60 tests generated (1 pass, 59 fail — 401 auth barrier, requires JWT overlay) | 100% of public endpoints |
+| Specmatic contract coverage | 312 tests (79 pass, 233 expected 4xx, 0 API bugs — schema guardian via ephemeral Testcontainers harness) | 100% of public endpoints |
 | Stryker mutation score | 95.92% (admin routes) | > 80% on business logic |
-| Testcontainers integration coverage | 12 tests (PG 17 real) | All VERIFICATION.md `.LLM` checks |
+| Testcontainers integration coverage | 66 tests (PG 17 real — tenants, channels, contacts, flows, rules, storage, audit, tokens, inbox, jobs) | All VERIFICATION.md `.LLM` checks |
 | fast-check property coverage | 5 tests (~4000 iterations) | All HP-* invariants |
 | K6 stress scenarios | 4/9 core (st-001, st-002, st-003, st-010) | 9/9 (resolves all false positives) |
-| node:test unit coverage | 55 tests (31 admin + 12 integration + 5 property + 4 RLS + 3 inbox) | Pure functions only (schema, config, UUID) |
+| node:test unit coverage | 69 tests (31 admin + 14 CloudEvent TDD + 12 integration + 5 property + 4 RLS + 3 inbox) | Pure functions only (schema, config, UUID, CloudEvent) |
 | Vitest (Ops Console SPA) | 43 tests (6 suites) | All SPA pages with state logic + timeline-utils pure functions (grouping, dedup, formatting) |
 
 ---

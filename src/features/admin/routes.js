@@ -1,3 +1,5 @@
+import { wrapPayload, CE_TYPES } from '../../lib/cloudevent.js';
+import { normalizePhone } from '../../lib/phone.js';
 import pool from '../../db.js';
 import config from '../../config.js';
 import pg from 'pg';
@@ -82,6 +84,59 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
  * @param {import('fastify').FastifyInstance} app
  */
 export async function registerAdminRoutes(app) {
+  // ── Scoped Error Handler for Admin Plugin ─────────────────────────
+  // Fastify encapsulated plugins require their own error handler —
+  // the root app's setErrorHandler does NOT propagate to child scopes.
+  app.setErrorHandler((error, request, reply) => {
+    // PostgreSQL FK constraint violation (23503)
+    if (error.code === '23503') {
+      request.log.warn({ constraint: error.constraint }, 'FK constraint violation');
+      return reply.status(422).send({
+        error: 'Unprocessable Entity',
+        message: `Referenced entity does not exist: ${error.constraint || 'foreign key violation'}`,
+      });
+    }
+    // PostgreSQL invalid enum value (22P02)
+    if (error.code === '22P02') {
+      request.log.warn({ message: error.message }, 'Invalid enum/type value');
+      return reply.status(400).send({ error: 'Bad Request', message: error.message });
+    }
+    // PostgreSQL numeric overflow (22003)
+    if (error.code === '22003') {
+      request.log.warn({ message: error.message }, 'Numeric value out of range');
+      return reply.status(400).send({ error: 'Bad Request', message: error.message });
+    }
+    // PostgreSQL unique violation (23505)
+    if (error.code === '23505') {
+      request.log.warn({ constraint: error.constraint }, 'Unique constraint violation');
+      return reply.status(409).send({
+        error: 'Conflict',
+        message: `Duplicate value: ${error.constraint || 'unique violation'}`,
+      });
+    }
+    // PostgreSQL not-null violation (23502)
+    if (error.code === '23502') {
+      request.log.warn({ column: error.column }, 'Not-null constraint violation');
+      return reply.status(400).send({
+        error: 'Bad Request',
+        message: `Missing required field: ${error.column || 'unknown'}`,
+      });
+    }
+    // PostgreSQL string_data_right_truncation (22001)
+    if (error.code === '22001') {
+      request.log.warn({ message: error.message }, 'String data too long');
+      return reply.status(400).send({ error: 'Bad Request', message: error.message });
+    }
+    // Fastify validation errors
+    if (error.validation) {
+      return reply.status(400).send({ error: 'Bad Request', message: error.message });
+    }
+    request.log.error(error);
+    reply.status(error.statusCode || 500).send({
+      error: error.statusCode ? error.message : 'Internal Server Error',
+    });
+  });
+
   // Enforce admin JWT
   app.addHook('onRequest', async (request, reply) => {
     // Bypass for dev login
@@ -204,12 +259,14 @@ export async function registerAdminRoutes(app) {
         resourceId: id,
         details: { name },
       });
-      await app.boss.send('admin-lifecycle', {
-        event: 'tenant_created',
+      await app.boss.send('admin-lifecycle', wrapPayload(
+          CE_TYPES.ADMIN_LIFECYCLE, 'api/admin',
+          {event: 'tenant_created',
         tenantId: id,
         tenantName: name,
-        actor: request.user?.sub || 'system',
-      });
+        actor: request.user?.sub || 'system',},
+          { tenantid: id }
+        ));
       return reply.status(201).send(result.rows[0]);
     } catch (err) {
       // PostgreSQL unique_violation = 23505
@@ -307,13 +364,15 @@ export async function registerAdminRoutes(app) {
         resourceId: id,
         details: { name, config, status },
       });
-      await app.boss.send('admin-lifecycle', {
-        event: 'tenant_updated',
+      await app.boss.send('admin-lifecycle', wrapPayload(
+          CE_TYPES.ADMIN_LIFECYCLE, 'api/admin',
+          {event: 'tenant_updated',
         tenantId: id,
         tenantName: result.rows[0].name,
         actor: request.user?.sub || 'system',
-        changes: Object.keys(request.body),
-      });
+        changes: Object.keys(request.body),},
+          { tenantid: id }
+        ));
 
       return result.rows[0];
     } catch (err) {
@@ -393,11 +452,13 @@ export async function registerAdminRoutes(app) {
           resource: 'tenant',
           resourceId: id,
         });
-        await app.boss.send('admin-lifecycle', {
-          event: 'tenant_purged',
+        await app.boss.send('admin-lifecycle', wrapPayload(
+          CE_TYPES.ADMIN_LIFECYCLE, 'api/admin',
+          {event: 'tenant_purged',
           tenantId: id,
-          actor: request.user?.sub || 'system',
-        });
+          actor: request.user?.sub || 'system',},
+          { tenantid: id }
+        ));
 
         return reply.status(200).send({ status: 'deleted', id });
       } catch (err) {
@@ -423,11 +484,13 @@ export async function registerAdminRoutes(app) {
       await withAdminClient(async (client) => {
         const check = await client.query('SELECT id FROM wapp_sessions WHERE tenant_id = $1 AND deleted_at IS NULL', [id]);
         for (const row of check.rows) {
-          await app.boss.send('wapp-session-control', {
-            action: 'disconnect',
+          await app.boss.send('wapp-session-control', wrapPayload(
+          CE_TYPES.CHANNEL_WHATSAPP_CONTROL, 'api/admin',
+          {action: 'disconnect',
             tenantId: id,
-            sessionId: row.id
-          });
+            sessionId: row.id},
+          { tenantid: id, channelid: undefined }
+        ));
         }
       });
 
@@ -437,11 +500,13 @@ export async function registerAdminRoutes(app) {
         resource: 'tenant',
         resourceId: id,
       });
-      await app.boss.send('admin-lifecycle', {
-        event: 'tenant_deleted',
+      await app.boss.send('admin-lifecycle', wrapPayload(
+          CE_TYPES.ADMIN_LIFECYCLE, 'api/admin',
+          {event: 'tenant_deleted',
         tenantId: id,
-        actor: request.user?.sub || 'system',
-      });
+        actor: request.user?.sub || 'system',},
+          { tenantid: id }
+        ));
 
       return reply.status(200).send({ status: 'deleted', id });
     }
@@ -485,13 +550,15 @@ export async function registerAdminRoutes(app) {
       resourceId: id,
       details: { status },
     });
-    await app.boss.send('admin-lifecycle', {
-      event: 'tenant_status_changed',
+    await app.boss.send('admin-lifecycle', wrapPayload(
+          CE_TYPES.ADMIN_LIFECYCLE, 'api/admin',
+          {event: 'tenant_status_changed',
       tenantId: id,
       tenantName: result.rows[0].name,
       actor: request.user?.sub || 'system',
-      newStatus: status,
-    });
+      newStatus: status,},
+          { tenantid: id }
+        ));
 
     return reply.status(200).send();
   });
@@ -521,12 +588,14 @@ export async function registerAdminRoutes(app) {
       resource: 'tenant',
       resourceId: id,
     });
-    await app.boss.send('admin-lifecycle', {
-      event: 'tenant_restored',
+    await app.boss.send('admin-lifecycle', wrapPayload(
+          CE_TYPES.ADMIN_LIFECYCLE, 'api/admin',
+          {event: 'tenant_restored',
       tenantId: id,
       tenantName: result.rows[0].name,
-      actor: request.user?.sub || 'system',
-    });
+      actor: request.user?.sub || 'system',},
+          { tenantid: id }
+        ));
 
     return reply.status(200).send();
   });
@@ -588,13 +657,15 @@ export async function registerAdminRoutes(app) {
       resourceId: id,
       details: { ttl_hours: ttl },
     });
-    await app.boss.send('admin-lifecycle', {
-      event: 'token_generated',
+    await app.boss.send('admin-lifecycle', wrapPayload(
+          CE_TYPES.ADMIN_LIFECYCLE, 'api/admin',
+          {event: 'token_generated',
       tenantId: id,
       tenantName: tenant.name,
       actor: request.user?.sub || 'system',
-      ttlHours: ttl,
-    });
+      ttlHours: ttl,},
+          { tenantid: id }
+        ));
 
     return { token };
   });
@@ -739,7 +810,7 @@ export async function registerAdminRoutes(app) {
         type: 'object',
         properties: {
           page:      { type: 'integer', minimum: 1, default: 1 },
-          state:     { type: 'string' },
+          state:     { type: 'string', enum: ['created', 'retry', 'active', 'completed', 'cancelled', 'failed'] },
           tenant_id: { type: 'string' },
           search:    { type: 'string' },
           limit:     { type: 'integer', minimum: 1, default: 50 },
@@ -934,12 +1005,14 @@ export async function registerAdminRoutes(app) {
       details: { state, purged_count: deletedCount },
     });
 
-    await app.boss.send('admin-lifecycle', {
-      event: 'jobs_purged',
+    await app.boss.send('admin-lifecycle', wrapPayload(
+          CE_TYPES.ADMIN_LIFECYCLE, 'api/admin',
+          {event: 'jobs_purged',
       state,
       purgedCount: deletedCount,
-      actor: request.user?.sub || 'system',
-    });
+      actor: request.user?.sub || 'system',},
+          { tenantid: 'unknown' }
+        ));
 
     return { message: 'Jobs purgados correctamente', purgedCount: deletedCount };
   });
@@ -1095,11 +1168,13 @@ export async function registerAdminRoutes(app) {
     });
 
     // Publish event-driven command to baileys worker via pg-boss
-    await app.boss.send('wapp-session-control', {
-      action: 'reconnect',
+    await app.boss.send('wapp-session-control', wrapPayload(
+          CE_TYPES.CHANNEL_WHATSAPP_CONTROL, 'api/admin',
+          {action: 'reconnect',
       tenantId: tenant_id,
-      sessionId
-    });
+      sessionId},
+          { tenantid: tenant_id, channelid: undefined }
+        ));
 
     await logAudit({
       actor: request.user?.sub || 'user',
@@ -1148,11 +1223,13 @@ export async function registerAdminRoutes(app) {
 
     if (sessionId) {
       // Publish event-driven command to baileys worker via pg-boss for async socket teardown
-      await app.boss.send('wapp-session-control', {
-        action: 'disconnect',
+      await app.boss.send('wapp-session-control', wrapPayload(
+          CE_TYPES.CHANNEL_WHATSAPP_CONTROL, 'api/admin',
+          {action: 'disconnect',
         tenantId: tenant_id,
-        sessionId
-      });
+        sessionId},
+          { tenantid: tenant_id, channelid: undefined }
+        ));
     }
 
     await logAudit({
@@ -1331,12 +1408,14 @@ export async function registerAdminRoutes(app) {
       );
     });
 
-    await app.boss.send('wapp-session-control', {
-      action: 'reconnect',
+    await app.boss.send('wapp-session-control', wrapPayload(
+          CE_TYPES.CHANNEL_WHATSAPP_CONTROL, 'api/admin',
+          {action: 'reconnect',
       tenantId: tenant_id,
       sessionId,
-      channelId: channel_id
-    });
+      channelId: channel_id},
+          { tenantid: tenant_id, channelid: channel_id }
+        ));
 
     await logAudit({
       actor: request.user?.sub || 'user',
@@ -1393,12 +1472,14 @@ export async function registerAdminRoutes(app) {
     });
 
     if (sessionId) {
-      await app.boss.send('wapp-session-control', {
-        action: 'disconnect',
+      await app.boss.send('wapp-session-control', wrapPayload(
+          CE_TYPES.CHANNEL_WHATSAPP_CONTROL, 'api/admin',
+          {action: 'disconnect',
         tenantId: tenant_id,
         sessionId,
-        channelId: channel_id
-      });
+        channelId: channel_id},
+          { tenantid: tenant_id, channelid: channel_id }
+        ));
     }
 
     await logAudit({
@@ -1621,11 +1702,13 @@ export async function registerAdminRoutes(app) {
       const { storage_key, tenant_id } = res.rows[0];
       
       if (app.boss) {
-        await app.boss.send('storage-purge', {
-          tenantId: tenant_id,
+        await app.boss.send('storage-purge', wrapPayload(
+          CE_TYPES.STORAGE_PURGE, 'api/admin',
+          {tenantId: tenant_id,
           storageKey: storage_key,
-          requestedBy: 'jarvis_admin'
-        });
+          requestedBy: 'jarvis_admin'},
+          { tenantid: tenant_id }
+        ));
       }
 
       await logAudit({
@@ -1689,11 +1772,13 @@ export async function registerAdminRoutes(app) {
       
       if (app.boss) {
         for (const row of res.rows) {
-          await app.boss.send('storage-purge', {
-            tenantId: row.tenant_id,
+          await app.boss.send('storage-purge', wrapPayload(
+          CE_TYPES.STORAGE_PURGE, 'api/admin',
+          {tenantId: row.tenant_id,
             storageKey: row.storage_key,
-            requestedBy: 'jarvis_admin'
-          });
+            requestedBy: 'jarvis_admin'},
+          { tenantid: row.tenant_id }
+        ));
         }
       }
 
@@ -1722,7 +1807,10 @@ export async function registerAdminRoutes(app) {
     if (ids.length === 0) return reply.status(400).send({ error: 'Bad Request', message: 'No IDs provided' });
     
     if (app.boss) {
-      const jobId = await app.boss.send('storage-zip', { ids, requestedBy: 'jarvis_admin' });
+      const jobId = await app.boss.send('storage-zip', wrapPayload(
+          CE_TYPES.STORAGE_ZIP, 'api/admin',
+          { ids, requestedBy: 'jarvis_admin' }
+        ));
       return reply.status(202).send({ jobId, status: 'processing' });
     } else {
       return reply.status(500).send({ error: 'Internal Error', message: 'pg-boss is disabled' });
@@ -1809,11 +1897,13 @@ export async function registerAdminRoutes(app) {
       resourceId: key,
       details: request.body.value,
     });
-    await app.boss.send('admin-lifecycle', {
-      event: 'config_updated',
+    await app.boss.send('admin-lifecycle', wrapPayload(
+          CE_TYPES.ADMIN_LIFECYCLE, 'api/admin',
+          {event: 'config_updated',
       configKey: key,
-      actor: request.user?.sub || 'system',
-    });
+      actor: request.user?.sub || 'system',},
+          { tenantid: 'unknown' }
+        ));
 
     return reply.status(200).send();
   });
@@ -1954,12 +2044,14 @@ export async function registerAdminRoutes(app) {
         resourceId: jti,
         details: { tenant_id },
       });
-      await app.boss.send('admin-lifecycle', {
-        event: 'token_revoked',
+      await app.boss.send('admin-lifecycle', wrapPayload(
+          CE_TYPES.ADMIN_LIFECYCLE, 'api/admin',
+          {event: 'token_revoked',
         tenantId: tenant_id || null,
         actor: request.user?.sub || 'system',
-        jti,
-      });
+        jti,},
+          { tenantid: tenant_id }
+        ));
 
       return reply.status(201).send();
     } catch (err) {
@@ -2043,6 +2135,11 @@ export async function registerAdminRoutes(app) {
 
     return { status: overallStatus, services: checks, timestamp: new Date().toISOString() };
   });
+
+  // ── [PURGED] /admin/rules endpoints removed ─────────────────────────
+  // The tenant_rules system was replaced by the Motor de Flujos (EPIC-004).
+  // All routing is now managed via /admin/tenants/:id/flows.
+  // Migration 024_drop_tenant_rules.sql drops the table.
 
   // ════════════════════════════════════════════════════════════════════
   // BLOQUE E — Sync Inbox Monitor
@@ -2148,11 +2245,12 @@ export async function registerAdminRoutes(app) {
 
     // Enqueue the pg-boss job so the transactional worker actually reprocesses it
     if (app.boss) {
-      await app.boss.send('sync-inbox-process', {
-        inboxId: id,
+      await app.boss.send('sync-inbox-process', wrapPayload(
+          CE_TYPES.API_SYNC_INBOUND, 'api/admin',
+          {inboxId: id,
         tenantId,
-        payload,
-      }, {
+        payload,}
+        ), {
         retryLimit: 3,
         retryDelay: 5,
         retryBackoff: true,
@@ -2177,256 +2275,6 @@ export async function registerAdminRoutes(app) {
       const res = await client.query('SELECT id, name, display_name, description, fields, created_at FROM plugins ORDER BY display_name ASC');
       return res.rows;
     });
-  });
-
-  // ── GET /admin/rules ────────────────────────────────────────────────
-  app.get('/rules', {
-    schema: {
-      querystring: {
-        type: 'object',
-        properties: {
-          page:      { type: 'integer', minimum: 1, default: 1 },
-          limit:     { type: 'integer', minimum: 1, default: 50 },
-          tenant_id: { type: 'string' },
-        },
-        additionalProperties: false,
-      },
-    },
-  }, async (request, reply) => {
-    const { page, limit, tenant_id } = request.query;
-    const offset = (page - 1) * limit;
-
-    if (tenant_id && !UUID_REGEX.test(tenant_id)) {
-      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid tenant_id UUID format' });
-    }
-
-    return withAdminClient(async (client) => {
-      const conditions = ['deleted_at IS NULL'];
-      const params = [];
-      let paramIdx = 1;
-
-      if (tenant_id) {
-        conditions.push(`tenant_id = $${paramIdx++}`);
-        params.push(tenant_id);
-      }
-
-      const where = `WHERE ${conditions.join(' AND ')}`;
-
-      const countResult = await client.query(
-        `SELECT COUNT(*)::int AS total FROM tenant_rules ${where}`,
-        params
-      );
-      const total = countResult.rows[0].total;
-
-      params.push(limit, offset);
-      const result = await client.query(
-        `SELECT id, tenant_id, channel_id, name, trigger_type, trigger_value, actions, priority, active, created_at, deleted_at 
-         FROM tenant_rules ${where} ORDER BY priority DESC, created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx}`,
-        params
-      );
-
-      return { data: result.rows, meta: { total, page, limit } };
-    });
-  });
-
-  // ── POST /admin/rules ───────────────────────────────────────────────
-  app.post('/rules', {
-    schema: {
-      body: {
-        type: 'object',
-        required: ['tenant_id', 'name', 'trigger_type', 'actions'],
-        properties: {
-          tenant_id:     { type: 'string' },
-          channel_id:    { type: 'string', nullable: true },
-          name:          { type: 'string', minLength: 1, maxLength: 255 },
-          trigger_type:  { type: 'string', enum: ['all', 'regex', 'media_type'] },
-          trigger_value: { type: 'string', nullable: true },
-          actions:       { type: 'array', items: { type: 'object' } },
-          priority:      { type: 'integer', default: 0 },
-          active:        { type: 'boolean', default: true },
-        },
-        additionalProperties: false,
-      },
-    },
-  }, async (request, reply) => {
-    const { tenant_id, channel_id, name, trigger_type, trigger_value, actions, priority, active } = request.body;
-    const id = uuidv7();
-
-    if (!UUID_REGEX.test(tenant_id)) {
-      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid tenant_id UUID format' });
-    }
-    if (channel_id && !UUID_REGEX.test(channel_id)) {
-      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid channel_id UUID format' });
-    }
-    if (!Array.isArray(actions) || actions.length === 0) {
-      return reply.status(400).send({ error: 'Bad Request', message: 'actions must be a non-empty array' });
-    }
-
-    try {
-      const result = await withAdminClient(async (client) => {
-        return client.query(
-          `INSERT INTO tenant_rules (id, tenant_id, channel_id, name, trigger_type, trigger_value, actions, priority, active)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-           RETURNING id, tenant_id, channel_id, name, trigger_type, trigger_value, actions, priority, active, created_at`,
-          [id, tenant_id, channel_id || null, name, trigger_type, trigger_value || null, JSON.stringify(actions), priority, active]
-        );
-      });
-
-      await logAudit({
-        actor: request.user?.sub || 'system',
-        action: 'create_rule',
-        resource: 'tenant_rules',
-        resourceId: id,
-        details: { tenant_id, name, trigger_type, actions },
-      });
-
-      return reply.status(201).send(result.rows[0]);
-    } catch (err) {
-      if (err.message && err.message.includes('chk_tenant_rules_actions_array')) {
-        return reply.status(400).send({ error: 'Bad Request', message: 'actions must be a JSON array' });
-      }
-      throw err;
-    }
-  });
-
-  // ── PATCH /admin/rules/:id ──────────────────────────────────────────
-  app.patch('/rules/:id', {
-    schema: {
-      body: {
-        type: 'object',
-        properties: {
-          name:          { type: 'string', minLength: 1, maxLength: 255 },
-          channel_id:    { type: 'string', nullable: true },
-          trigger_type:  { type: 'string', enum: ['all', 'regex', 'media_type'] },
-          trigger_value: { type: 'string', nullable: true },
-          actions:       { type: 'array', items: { type: 'object' } },
-          priority:      { type: 'integer' },
-          active:        { type: 'boolean' },
-        },
-        additionalProperties: false,
-        minProperties: 1,
-      },
-    },
-  }, async (request, reply) => {
-    const { id } = request.params;
-    if (!UUID_REGEX.test(id)) {
-      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid rule ID UUID format' });
-    }
-
-    const { name, channel_id, trigger_type, trigger_value, actions, priority, active } = request.body;
-
-    if (channel_id && !UUID_REGEX.test(channel_id)) {
-      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid channel_id UUID format' });
-    }
-    if (actions !== undefined && (!Array.isArray(actions) || actions.length === 0)) {
-      return reply.status(400).send({ error: 'Bad Request', message: 'actions must be a non-empty array' });
-    }
-
-    const setClauses = [];
-    const params = [];
-    let paramIdx = 1;
-
-    if (name !== undefined) {
-      setClauses.push(`name = $${paramIdx++}`);
-      params.push(name);
-    }
-    if (channel_id !== undefined) {
-      setClauses.push(`channel_id = $${paramIdx++}`);
-      params.push(channel_id || null);
-    }
-    if (trigger_type !== undefined) {
-      setClauses.push(`trigger_type = $${paramIdx++}`);
-      params.push(trigger_type);
-    }
-    if (trigger_value !== undefined) {
-      setClauses.push(`trigger_value = $${paramIdx++}`);
-      params.push(trigger_value || null);
-    }
-    if (actions !== undefined) {
-      setClauses.push(`actions = $${paramIdx++}`);
-      params.push(JSON.stringify(actions));
-    }
-    if (priority !== undefined) {
-      setClauses.push(`priority = $${paramIdx++}`);
-      params.push(priority);
-    }
-    if (active !== undefined) {
-      setClauses.push(`active = $${paramIdx++}`);
-      params.push(active);
-    }
-
-    params.push(id);
-
-    try {
-      const result = await withAdminClient(async (client) => {
-        return client.query(
-          `UPDATE tenant_rules SET ${setClauses.join(', ')} WHERE id = $${paramIdx} AND deleted_at IS NULL 
-           RETURNING id, tenant_id, channel_id, name, trigger_type, trigger_value, actions, priority, active, created_at`,
-          params
-        );
-      });
-
-      if (result.rowCount === 0) {
-        return reply.status(404).send({ error: 'Not Found', message: 'Rule not found or already deleted' });
-      }
-
-      await logAudit({
-        actor: request.user?.sub || 'system',
-        action: 'update_rule',
-        resource: 'tenant_rules',
-        resourceId: id,
-        details: request.body,
-      });
-
-      return result.rows[0];
-    } catch (err) {
-      if (err.message && err.message.includes('chk_tenant_rules_actions_array')) {
-        return reply.status(400).send({ error: 'Bad Request', message: 'actions must be a JSON array' });
-      }
-      throw err;
-    }
-  });
-
-  // ── DELETE /admin/rules/:id ─────────────────────────────────────────
-  app.delete('/rules/:id', {
-    schema: {
-      querystring: {
-        type: 'object',
-        required: ['confirm'],
-        properties: {
-          confirm: { type: 'string', const: 'true' },
-        },
-        additionalProperties: false,
-      },
-    },
-  }, async (request, reply) => {
-    const { id } = request.params;
-    if (!UUID_REGEX.test(id)) {
-      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid rule ID UUID format' });
-    }
-
-    const result = await withAdminClient(async (client) => {
-      return client.query(
-        'UPDATE tenant_rules SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL RETURNING id, tenant_id',
-        [id]
-      );
-    });
-
-    if (result.rowCount === 0) {
-      return reply.status(404).send({ error: 'Not Found', message: 'Rule not found or already deleted' });
-    }
-
-    const { tenant_id } = result.rows[0];
-
-    await logAudit({
-      actor: request.user?.sub || 'system',
-      action: 'delete_rule',
-      resource: 'tenant_rules',
-      resourceId: id,
-      details: { tenant_id },
-    });
-
-    return reply.status(200).send();
   });
 
   // ── GET /admin/activity ─────────────────────────────────────────────
@@ -2470,12 +2318,669 @@ export async function registerAdminRoutes(app) {
 
       params.push(limit, offset);
       const result = await client.query(
-        `SELECT id, tenant_id, channel_id, rule_id, event_type, description, metadata, created_at 
+        `SELECT id, tenant_id, channel_id, event_type, description, metadata, created_at 
          FROM activity_logs ${where} ORDER BY created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx}`,
         params
       );
 
       return { data: result.rows, meta: { total, page, limit } };
     });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // EPIC-004: Directorio Agnóstico (Contacts + Addresses)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // ── GET /admin/tenants/:id/contacts (paginated) ─────────────────────
+  app.get('/tenants/:id/contacts', {
+    schema: {
+      querystring: {
+        type: 'object',
+        properties: {
+          page:   { type: 'integer', minimum: 1, default: 1 },
+          limit:  { type: 'integer', minimum: 1, default: 20 },
+          search: { type: 'string' },
+        },
+        additionalProperties: false,
+      },
+    },
+  }, async (request, reply) => {
+    const { id } = request.params;
+    if (!UUID_REGEX.test(id)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid UUID format' });
+    }
+
+    const { page, limit, search } = request.query;
+    const offset = (page - 1) * limit;
+
+    return withAdminClient(async (client) => {
+      const conditions = ['c.tenant_id = $1', 'c.deleted_at IS NULL'];
+      const params = [id];
+      let paramIdx = 2;
+
+      if (search) {
+        conditions.push(`c.display_name ILIKE $${paramIdx++}`);
+        params.push(`%${search}%`);
+      }
+
+      const where = `WHERE ${conditions.join(' AND ')}`;
+
+      const countResult = await client.query(
+        `SELECT COUNT(*)::int AS total FROM tenant_contacts c ${where}`,
+        params
+      );
+      const total = countResult.rows[0].total;
+
+      params.push(limit, offset);
+      const result = await client.query(
+        `SELECT c.id, c.tenant_id, c.display_name, c.metadata, c.created_at, c.deleted_at
+         FROM tenant_contacts c ${where}
+         ORDER BY c.created_at DESC
+         LIMIT $${paramIdx++} OFFSET $${paramIdx}`,
+        params
+      );
+
+      // Fetch addresses for all returned contacts
+      if (result.rows.length > 0) {
+        const contactIds = result.rows.map(r => r.id);
+        const addrResult = await client.query(
+          `SELECT id, contact_id, tenant_id, channel_type, address, created_at
+           FROM contact_addresses WHERE contact_id = ANY($1::uuid[])`,
+          [contactIds]
+        );
+        const addrMap = {};
+        for (const addr of addrResult.rows) {
+          if (!addrMap[addr.contact_id]) addrMap[addr.contact_id] = [];
+          addrMap[addr.contact_id].push(addr);
+        }
+        for (const contact of result.rows) {
+          contact.addresses = addrMap[contact.id] || [];
+        }
+      }
+
+      return { data: result.rows, meta: { total, page, limit } };
+    });
+  });
+
+  // ── POST /admin/tenants/:id/contacts ────────────────────────────────
+  app.post('/tenants/:id/contacts', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['display_name'],
+        properties: {
+          display_name: { type: 'string', minLength: 1, maxLength: 255 },
+          metadata: { type: 'object' },
+          addresses: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['channel_type', 'address'],
+              properties: {
+                channel_type: { type: 'string', minLength: 1 },
+                address: { type: 'string', minLength: 1 },
+              },
+              additionalProperties: false,
+            },
+          },
+        },
+        additionalProperties: false,
+      },
+    },
+  }, async (request, reply) => {
+    const { id: tenantId } = request.params;
+    if (!UUID_REGEX.test(tenantId)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid UUID format' });
+    }
+
+    const { display_name, metadata = {}, addresses = [] } = request.body;
+    const contactId = uuidv7();
+
+    try {
+      const contact = await withAdminClient(async (client) => {
+        const res = await client.query(
+          `INSERT INTO tenant_contacts (id, tenant_id, display_name, metadata)
+           VALUES ($1, $2, $3, $4)
+           RETURNING id, tenant_id, display_name, metadata, created_at, deleted_at`,
+          [contactId, tenantId, display_name, JSON.stringify(metadata)]
+        );
+
+        const insertedAddresses = [];
+        for (const addr of addresses) {
+          const addrId = uuidv7();
+          const addrRes = await client.query(
+            `INSERT INTO contact_addresses (id, contact_id, tenant_id, channel_type, address)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING id, contact_id, tenant_id, channel_type, address, created_at`,
+            [addrId, contactId, tenantId, addr.channel_type, addr.channel_type === 'phone' ? normalizePhone(addr.address) : addr.address]
+          );
+          insertedAddresses.push(addrRes.rows[0]);
+        }
+
+        const result = res.rows[0];
+        result.addresses = insertedAddresses;
+        return result;
+      });
+
+      await logAudit({
+        actor: request.user?.sub || 'system',
+        action: 'create_contact',
+        resource: 'tenant_contacts',
+        resourceId: contactId,
+        details: { tenant_id: tenantId, display_name, addressCount: addresses.length },
+      });
+
+      return reply.status(201).send(contact);
+    } catch (err) {
+      if (err.code === '23505') {
+        return reply.status(409).send({ error: 'Conflict', message: 'Duplicate address for this tenant and channel' });
+      }
+      throw err;
+    }
+  });
+
+  // ── GET /admin/tenants/:id/contacts/schema ──────────────────────────
+  // Returns distinct metadata keys across all contacts for this tenant.
+  app.get('/tenants/:id/contacts/schema', async (request, reply) => {
+    const { id } = request.params;
+    if (!UUID_REGEX.test(id)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid UUID format' });
+    }
+
+    return withAdminClient(async (client) => {
+      const result = await client.query(
+        `SELECT DISTINCT jsonb_object_keys(metadata) AS key
+         FROM tenant_contacts
+         WHERE tenant_id = $1 AND deleted_at IS NULL AND metadata != '{}'::jsonb
+         ORDER BY key`,
+        [id]
+      );
+      return { keys: result.rows.map(r => r.key) };
+    });
+  });
+
+  // ── GET /admin/tenants/:id/contacts/:contactId ──────────────────────
+  app.get('/tenants/:id/contacts/:contactId', async (request, reply) => {
+    const { id, contactId } = request.params;
+    if (!UUID_REGEX.test(id) || !UUID_REGEX.test(contactId)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid UUID format' });
+    }
+
+    return withAdminClient(async (client) => {
+      const result = await client.query(
+        `SELECT id, tenant_id, display_name, metadata, created_at, deleted_at
+         FROM tenant_contacts WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+        [contactId, id]
+      );
+      if (result.rows.length === 0) {
+        return reply.status(404).send({ error: 'Not Found' });
+      }
+      const contact = result.rows[0];
+
+      const addrResult = await client.query(
+        `SELECT id, contact_id, tenant_id, channel_type, address, created_at
+         FROM contact_addresses WHERE contact_id = $1`,
+        [contactId]
+      );
+      contact.addresses = addrResult.rows;
+
+      return contact;
+    });
+  });
+
+  // ── PATCH /admin/tenants/:id/contacts/:contactId ────────────────────
+  app.patch('/tenants/:id/contacts/:contactId', {
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          display_name: { type: 'string', minLength: 1, maxLength: 255 },
+          metadata: { type: 'object' },
+        },
+        additionalProperties: false,
+        minProperties: 1,
+      },
+    },
+  }, async (request, reply) => {
+    const { id, contactId } = request.params;
+    if (!UUID_REGEX.test(id) || !UUID_REGEX.test(contactId)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid UUID format' });
+    }
+
+    const { display_name, metadata } = request.body;
+
+    const setClauses = [];
+    const params = [];
+    let paramIdx = 1;
+
+    if (display_name !== undefined) {
+      setClauses.push(`display_name = $${paramIdx++}`);
+      params.push(display_name);
+    }
+    if (metadata !== undefined) {
+      // Merge metadata: existing || new keys override, null values delete keys
+      setClauses.push(`metadata = metadata || $${paramIdx++}`);
+      params.push(JSON.stringify(metadata));
+    }
+
+    params.push(contactId, id);
+
+    const result = await withAdminClient(async (client) => {
+      return client.query(
+        `UPDATE tenant_contacts SET ${setClauses.join(', ')}
+         WHERE id = $${paramIdx++} AND tenant_id = $${paramIdx} AND deleted_at IS NULL
+         RETURNING id, tenant_id, display_name, metadata, created_at, deleted_at`,
+        params
+      );
+    });
+
+    if (result.rowCount === 0) {
+      return reply.status(404).send({ error: 'Not Found' });
+    }
+
+    await logAudit({
+      actor: request.user?.sub || 'system',
+      action: 'update_contact',
+      resource: 'tenant_contacts',
+      resourceId: contactId,
+      details: { display_name, metadata },
+    });
+
+    return result.rows[0];
+  });
+
+  // ── DELETE /admin/tenants/:id/contacts/:contactId ───────────────────
+  app.delete('/tenants/:id/contacts/:contactId', {
+    schema: {
+      querystring: {
+        type: 'object',
+        required: ['confirm'],
+        properties: {
+          confirm: { type: 'string', const: 'true' },
+        },
+        additionalProperties: false,
+      },
+    },
+  }, async (request, reply) => {
+    const { id, contactId } = request.params;
+    if (!UUID_REGEX.test(id) || !UUID_REGEX.test(contactId)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid UUID format' });
+    }
+
+    const result = await withAdminClient(async (client) => {
+      return client.query(
+        `UPDATE tenant_contacts SET deleted_at = now()
+         WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+         RETURNING id`,
+        [contactId, id]
+      );
+    });
+
+    if (result.rowCount === 0) {
+      return reply.status(404).send({ error: 'Not Found' });
+    }
+
+    await logAudit({
+      actor: request.user?.sub || 'system',
+      action: 'delete_contact',
+      resource: 'tenant_contacts',
+      resourceId: contactId,
+      details: { tenant_id: id },
+    });
+
+    return reply.status(200).send({ status: 'deleted', id: contactId });
+  });
+
+  // ── POST /admin/tenants/:id/contacts/:contactId/addresses ───────────
+  app.post('/tenants/:id/contacts/:contactId/addresses', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['channel_type', 'address'],
+        properties: {
+          channel_type: { type: 'string', minLength: 1 },
+          address: { type: 'string', minLength: 1 },
+        },
+        additionalProperties: false,
+      },
+    },
+  }, async (request, reply) => {
+    const { id: tenantId, contactId } = request.params;
+    if (!UUID_REGEX.test(tenantId) || !UUID_REGEX.test(contactId)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid UUID format' });
+    }
+
+    const { channel_type, address } = request.body;
+    const addrId = uuidv7();
+
+    try {
+      const result = await withAdminClient(async (client) => {
+        // Verify contact exists and belongs to tenant
+        const check = await client.query(
+          `SELECT id FROM tenant_contacts WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+          [contactId, tenantId]
+        );
+        if (check.rows.length === 0) {
+          return null;
+        }
+
+        return client.query(
+          `INSERT INTO contact_addresses (id, contact_id, tenant_id, channel_type, address)
+           VALUES ($1, $2, $3, $4, $5)
+           RETURNING id, contact_id, tenant_id, channel_type, address, created_at`,
+          [addrId, contactId, tenantId, channel_type, channel_type === 'phone' ? normalizePhone(address) : address]
+        );
+      });
+
+      if (!result) {
+        return reply.status(404).send({ error: 'Not Found', message: 'Contact not found' });
+      }
+
+      await logAudit({
+        actor: request.user?.sub || 'system',
+        action: 'create_address',
+        resource: 'contact_addresses',
+        resourceId: addrId,
+        details: { contact_id: contactId, channel_type, address },
+      });
+
+      return reply.status(201).send(result.rows[0]);
+    } catch (err) {
+      if (err.code === '23505') {
+        return reply.status(409).send({ error: 'Conflict', message: 'Address already exists for this tenant and channel' });
+      }
+      throw err;
+    }
+  });
+
+  // ── DELETE /admin/tenants/:id/contacts/:contactId/addresses ─────────
+  app.delete('/tenants/:id/contacts/:contactId/addresses', {
+    schema: {
+      querystring: {
+        type: 'object',
+        required: ['address_id'],
+        properties: {
+          address_id: { type: 'string' },
+        },
+        additionalProperties: false,
+      },
+    },
+  }, async (request, reply) => {
+    const { id: tenantId, contactId } = request.params;
+    const { address_id } = request.query;
+
+    if (!UUID_REGEX.test(tenantId) || !UUID_REGEX.test(contactId) || !UUID_REGEX.test(address_id)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid UUID format' });
+    }
+
+    const result = await withAdminClient(async (client) => {
+      return client.query(
+        `DELETE FROM contact_addresses WHERE id = $1 AND contact_id = $2 AND tenant_id = $3 RETURNING id`,
+        [address_id, contactId, tenantId]
+      );
+    });
+
+    if (result.rowCount === 0) {
+      return reply.status(404).send({ error: 'Not Found' });
+    }
+
+    await logAudit({
+      actor: request.user?.sub || 'system',
+      action: 'delete_address',
+      resource: 'contact_addresses',
+      resourceId: address_id,
+      details: { contact_id: contactId, tenant_id: tenantId },
+    });
+
+    return reply.status(200).send({ status: 'deleted', id: address_id });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // EPIC-004: Motor de Flujos (Flow Engine)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // ── GET /admin/tenants/:id/flows (paginated) ────────────────────────
+  app.get('/tenants/:id/flows', {
+    schema: {
+      querystring: {
+        type: 'object',
+        properties: {
+          page:  { type: 'integer', minimum: 1, default: 1 },
+          limit: { type: 'integer', minimum: 1, default: 20 },
+        },
+        additionalProperties: false,
+      },
+    },
+  }, async (request, reply) => {
+    const { id } = request.params;
+    if (!UUID_REGEX.test(id)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid UUID format' });
+    }
+
+    const { page, limit } = request.query;
+    const offset = (page - 1) * limit;
+
+    return withAdminClient(async (client) => {
+      const countResult = await client.query(
+        `SELECT COUNT(*)::int AS total FROM tenant_flows WHERE tenant_id = $1 AND deleted_at IS NULL`,
+        [id]
+      );
+      const total = countResult.rows[0].total;
+
+      const result = await client.query(
+        `SELECT id, tenant_id, name, trigger_type, trigger_config, graph, is_active, created_at, deleted_at
+         FROM tenant_flows
+         WHERE tenant_id = $1 AND deleted_at IS NULL
+         ORDER BY created_at DESC
+         LIMIT $2 OFFSET $3`,
+        [id, limit, offset]
+      );
+
+      return { data: result.rows, meta: { total, page, limit } };
+    });
+  });
+
+  // ── POST /admin/tenants/:id/flows ───────────────────────────────────
+  app.post('/tenants/:id/flows', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['name', 'trigger_type'],
+        properties: {
+          name: { type: 'string', minLength: 1, maxLength: 255 },
+          trigger_type: { type: 'string', enum: ['inbound_channel', 'scheduled', 'webhook', 'manual'] },
+          trigger_config: { type: 'object' },
+          graph: { type: 'object' },
+          is_active: { type: 'boolean' },
+        },
+        additionalProperties: false,
+      },
+    },
+  }, async (request, reply) => {
+    const { id: tenantId } = request.params;
+    if (!UUID_REGEX.test(tenantId)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid UUID format' });
+    }
+
+    const {
+      name,
+      trigger_type,
+      trigger_config = {},
+      graph = { nodes: [], edges: [] },
+      is_active = true,
+    } = request.body;
+    const flowId = uuidv7();
+
+    try {
+      const result = await withAdminClient(async (client) => {
+        return client.query(
+          `INSERT INTO tenant_flows (id, tenant_id, name, trigger_type, trigger_config, graph, is_active)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           RETURNING id, tenant_id, name, trigger_type, trigger_config, graph, is_active, created_at, deleted_at`,
+          [flowId, tenantId, name, trigger_type, JSON.stringify(trigger_config), JSON.stringify(graph), is_active]
+        );
+      });
+
+      await logAudit({
+        actor: request.user?.sub || 'system',
+        action: 'create_flow',
+        resource: 'tenant_flows',
+        resourceId: flowId,
+        details: { tenant_id: tenantId, name, trigger_type },
+      });
+
+      return reply.status(201).send(result.rows[0]);
+    } catch (err) {
+      if (err.code === '23505') {
+        return reply.status(409).send({ error: 'Conflict', message: 'Flow name already exists for this tenant' });
+      }
+      throw err;
+    }
+  });
+
+  // ── GET /admin/tenants/:id/flows/:flowId ────────────────────────────
+  app.get('/tenants/:id/flows/:flowId', async (request, reply) => {
+    const { id, flowId } = request.params;
+    if (!UUID_REGEX.test(id) || !UUID_REGEX.test(flowId)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid UUID format' });
+    }
+
+    const result = await withAdminClient(async (client) => {
+      return client.query(
+        `SELECT id, tenant_id, name, trigger_type, trigger_config, graph, is_active, created_at, deleted_at
+         FROM tenant_flows WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+        [flowId, id]
+      );
+    });
+
+    if (result.rows.length === 0) {
+      return reply.status(404).send({ error: 'Not Found' });
+    }
+
+    return result.rows[0];
+  });
+
+  // ── PATCH /admin/tenants/:id/flows/:flowId ──────────────────────────
+  app.patch('/tenants/:id/flows/:flowId', {
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', minLength: 1, maxLength: 255 },
+          trigger_type: { type: 'string', enum: ['inbound_channel', 'scheduled', 'webhook', 'manual'] },
+          trigger_config: { type: 'object' },
+          graph: { type: 'object' },
+          is_active: { type: 'boolean' },
+        },
+        additionalProperties: false,
+        minProperties: 1,
+      },
+    },
+  }, async (request, reply) => {
+    const { id, flowId } = request.params;
+    if (!UUID_REGEX.test(id) || !UUID_REGEX.test(flowId)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid UUID format' });
+    }
+
+    const { name, trigger_type, trigger_config, graph, is_active } = request.body;
+
+    const setClauses = [];
+    const params = [];
+    let paramIdx = 1;
+
+    if (name !== undefined) {
+      setClauses.push(`name = $${paramIdx++}`);
+      params.push(name);
+    }
+    if (trigger_type !== undefined) {
+      setClauses.push(`trigger_type = $${paramIdx++}`);
+      params.push(trigger_type);
+    }
+    if (trigger_config !== undefined) {
+      setClauses.push(`trigger_config = $${paramIdx++}`);
+      params.push(JSON.stringify(trigger_config));
+    }
+    if (graph !== undefined) {
+      setClauses.push(`graph = $${paramIdx++}`);
+      params.push(JSON.stringify(graph));
+    }
+    if (is_active !== undefined) {
+      setClauses.push(`is_active = $${paramIdx++}`);
+      params.push(is_active);
+    }
+
+    params.push(flowId, id);
+
+    try {
+      const result = await withAdminClient(async (client) => {
+        return client.query(
+          `UPDATE tenant_flows SET ${setClauses.join(', ')}
+           WHERE id = $${paramIdx++} AND tenant_id = $${paramIdx} AND deleted_at IS NULL
+           RETURNING id, tenant_id, name, trigger_type, trigger_config, graph, is_active, created_at, deleted_at`,
+          params
+        );
+      });
+
+      if (result.rowCount === 0) {
+        return reply.status(404).send({ error: 'Not Found' });
+      }
+
+      await logAudit({
+        actor: request.user?.sub || 'system',
+        action: 'update_flow',
+        resource: 'tenant_flows',
+        resourceId: flowId,
+        details: { changes: Object.keys(request.body) },
+      });
+
+      return result.rows[0];
+    } catch (err) {
+      if (err.code === '23505') {
+        return reply.status(409).send({ error: 'Conflict', message: 'Flow name already exists for this tenant' });
+      }
+      throw err;
+    }
+  });
+
+  // ── DELETE /admin/tenants/:id/flows/:flowId ─────────────────────────
+  app.delete('/tenants/:id/flows/:flowId', {
+    schema: {
+      querystring: {
+        type: 'object',
+        required: ['confirm'],
+        properties: {
+          confirm: { type: 'string', const: 'true' },
+        },
+        additionalProperties: false,
+      },
+    },
+  }, async (request, reply) => {
+    const { id, flowId } = request.params;
+    if (!UUID_REGEX.test(id) || !UUID_REGEX.test(flowId)) {
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid UUID format' });
+    }
+
+    const result = await withAdminClient(async (client) => {
+      return client.query(
+        `UPDATE tenant_flows SET deleted_at = now()
+         WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+         RETURNING id`,
+        [flowId, id]
+      );
+    });
+
+    if (result.rowCount === 0) {
+      return reply.status(404).send({ error: 'Not Found' });
+    }
+
+    await logAudit({
+      actor: request.user?.sub || 'system',
+      action: 'delete_flow',
+      resource: 'tenant_flows',
+      resourceId: flowId,
+      details: { tenant_id: id },
+    });
+
+    return reply.status(200).send({ status: 'deleted', id: flowId });
   });
 }

@@ -1,5 +1,8 @@
 // WhatsApp Baileys Worker (Dynamic Sandbox Orchestrator)
 // Constraint: §4.3 Isolated Docker Container, no HTTP blocking
+// Constraint: MASTER-SPEC §2 — All adapter→Core payloads MUST use CloudEvent spec 1.0
+
+import { wrapPayload, isCloudEvent, CE_TYPES } from '../../lib/cloudevent.js';
 
 import { makeWASocket, DisconnectReason, fetchLatestBaileysVersion, downloadMediaMessage, extractMessageContent, getContentType } from '@whiskeysockets/baileys';
 import { createHash } from 'node:crypto';
@@ -154,17 +157,11 @@ export async function startSession(channelId, tenantId, sessionId) {
         // Emit lifecycle job for visibility in Job Queues
         try {
           if (sharedBoss) {
-            await sharedBoss.send('wapp-lifecycle', {
-              event: 'connection_closed',
-              tenantId,
-              sessionId,
-              statusCode,
-              isLoggedOut,
-              hadCredentials,
-              pairingConfigured,
-              qrAttemptCount,
-              channelId,
-            });
+            await sharedBoss.send('wapp-lifecycle', wrapPayload(
+              CE_TYPES.CHANNEL_WHATSAPP_LIFECYCLE, 'adapter/baileys',
+              { event: 'connection_closed', tenantId, sessionId, statusCode, isLoggedOut, hadCredentials, pairingConfigured, qrAttemptCount, channelId },
+              { tenantid: tenantId, channelid: channelId }
+            ));
           }
         } catch (e) { sessionLog.error({ err: e.message }, 'Failed to emit lifecycle job'); }
 
@@ -212,6 +209,13 @@ export async function startSession(channelId, tenantId, sessionId) {
             );
           }
           stopSession(channelId);
+        } else if (qrAttemptCount === 0) {
+          // Connection failed/timed out BEFORE any QR code was generated (e.g. 408 on initial connect).
+          // We should retry connecting so the user actually gets a QR code.
+          sessionLog.info({ statusCode }, 'Connection closed before generating QR, retrying...');
+          stopSession(channelId);
+          // Small delay before retrying
+          setTimeout(() => startSession(channelId, tenantId, sessionId), 2000);
         } else {
           // Unknown scenario: stop but don't auto-reconnect to avoid loops
           sessionLog.warn({ statusCode, hadCredentials, pairingConfigured, qrAttemptCount }, 'Connection closed in unhandled state. Stopping session.');
@@ -244,12 +248,11 @@ export async function startSession(channelId, tenantId, sessionId) {
         // Emit lifecycle job for connection established
         try {
           if (sharedBoss) {
-            await sharedBoss.send('wapp-lifecycle', {
-              event: 'connection_opened',
-              tenantId,
-              sessionId,
-              channelId,
-            });
+            await sharedBoss.send('wapp-lifecycle', wrapPayload(
+              CE_TYPES.CHANNEL_WHATSAPP_LIFECYCLE, 'adapter/baileys',
+              { event: 'connection_opened', tenantId, sessionId, channelId },
+              { tenantid: tenantId, channelid: channelId }
+            ));
           }
         } catch (e) { sessionLog.error({ err: e.message }, 'Failed to emit lifecycle job'); }
       }
@@ -316,10 +319,82 @@ export async function startSession(channelId, tenantId, sessionId) {
               const isMedia = !!mediaMeta;
 
               if (!isMedia) {
+                // ── EPIC-004: Contact directory lookup result holders ──────
+                // Declared at if-block scope so they remain accessible after
+                // the inner try/catch that performs the DB transaction.
+                let contactId = null;
+                let contactMetadata = {};
+                let contactDisplayName = null;
+
                 const client = await pool.connect();
                 try {
                   await client.query('BEGIN');
                   await client.query(`SELECT set_config('request.jwt.claims.tenant_id', $1, true)`, [tenantId]);
+
+                  // ── EPIC-004: Channel direction + visibility checks ──────
+                  const visibility = channelConfig.visibility || 'public';
+                  const direction = channelConfig.direction || 'bidirectional';
+
+                  // Direction guard: skip inbound processing for outbound-only channels
+                  if (direction === 'outbound_only' && !isFromMe) {
+                    sessionLog.info({ from, direction }, 'Discarding inbound message on outbound-only channel');
+                    await client.query('ROLLBACK');
+                    client.release();
+                    continue;
+                  }
+
+                  // ── EPIC-004: Contact directory lookup for private channels ──
+
+                  if (!isFromMe && visibility === 'private') {
+                    // Extract phone number from JID (e.g. "56912345678@s.whatsapp.net" → "56912345678")
+                    const senderPhone = from.replace(/@.*$/, '');
+                    const contactRes = await client.query(
+                      `SELECT ca.contact_id, tc.display_name, tc.metadata
+                       FROM contact_addresses ca
+                       JOIN tenant_contacts tc ON tc.id = ca.contact_id
+                       WHERE ca.tenant_id = $1 AND ca.channel_type = 'phone' AND ca.address = $2
+                         AND tc.deleted_at IS NULL
+                       LIMIT 1`,
+                      [tenantId, senderPhone]
+                    );
+
+                    if (contactRes.rows.length === 0) {
+                      // Unregistered sender on private channel: send fallback and skip
+                      const fallbackMsg = channelConfig.fallback_message || null;
+                      if (fallbackMsg && sharedBoss) {
+                        await sharedBoss.send('wapp-send-process', wrapPayload(
+                          CE_TYPES.CHANNEL_WHATSAPP_MESSAGE_OUTBOUND, 'adapter/baileys',
+                          { to: from, text: fallbackMsg, tenantId, channelId },
+                          { tenantid: tenantId, channelid: channelId }
+                        ));
+                      }
+                      sessionLog.info({ from, visibility }, 'Unregistered sender on private channel, fallback sent');
+                      await client.query('ROLLBACK');
+                      client.release();
+                      continue;
+                    }
+
+                    contactId = contactRes.rows[0].contact_id;
+                    contactDisplayName = contactRes.rows[0].display_name;
+                    contactMetadata = contactRes.rows[0].metadata || {};
+                  } else if (!isFromMe && visibility === 'public') {
+                    // Public channel: try to enrich with contact data if available
+                    const senderPhone = from.replace(/@.*$/, '');
+                    const contactRes = await client.query(
+                      `SELECT ca.contact_id, tc.display_name, tc.metadata
+                       FROM contact_addresses ca
+                       JOIN tenant_contacts tc ON tc.id = ca.contact_id
+                       WHERE ca.tenant_id = $1 AND ca.channel_type = 'phone' AND ca.address = $2
+                         AND tc.deleted_at IS NULL
+                       LIMIT 1`,
+                      [tenantId, senderPhone]
+                    );
+                    if (contactRes.rows.length > 0) {
+                      contactId = contactRes.rows[0].contact_id;
+                      contactDisplayName = contactRes.rows[0].display_name;
+                      contactMetadata = contactRes.rows[0].metadata || {};
+                    }
+                  }
 
                   const status = isFromMe ? 'done' : 'pending';
                   const processedAt = isFromMe ? new Date() : null;
@@ -336,7 +411,10 @@ export async function startSession(channelId, tenantId, sessionId) {
                         sender: from,
                         message: textContent,
                         channelId,
-                        isFromMe
+                        isFromMe,
+                        contact_id: contactId,
+                        contact_display_name: contactDisplayName,
+                        contact_metadata: contactMetadata,
                       }),
                       status,
                       processedAt
@@ -351,30 +429,25 @@ export async function startSession(channelId, tenantId, sessionId) {
                 }
 
                 if (!isFromMe && sharedBoss) {
-                  await sharedBoss.send('sync-inbox-process', {
-                    inboxId: msgId,
-                    tenantId,
-                    payload: { type: 'text', sender: from, message: textContent, channelId }
-                  });
+                  await sharedBoss.send('sync-inbox-process', wrapPayload(
+                    CE_TYPES.CHANNEL_WHATSAPP_MESSAGE_INBOUND, 'adapter/baileys',
+                    { inboxId: msgId, tenantId, payload: {
+                      type: 'text', sender: from, message: textContent, channelId,
+                      contact_id: contactId, contact_metadata: contactMetadata,
+                    }},
+                    { tenantid: tenantId, channelid: channelId, contactid: contactId }
+                  ));
                 }
               }
 
               // Emit lifecycle job for incoming/outgoing message visibility in Job Queues
               try {
                 if (sharedBoss) {
-                  await sharedBoss.send('wapp-lifecycle', {
-                    event: 'message_received',
-                    tenantId,
-                    sessionId,
-                    sender: from,
-                    messageId: msgId,
-                    isFromMe,
-                    pushName: msg.pushName,
-                    type,
-                    textContent,
-                    message: msg,
-                    channelId
-                  });
+                  await sharedBoss.send('wapp-lifecycle', wrapPayload(
+                    CE_TYPES.CHANNEL_WHATSAPP_LIFECYCLE, 'adapter/baileys',
+                    { event: 'message_received', tenantId, sessionId, sender: from, messageId: msgId, isFromMe, pushName: msg.pushName, type, textContent, message: msg, channelId },
+                    { tenantid: tenantId, channelid: channelId }
+                  ));
                 }
               } catch (e) { sessionLog.error({ err: e.message }, 'Failed to emit message lifecycle job'); }
               
@@ -382,6 +455,59 @@ export async function startSession(channelId, tenantId, sessionId) {
                 // ── Universal Media Handling ─────────────────────────────────
                 // MASTER-SPEC §7.5: All media types are intercepted, stored in S3,
                 // and tracked in storage_objects with SHA-256 deduplication.
+
+                // ── Direction + visibility guards (parity with text path) ────
+                const visibility = channelConfig.visibility || 'public';
+                const direction = channelConfig.direction || 'bidirectional';
+
+                if (direction === 'outbound_only' && !isFromMe) {
+                  sessionLog.info({ from, direction, type }, 'Discarding inbound media on outbound-only channel');
+                  continue;
+                }
+
+                // Contact directory lookup (same logic as text path)
+                let contactId = null;
+                let contactMetadata = {};
+
+                if (!isFromMe) {
+                  const senderPhone = from.replace(/@.*$/, '');
+                  const lookupClient = await pool.connect();
+                  try {
+                    await lookupClient.query('BEGIN');
+                    await lookupClient.query(`SELECT set_config('request.jwt.claims.tenant_id', $1, true)`, [tenantId]);
+                    const contactRes = await lookupClient.query(
+                      `SELECT ca.contact_id, tc.display_name, tc.metadata
+                       FROM contact_addresses ca
+                       JOIN tenant_contacts tc ON tc.id = ca.contact_id
+                       WHERE ca.tenant_id = $1 AND ca.channel_type = 'phone' AND ca.address = $2
+                         AND tc.deleted_at IS NULL
+                       LIMIT 1`,
+                      [tenantId, senderPhone]
+                    );
+                    await lookupClient.query('COMMIT');
+
+                    if (visibility === 'private' && contactRes.rows.length === 0) {
+                      const fallbackMsg = channelConfig.fallback_message || null;
+                      if (fallbackMsg && sharedBoss) {
+                        await sharedBoss.send('wapp-send-process', wrapPayload(
+                          CE_TYPES.CHANNEL_WHATSAPP_MESSAGE_OUTBOUND, 'adapter/baileys',
+                          { to: from, text: fallbackMsg, tenantId, channelId },
+                          { tenantid: tenantId, channelid: channelId }
+                        ));
+                      }
+                      sessionLog.info({ from, visibility, type }, 'Unregistered sender media on private channel, fallback sent');
+                      continue;
+                    }
+
+                    if (contactRes.rows.length > 0) {
+                      contactId = contactRes.rows[0].contact_id;
+                      contactMetadata = contactRes.rows[0].metadata || {};
+                    }
+                  } finally {
+                    lookupClient.release();
+                  }
+                }
+
                 // For documents, extract actual mimetype and extension from the payload
                 let ext = mediaMeta.ext;
                 let mimeType = mediaMeta.mime;
@@ -409,6 +535,19 @@ export async function startSession(channelId, tenantId, sessionId) {
                     const status = isFromMe ? 'done' : 'pending';
                     const processedAt = isFromMe ? new Date() : null;
 
+                    // Build consistent payload with contact data
+                    const buildMediaPayload = (s3Url) => ({
+                      type: mediaMeta.category,
+                      s3_url: s3Url,
+                      sender: from,
+                      message: textContent,
+                      channelId,
+                      isFromMe,
+                      contact_id: contactId,
+                      contact_display_name: contactDisplayName,
+                      contact_metadata: contactMetadata,
+                    });
+
                     if (dupCheck.rows.length > 0) {
                       sessionLog.info({ sha256, existingFile: dupCheck.rows[0].file_name }, 'Duplicate content detected, skipping S3 upload');
                       const s3Url = `minio://jarvis-private/${dupCheck.rows[0].storage_key}`;
@@ -418,32 +557,17 @@ export async function startSession(channelId, tenantId, sessionId) {
                         `INSERT INTO sync_inbox (id, tenant_id, payload, status, processed_at)
                          VALUES ($1, $2, $3, $4, $5)
                          ON CONFLICT (id) DO NOTHING`,
-                        [
-                          msgId,
-                          tenantId,
-                          JSON.stringify({
-                            type: mediaMeta.category,
-                            s3_url: s3Url,
-                            sender: from,
-                            message: textContent,
-                            channelId,
-                            isFromMe
-                          }),
-                          status,
-                          processedAt
-                        ]
+                        [msgId, tenantId, JSON.stringify(buildMediaPayload(s3Url)), status, processedAt]
                       );
                       await client.query('COMMIT');
                       client.release();
 
                       if (!isFromMe && sharedBoss) {
-                        const boss = new PgBoss(config.boss.connectionString);
-                        await boss.start();
-                        await boss.send('sync-inbox-process', {
-                          inboxId: msgId, tenantId,
-                          payload: { type: mediaMeta.category, s3_url: s3Url, sender: from, message: textContent, channelId }
-                        });
-                        await boss.stop();
+                        await sharedBoss.send('sync-inbox-process', wrapPayload(
+                          CE_TYPES.CHANNEL_WHATSAPP_MESSAGE_INBOUND, 'adapter/baileys',
+                          { inboxId: msgId, tenantId, payload: buildMediaPayload(s3Url) },
+                          { tenantid: tenantId, channelid: channelId, contactid: contactId }
+                        ));
                       }
                     } else {
                       // Upload to S3 and register in storage_objects
@@ -457,6 +581,7 @@ export async function startSession(channelId, tenantId, sessionId) {
                       
                       const fileId = uuidv7();
                       const fileName = `${msgId}.${ext}`;
+                      const s3Url = `minio://jarvis-private/${key}`;
                       
                       await client.query('BEGIN');
                       await client.query(`SELECT set_config('request.jwt.claims.tenant_id', $1, true)`, [tenantId]);
@@ -465,38 +590,22 @@ export async function startSession(channelId, tenantId, sessionId) {
                          VALUES ($1, $2, $3, $4, $5, $6, 'uploaded', $7)`,
                         [fileId, tenantId, fileName, buffer.length, mimeType, key, sha256]
                       );
-                      const s3Url = `minio://jarvis-private/${key}`;
                       await client.query(
                         `INSERT INTO sync_inbox (id, tenant_id, payload, status, processed_at)
                          VALUES ($1, $2, $3, $4, $5)
                          ON CONFLICT (id) DO NOTHING`,
-                        [
-                          msgId,
-                          tenantId,
-                          JSON.stringify({
-                            type: mediaMeta.category,
-                            s3_url: s3Url,
-                            sender: from,
-                            message: textContent,
-                            channelId,
-                            isFromMe
-                          }),
-                          status,
-                          processedAt
-                        ]
+                        [msgId, tenantId, JSON.stringify(buildMediaPayload(s3Url)), status, processedAt]
                       );
                       await client.query('COMMIT');
                       client.release();
                       sessionLog.info({ s3Url, fileId, sha256, category: mediaMeta.category }, 'Media uploaded to S3 with dedup tracking');
                       
                       if (!isFromMe && sharedBoss) {
-                        const boss = new PgBoss(config.boss.connectionString);
-                        await boss.start();
-                        await boss.send('sync-inbox-process', {
-                          inboxId: msgId, tenantId,
-                          payload: { type: mediaMeta.category, s3_url: s3Url, sender: from, message: textContent, channelId }
-                        });
-                        await boss.stop();
+                        await sharedBoss.send('sync-inbox-process', wrapPayload(
+                          CE_TYPES.CHANNEL_WHATSAPP_MESSAGE_INBOUND, 'adapter/baileys',
+                          { inboxId: msgId, tenantId, payload: buildMediaPayload(s3Url) },
+                          { tenantid: tenantId, channelid: channelId, contactid: contactId }
+                        ));
                       }
                     }
                   } catch (err) {
@@ -539,7 +648,10 @@ export function stopSession(channelId) {
 export async function runOrchestrator() {
   log.info('Starting Asynchronous Event-Driven Baileys Worker...');
 
-  const boss = new PgBoss(config.boss.connectionString);
+  const boss = new PgBoss({
+    connectionString: config.boss.connectionString,
+    newJobCheckIntervalSeconds: config.boss.newJobCheckIntervalSeconds,
+  });
   boss.on('error', (err) => log.error({ err: err.message }, 'pg-boss error in baileys worker'));
   await boss.start();
   sharedBoss = boss;
@@ -571,10 +683,11 @@ export async function runOrchestrator() {
   }
 
   // 2. Consume Outgoing WhatsApp Messages queue
-  const sendOptions = { teamSize: 5, teamConcurrency: 5, newJobCheckInterval: 2000 };
+  const sendOptions = { teamSize: 5, teamConcurrency: 5, newJobCheckInterval: config.boss.newJobCheckIntervalSeconds * 1000 };
   await boss.work('wapp-send-process', sendOptions, async (jobs) => {
     for (const job of jobs) {
-      const { to, text, tenantId, channelId } = job.data;
+      const jobData = isCloudEvent(job.data) ? job.data.data : job.data;
+      const { to, text, tenantId, channelId } = jobData;
       // Resolve session by channelId if provided, fallback to tenantId scan for backward compat
       let session = channelId ? activeSessions.get(channelId) : null;
       if (!session && tenantId) {
@@ -613,10 +726,11 @@ export async function runOrchestrator() {
   });
 
   // 3. Consume Session Control Event Queue (Event-Driven Onboarding/Teardown)
-  const controlOptions = { teamSize: 5, teamConcurrency: 5, newJobCheckInterval: 1000 };
+  const controlOptions = { teamSize: 5, teamConcurrency: 5, newJobCheckInterval: config.boss.newJobCheckIntervalSeconds * 1000 };
   await boss.work('wapp-session-control', controlOptions, async (jobs) => {
     for (const job of jobs) {
-      const { action, tenantId, sessionId, channelId } = job.data;
+      const jobData = isCloudEvent(job.data) ? job.data.data : job.data;
+      const { action, tenantId, sessionId, channelId } = jobData;
       log.info({ action, tenantId, sessionId, channelId }, 'Processing WhatsApp session control job');
 
       // Resolve the channelId: use explicit value, or look it up from the session row

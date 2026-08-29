@@ -67,7 +67,9 @@ describe('Admin Routes – Integration (Testcontainers PG 17)', () => {
         name text,
         state text,
         data jsonb,
-        created_on timestamp with time zone DEFAULT now()
+        created_on timestamp with time zone DEFAULT now(),
+        started_on timestamp with time zone,
+        completed_on timestamp with time zone
       );
     `);
 
@@ -1014,5 +1016,527 @@ describe('Admin Routes – Integration (Testcontainers PG 17)', () => {
     assert.ok(body.data.length >= 1, 'Should find at least one audit log');
   });
 
-});
+  // ── GET /admin/health ───────────────────────────────────────────────
+  test('GET /admin/health returns 200 with status and services', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/admin/health',
+      headers: { authorization: 'Bearer test' },
+    });
+    assert.strictEqual(res.statusCode, 200);
+    const body = res.json();
+    // Health status may be 'unhealthy' or 'degraded' in test env (no Loki/MinIO)
+    // but the structure must be correct
+    assert.ok(body.status, 'Must have status field');
+    assert.ok(body.services, 'Must have services object');
+    assert.ok(body.services.database, 'Must have database service check');
+    assert.strictEqual(body.services.database.status, 'healthy', 'Database must be healthy in test');
+  });
 
+  // ── GET /admin/jobs ─────────────────────────────────────────────────
+  test('GET /admin/jobs returns job list', async () => {
+    // Insert a dummy job
+    await directPool.query(`
+      INSERT INTO pgboss.job (name, state, data, created_on)
+      VALUES ('test-job-integ', 'created', '{}', now())
+      ON CONFLICT DO NOTHING
+    `);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/admin/jobs?page=1&limit=10',
+      headers: { authorization: 'Bearer test' },
+    });
+    assert.strictEqual(res.statusCode, 200);
+    const body = res.json();
+    // The endpoint returns a raw array of jobs
+    assert.ok(Array.isArray(body), 'Must return an array of jobs');
+  });
+
+  // ── GET /admin/plugins ──────────────────────────────────────────────
+  test('GET /admin/plugins returns array of registered plugins', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/admin/plugins',
+      headers: { authorization: 'Bearer test' },
+    });
+    assert.strictEqual(res.statusCode, 200);
+    const body = res.json();
+    assert.ok(Array.isArray(body), 'Must return an array');
+  });
+
+  // ── GET /admin/activity ─────────────────────────────────────────────
+  test('GET /admin/activity returns paginated activity feed', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/admin/activity?page=1&limit=10',
+      headers: { authorization: 'Bearer test' },
+    });
+    assert.strictEqual(res.statusCode, 200);
+    const body = res.json();
+    assert.ok(body.data, 'Must have data array');
+    assert.ok(body.meta, 'Must have meta');
+  });
+
+  // ── GET /admin/config ───────────────────────────────────────────────
+  test('GET /admin/config returns system configuration', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/admin/config',
+      headers: { authorization: 'Bearer test' },
+    });
+    assert.strictEqual(res.statusCode, 200);
+    const body = res.json();
+    assert.ok(typeof body === 'object', 'Must return an object');
+  });
+
+  // ── PATCH /admin/tenants/:id/status ─────────────────────────────────
+  test('PATCH /admin/tenants/:id/status changes tenant status', async () => {
+    const createRes = await app.inject({
+      method: 'POST',
+      url: '/admin/tenants',
+      headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+      payload: { name: `Status Test ${Date.now()}` },
+    });
+    const { id } = createRes.json();
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/admin/tenants/${id}/status`,
+      headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+      payload: { status: 'suspended' },
+    });
+    assert.strictEqual(res.statusCode, 200);
+  });
+
+  // ── POST /admin/tenants/:id/restore ─────────────────────────────────
+  test('POST /admin/tenants/:id/restore revives soft-deleted tenant', async () => {
+    const createRes = await app.inject({
+      method: 'POST',
+      url: '/admin/tenants',
+      headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+      payload: { name: `Restore Test ${Date.now()}` },
+    });
+    const { id } = createRes.json();
+
+    // Soft-delete
+    await app.inject({
+      method: 'DELETE',
+      url: `/admin/tenants/${id}?confirm=true`,
+      headers: { authorization: 'Bearer test' },
+    });
+
+    // Restore
+    const res = await app.inject({
+      method: 'POST',
+      url: `/admin/tenants/${id}/restore`,
+      headers: { authorization: 'Bearer test' },
+    });
+    assert.strictEqual(res.statusCode, 200);
+
+    // Verify active again
+    const getRes = await app.inject({
+      method: 'GET',
+      url: `/admin/tenants/${id}`,
+      headers: { authorization: 'Bearer test' },
+    });
+    assert.strictEqual(getRes.statusCode, 200);
+    assert.strictEqual(getRes.json().deleted_at, null);
+  });
+
+  // ── POST /admin/tenants/:id/token ───────────────────────────────────
+  test('POST /admin/tenants/:id/token generates tenant JWT (or 500 without signing key)', async () => {
+    const createRes = await app.inject({
+      method: 'POST',
+      url: '/admin/tenants',
+      headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+      payload: { name: `Token Test ${Date.now()}` },
+    });
+    const { id } = createRes.json();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/admin/tenants/${id}/token`,
+      headers: { authorization: 'Bearer test' },
+    });
+    // Token generation requires TENANT_JWT_SECRET env var.
+    // In test env it may not exist, so accept 200 (has secret) or 500 (no secret).
+    if (res.statusCode === 200) {
+      const body = res.json();
+      assert.ok(body.token, 'Must return a token');
+    } else {
+      // Expected: no JWT secret configured in ephemeral env
+      assert.strictEqual(res.statusCode, 500);
+    }
+  });
+
+  // ── GET /admin/tenants/:id/stats ────────────────────────────────────
+  test('GET /admin/tenants/:id/stats returns tenant statistics', async () => {
+    const createRes = await app.inject({
+      method: 'POST',
+      url: '/admin/tenants',
+      headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+      payload: { name: `Stats Test ${Date.now()}` },
+    });
+    const { id } = createRes.json();
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/admin/tenants/${id}/stats`,
+      headers: { authorization: 'Bearer test' },
+    });
+    assert.strictEqual(res.statusCode, 200);
+    const body = res.json();
+    assert.ok(typeof body === 'object', 'Must return stats object');
+  });
+
+  // ── Contacts CRUD (EPIC-004) ────────────────────────────────────────
+  describe('Contacts CRUD (EPIC-004)', () => {
+    let tenantId;
+
+    before(async () => {
+      const tRes = await app.inject({
+        method: 'POST',
+        url: '/admin/tenants',
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: `Contacts Tenant ${Date.now()}` },
+      });
+      tenantId = tRes.json().id;
+    });
+
+    test('POST /contacts creates a contact with metadata', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/admin/tenants/${tenantId}/contacts`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { display_name: 'Juan Pérez', metadata: { company: 'ACME', role: 'CEO' } },
+      });
+      assert.strictEqual(res.statusCode, 201);
+      const body = res.json();
+      assert.ok(body.id, 'Must return id');
+      assert.strictEqual(body.display_name, 'Juan Pérez');
+      assert.strictEqual(body.tenant_id, tenantId);
+      assert.deepStrictEqual(body.metadata, { company: 'ACME', role: 'CEO' });
+    });
+
+    test('GET /contacts returns paginated contact list', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/admin/tenants/${tenantId}/contacts?page=1&limit=10`,
+        headers: { authorization: 'Bearer test' },
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const body = res.json();
+      assert.ok(body.data.length >= 1, 'Must have at least one contact');
+      assert.ok(body.meta, 'Must have meta');
+    });
+
+    test('GET /contacts/:contactId returns contact detail', async () => {
+      const createRes = await app.inject({
+        method: 'POST',
+        url: `/admin/tenants/${tenantId}/contacts`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { display_name: 'Detail Contact' },
+      });
+      const contactId = createRes.json().id;
+
+      const res = await app.inject({
+        method: 'GET',
+        url: `/admin/tenants/${tenantId}/contacts/${contactId}`,
+        headers: { authorization: 'Bearer test' },
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.json().display_name, 'Detail Contact');
+    });
+
+    test('PATCH /contacts/:contactId merges metadata', async () => {
+      const createRes = await app.inject({
+        method: 'POST',
+        url: `/admin/tenants/${tenantId}/contacts`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { display_name: 'Merge Test', metadata: { a: 1 } },
+      });
+      const contactId = createRes.json().id;
+
+      const res = await app.inject({
+        method: 'PATCH',
+        url: `/admin/tenants/${tenantId}/contacts/${contactId}`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { metadata: { b: 2 } },
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const body = res.json();
+      assert.ok(body.metadata.b === 2, 'Metadata b must be merged');
+    });
+
+    test('DELETE /contacts/:contactId soft-deletes', async () => {
+      const createRes = await app.inject({
+        method: 'POST',
+        url: `/admin/tenants/${tenantId}/contacts`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { display_name: 'To Be Deleted Contact' },
+      });
+      const contactId = createRes.json().id;
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/admin/tenants/${tenantId}/contacts/${contactId}?confirm=true`,
+        headers: { authorization: 'Bearer test' },
+      });
+      assert.strictEqual(res.statusCode, 200);
+
+      // Verify soft delete
+      const dbResult = await directPool.query('SELECT deleted_at FROM tenant_contacts WHERE id = $1', [contactId]);
+      assert.ok(dbResult.rows[0].deleted_at, 'Must be soft-deleted');
+    });
+
+    test('GET /contacts/schema returns dynamic metadata keys', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/admin/tenants/${tenantId}/contacts/schema`,
+        headers: { authorization: 'Bearer test' },
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const body = res.json();
+      assert.ok(body.keys, 'Must return object with keys array');
+      assert.ok(Array.isArray(body.keys), 'keys must be an array');
+    });
+
+    // ── Contact Addresses ─────────────────────────────────────────────
+    test('POST /addresses creates a contact address', async () => {
+      const contactRes = await app.inject({
+        method: 'POST',
+        url: `/admin/tenants/${tenantId}/contacts`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { display_name: 'Address Test Contact' },
+      });
+      const contactId = contactRes.json().id;
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/admin/tenants/${tenantId}/contacts/${contactId}/addresses`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { channel_type: 'phone', address: '+56912345678' },
+      });
+      assert.strictEqual(res.statusCode, 201);
+      const body = res.json();
+      assert.strictEqual(body.channel_type, 'phone');
+      assert.strictEqual(body.address, '56912345678');
+    });
+
+    test('POST /addresses with duplicate address returns 409', async () => {
+      const contactRes = await app.inject({
+        method: 'POST',
+        url: `/admin/tenants/${tenantId}/contacts`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { display_name: 'Dup Address Contact' },
+      });
+      const contactId = contactRes.json().id;
+
+      const payload = { channel_type: 'phone', address: '+56999999999' };
+
+      await app.inject({
+        method: 'POST',
+        url: `/admin/tenants/${tenantId}/contacts/${contactId}/addresses`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload,
+      });
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/admin/tenants/${tenantId}/contacts/${contactId}/addresses`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload,
+      });
+      assert.strictEqual(res.statusCode, 409);
+    });
+  });
+
+  // ── Flows CRUD (EPIC-004) ───────────────────────────────────────────
+  describe('Flows CRUD (EPIC-004)', () => {
+    let tenantId;
+
+    before(async () => {
+      const tRes = await app.inject({
+        method: 'POST',
+        url: '/admin/tenants',
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: `Flows Tenant ${Date.now()}` },
+      });
+      tenantId = tRes.json().id;
+    });
+
+    test('POST /flows creates a flow with graph JSONB', async () => {
+      const graph = {
+        nodes: [{ id: 'trigger', type: 'trigger' }, { id: 'respond', type: 'send_message' }],
+        edges: [{ source: 'trigger', target: 'respond' }],
+      };
+      const res = await app.inject({
+        method: 'POST',
+        url: `/admin/tenants/${tenantId}/flows`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: 'Welcome Flow', trigger_type: 'inbound_channel', graph },
+      });
+      assert.strictEqual(res.statusCode, 201);
+      const body = res.json();
+      assert.ok(body.id, 'Must return id');
+      assert.strictEqual(body.name, 'Welcome Flow');
+      assert.deepStrictEqual(body.graph, graph);
+    });
+
+    test('GET /flows returns flow list for tenant', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/admin/tenants/${tenantId}/flows?page=1&limit=10`,
+        headers: { authorization: 'Bearer test' },
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const body = res.json();
+      assert.ok(body.data.length >= 1, 'Must have at least one flow');
+    });
+
+    test('GET /flows/:flowId returns flow detail', async () => {
+      const createRes = await app.inject({
+        method: 'POST',
+        url: `/admin/tenants/${tenantId}/flows`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: 'Detail Flow', trigger_type: 'inbound_channel', graph: { nodes: [], edges: [] } },
+      });
+      const flowId = createRes.json().id;
+
+      const res = await app.inject({
+        method: 'GET',
+        url: `/admin/tenants/${tenantId}/flows/${flowId}`,
+        headers: { authorization: 'Bearer test' },
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.json().name, 'Detail Flow');
+    });
+
+    test('PATCH /flows/:flowId updates name and graph', async () => {
+      const createRes = await app.inject({
+        method: 'POST',
+        url: `/admin/tenants/${tenantId}/flows`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: 'Original Flow', trigger_type: 'inbound_channel', graph: { nodes: [], edges: [] } },
+      });
+      const flowId = createRes.json().id;
+
+      const newGraph = { nodes: [{ id: 'n1', type: 'llm' }], edges: [] };
+      const res = await app.inject({
+        method: 'PATCH',
+        url: `/admin/tenants/${tenantId}/flows/${flowId}`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: 'Updated Flow', graph: newGraph },
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.json().name, 'Updated Flow');
+    });
+
+    test('DELETE /flows/:flowId soft-deletes', async () => {
+      const createRes = await app.inject({
+        method: 'POST',
+        url: `/admin/tenants/${tenantId}/flows`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: 'Deletable Flow', trigger_type: 'inbound_channel', graph: { nodes: [], edges: [] } },
+      });
+      const flowId = createRes.json().id;
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/admin/tenants/${tenantId}/flows/${flowId}?confirm=true`,
+        headers: { authorization: 'Bearer test' },
+      });
+      assert.strictEqual(res.statusCode, 200);
+
+      const dbResult = await directPool.query('SELECT deleted_at FROM tenant_flows WHERE id = $1', [flowId]);
+      assert.ok(dbResult.rows[0].deleted_at, 'Must be soft-deleted');
+    });
+
+    test('POST /flows with duplicate name returns 409', async () => {
+      const payload = { name: `Unique Flow ${Date.now()}`, trigger_type: 'inbound_channel', graph: { nodes: [], edges: [] } };
+      await app.inject({
+        method: 'POST',
+        url: `/admin/tenants/${tenantId}/flows`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload,
+      });
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/admin/tenants/${tenantId}/flows`,
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload,
+      });
+      assert.strictEqual(res.statusCode, 409);
+    });
+  });
+
+  // ── [PURGED] Rules CRUD tests (EPIC-003) removed ─────────────────────
+  // The tenant_rules system was replaced by the Motor de Flujos (EPIC-004).
+  // See Flows CRUD tests above for the current routing system tests.
+
+
+  // ── Token management ────────────────────────────────────────────────
+  describe('Token Management', () => {
+    test('GET /admin/tokens/revoked returns revoked token list', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/admin/tokens/revoked?page=1&limit=10',
+        headers: { authorization: 'Bearer test' },
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const body = res.json();
+      assert.ok(body.data, 'Must have data');
+    });
+
+    test('POST /admin/tokens/revoke stores a revoked token', async () => {
+      // Create a tenant to get a valid tenant_id
+      const tRes = await app.inject({
+        method: 'POST',
+        url: '/admin/tenants',
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { name: `Token Revoke Tenant ${Date.now()}` },
+      });
+      const tenantId = tRes.json().id;
+
+      // tokens/revoke requires jti (uuid) and tenant_id
+      const fakeJti = '01900000-0000-7000-8000-00000000aaaa';
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/admin/tokens/revoke',
+        headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+        payload: { jti: fakeJti, tenant_id: tenantId },
+      });
+      assert.strictEqual(res.statusCode, 201);
+    });
+  });
+
+  // ── Inbox reprocess ─────────────────────────────────────────────────
+  test('POST /admin/inbox/:id/reprocess enqueues reprocessing job', async () => {
+    const tRes = await app.inject({
+      method: 'POST',
+      url: '/admin/tenants',
+      headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+      payload: { name: `Reprocess Tenant ${Date.now()}` },
+    });
+    const tenantId = tRes.json().id;
+
+    const inboxId = '01900000-0000-7000-8000-000000000777';
+    await directPool.query(
+      `INSERT INTO sync_inbox (id, tenant_id, payload, status)
+       VALUES ($1, $2, '{"message": "reprocess me"}', 'failed')`,
+      [inboxId, tenantId]
+    );
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/admin/inbox/${inboxId}/reprocess`,
+      headers: { authorization: 'Bearer test' },
+    });
+    // Accept 200 or 202
+    assert.ok([200, 202].includes(res.statusCode), `Expected 200 or 202, got ${res.statusCode}`);
+  });
+
+});

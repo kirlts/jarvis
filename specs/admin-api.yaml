@@ -81,6 +81,8 @@ paths:
           description: Invalid or missing payload
         '401':
           description: Missing or invalid Admin JWT
+        '422':
+          description: Referenced entity does not exist (FK constraint violation)
         '403':
           description: Role is not super_admin
         '409':
@@ -207,10 +209,13 @@ paths:
         in: query
         schema:
           type: string
+          enum: [created, retry, active, completed, cancelled, failed]
+        example: completed
       - name: tenant_id
         in: query
         schema:
           type: string
+        example: '019a0000-0000-7000-8000-000000000001'
       - name: limit
         in: query
         schema:
@@ -387,6 +392,12 @@ paths:
           description: Invalid UUID format
         '401':
           description: Missing or invalid Admin JWT
+        '400':
+          description: Invalid request parameters or data type
+        '409':
+          description: Duplicate value (unique constraint violation)
+        '422':
+          description: Referenced entity does not exist (FK constraint violation)
         '404':
           description: Tenant not found or not deleted
   /admin/tenants/{id}/stats:
@@ -437,6 +448,12 @@ paths:
           description: Invalid UUID format
         '401':
           description: Missing or invalid Admin JWT
+        '400':
+          description: Invalid request parameters or data type
+        '409':
+          description: Duplicate value (unique constraint violation)
+        '422':
+          description: Referenced entity does not exist (FK constraint violation)
         '404':
           description: Tenant not found or deleted
   /admin/whatsapp/status/{tenant_id}/reconnect:
@@ -452,6 +469,7 @@ paths:
         schema:
           type: string
           format: uuid
+          example: '019a0000-0000-7000-8000-000000000001'
       responses:
         '200':
           description: Reconnection initiated
@@ -459,6 +477,12 @@ paths:
           description: Invalid UUID format
         '401':
           description: Missing or invalid Admin JWT
+        '400':
+          description: Invalid request parameters or data type
+        '409':
+          description: Duplicate value (unique constraint violation)
+        '422':
+          description: Referenced entity does not exist (FK constraint violation)
   /admin/whatsapp/status/{tenant_id}:
     delete:
       summary: Disconnect and soft-delete WhatsApp session
@@ -472,6 +496,7 @@ paths:
         schema:
           type: string
           format: uuid
+          example: '019a0000-0000-7000-8000-000000000001'
       - name: confirm
         in: query
         required: true
@@ -486,6 +511,12 @@ paths:
           description: Invalid UUID or missing confirm
         '401':
           description: Missing or invalid Admin JWT
+        '400':
+          description: Invalid request parameters or data type
+        '409':
+          description: Duplicate value (unique constraint violation)
+        '422':
+          description: Referenced entity does not exist (FK constraint violation)
   /admin/whatsapp/status/{tenant_id}/audit:
     get:
       summary: Audit log for a specific WhatsApp channel
@@ -499,6 +530,7 @@ paths:
         schema:
           type: string
           format: uuid
+          example: '019a0000-0000-7000-8000-000000000001'
       responses:
         '200':
           description: Audit entries for the channel
@@ -525,6 +557,7 @@ paths:
         schema:
           type: string
           format: uuid
+          example: '019a0000-0000-7000-8000-000000000001'
       responses:
         '200':
           description: List of channels with session state
@@ -550,6 +583,7 @@ paths:
         schema:
           type: string
           format: uuid
+          example: '019a0000-0000-7000-8000-000000000001'
       requestBody:
         required: true
         content:
@@ -577,6 +611,8 @@ paths:
           description: Invalid payload or UUID
         '401':
           description: Missing or invalid Admin JWT
+        '422':
+          description: Referenced entity does not exist (FK constraint violation)
         '404':
           description: Tenant not found
   /admin/whatsapp/status/{tenant_id}/channels/{channel_id}:
@@ -592,12 +628,14 @@ paths:
         schema:
           type: string
           format: uuid
+          example: '019a0000-0000-7000-8000-000000000001'
       - name: channel_id
         in: path
         required: true
         schema:
           type: string
           format: uuid
+          example: '019a0000-0000-7000-8000-000000000001'
       responses:
         '200':
           description: Channel detail
@@ -623,12 +661,14 @@ paths:
         schema:
           type: string
           format: uuid
+          example: '019a0000-0000-7000-8000-000000000001'
       - name: channel_id
         in: path
         required: true
         schema:
           type: string
           format: uuid
+          example: '019a0000-0000-7000-8000-000000000001'
       requestBody:
         required: true
         content:
@@ -664,12 +704,14 @@ paths:
         schema:
           type: string
           format: uuid
+          example: '019a0000-0000-7000-8000-000000000001'
       - name: channel_id
         in: path
         required: true
         schema:
           type: string
           format: uuid
+          example: '019a0000-0000-7000-8000-000000000001'
       - name: confirm
         in: query
         required: true
@@ -697,12 +739,14 @@ paths:
         schema:
           type: string
           format: uuid
+          example: '019a0000-0000-7000-8000-000000000001'
       - name: channel_id
         in: path
         required: true
         schema:
           type: string
           format: uuid
+          example: '019a0000-0000-7000-8000-000000000001'
       responses:
         '200':
           description: Reconnection enqueued
@@ -723,6 +767,8 @@ paths:
           description: Invalid UUID format
         '401':
           description: Missing or invalid Admin JWT
+        '422':
+          description: Referenced entity does not exist (FK constraint violation)
         '404':
           description: Channel not found
   /admin/audit:
@@ -1014,6 +1060,12 @@ paths:
           description: Config updated
         '401':
           description: Missing or invalid Admin JWT
+        '400':
+          description: Invalid request parameters or data type
+        '409':
+          description: Duplicate value (unique constraint violation)
+        '422':
+          description: Referenced entity does not exist (FK constraint violation)
         '404':
           description: Config key not found
   /admin/tokens/revoked:
@@ -1077,6 +1129,10 @@ paths:
           description: Token revoked
         '401':
           description: Missing or invalid Admin JWT
+        '400':
+          description: Invalid request parameters or data type
+        '422':
+          description: Referenced entity does not exist (FK constraint violation)
         '409':
           description: Token already revoked
   /admin/inbox:
@@ -1156,6 +1212,12 @@ paths:
           description: Invalid UUID format
         '401':
           description: Missing or invalid Admin JWT
+        '400':
+          description: Invalid request parameters or data type
+        '409':
+          description: Duplicate value (unique constraint violation)
+        '422':
+          description: Referenced entity does not exist (FK constraint violation)
         '404':
           description: Inbox item not found
   /admin/dev-login:
@@ -1185,6 +1247,7 @@ paths:
         schema:
           type: string
           format: uuid
+          example: '019a0000-0000-7000-8000-000000000001'
       responses:
         '200':
           description: Presigned URL generated
@@ -1214,6 +1277,7 @@ paths:
         schema:
           type: string
           format: uuid
+          example: '019a0000-0000-7000-8000-000000000001'
       - name: confirm
         in: query
         required: true
@@ -1228,6 +1292,12 @@ paths:
           description: Missing confirm
         '401':
           description: Missing or invalid Admin JWT
+        '400':
+          description: Invalid request parameters or data type
+        '409':
+          description: Duplicate value (unique constraint violation)
+        '422':
+          description: Referenced entity does not exist (FK constraint violation)
         '404':
           description: Object not found
   /admin/storage/batch-urls:
@@ -1272,6 +1342,8 @@ paths:
           description: Invalid payload
         '401':
           description: Missing or invalid Admin JWT
+        '422':
+          description: Referenced entity does not exist (FK constraint violation)
   /admin/storage/bulk-delete:
     post:
       summary: Soft-delete multiple storage objects
@@ -1311,6 +1383,8 @@ paths:
           description: Invalid payload or missing confirm
         '401':
           description: Missing or invalid Admin JWT
+        '422':
+          description: Referenced entity does not exist (FK constraint violation)
   /admin/storage/bulk-download:
     post:
       summary: Enqueue job to generate zip file of selected objects
@@ -1350,6 +1424,8 @@ paths:
           description: Invalid payload
         '401':
           description: Missing or invalid Admin JWT
+        '422':
+          description: Referenced entity does not exist (FK constraint violation)
   /admin/storage/zip/{jobId}/download-url:
     get:
       summary: Generate presigned GET URL for generated zip file
@@ -1363,6 +1439,7 @@ paths:
         schema:
           type: string
           format: uuid
+          example: '019a0000-0000-7000-8000-000000000001'
       responses:
         '200':
           description: Presigned URL generated
@@ -1378,6 +1455,466 @@ paths:
           description: Missing or invalid Admin JWT
         '404':
           description: Zip not found
+  /admin/tenants/{id}/contacts:
+    get:
+      summary: List contacts for a tenant (paginated)
+      operationId: listContacts
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantId'
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: search
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Paginated list of contacts
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Contact'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '400':
+          description: Invalid UUID or pagination params
+        '401':
+          description: Missing or invalid Admin JWT
+    post:
+      summary: Create a contact for a tenant
+      operationId: createContact
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - display_name
+              properties:
+                display_name:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                metadata:
+                  type: object
+                addresses:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                    - channel_type
+                    - address
+                    properties:
+                      channel_type:
+                        type: string
+                        minLength: 1
+                      address:
+                        type: string
+                        minLength: 1
+                    additionalProperties: false
+              additionalProperties: false
+      responses:
+        '201':
+          description: Contact created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '400':
+          description: Invalid payload
+        '401':
+          description: Missing or invalid Admin JWT
+        '409':
+          description: Duplicate address (unique_violation)
+  /admin/tenants/{id}/contacts/{contactId}:
+    get:
+      summary: Get contact detail
+      operationId: getContact
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantId'
+      - name: contactId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          example: '019a0000-0000-7000-8000-000000000040'
+      responses:
+        '200':
+          description: Contact detail with addresses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '404':
+          description: Contact not found
+    patch:
+      summary: Update contact (metadata merge)
+      operationId: updateContact
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantId'
+      - name: contactId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          example: '019a0000-0000-7000-8000-000000000040'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                display_name:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                metadata:
+                  type: object
+              additionalProperties: false
+              minProperties: 1
+      responses:
+        '200':
+          description: Contact updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '404':
+          description: Contact not found
+    delete:
+      summary: Soft-delete a contact (cascades addresses)
+      operationId: deleteContact
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantId'
+      - name: contactId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          example: '019a0000-0000-7000-8000-000000000040'
+      - name: confirm
+        in: query
+        required: true
+        schema:
+          type: string
+          enum:
+          - 'true'
+      responses:
+        '200':
+          description: Contact soft-deleted
+        '404':
+          description: Contact not found
+  /admin/tenants/{id}/contacts/{contactId}/addresses:
+    post:
+      summary: Add an address to a contact
+      operationId: createContactAddress
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantId'
+      - name: contactId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          example: '019a0000-0000-7000-8000-000000000040'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - channel_type
+              - address
+              properties:
+                channel_type:
+                  type: string
+                  minLength: 1
+                address:
+                  type: string
+                  minLength: 1
+              additionalProperties: false
+      responses:
+        '201':
+          description: Address created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactAddress'
+        '409':
+          description: Duplicate address (unique_violation 23505)
+    delete:
+      summary: Delete an address from a contact
+      operationId: deleteContactAddress
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantId'
+      - name: contactId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          example: '019a0000-0000-7000-8000-000000000040'
+      - name: address_id
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Address deleted
+        '404':
+          description: Address not found
+  /admin/tenants/{id}/contacts/schema:
+    get:
+      summary: Dynamic metadata keys (jsonb_object_keys) across all contacts
+      operationId: getContactSchema
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: List of metadata keys
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          description: Missing or invalid Admin JWT
+  /admin/tenants/{id}/flows:
+    get:
+      summary: List flows for a tenant (paginated)
+      operationId: listFlows
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantId'
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      responses:
+        '200':
+          description: Paginated list of flows
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TenantFlow'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Missing or invalid Admin JWT
+    post:
+      summary: Create a flow for a tenant
+      operationId: createFlow
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              - trigger_type
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                trigger_type:
+                  type: string
+                  enum:
+                  - inbound_channel
+                  - scheduled
+                  - webhook
+                  - manual
+                trigger_config:
+                  type: object
+                graph:
+                  type: object
+                is_active:
+                  type: boolean
+              additionalProperties: false
+      responses:
+        '201':
+          description: Flow created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantFlow'
+        '400':
+          description: Invalid payload
+        '409':
+          description: Flow name already exists for tenant
+  /admin/tenants/{id}/flows/{flowId}:
+    get:
+      summary: Get flow detail
+      operationId: getFlow
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantId'
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          example: '019a0000-0000-7000-8000-000000000050'
+      responses:
+        '200':
+          description: Flow detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantFlow'
+        '404':
+          description: Flow not found
+    patch:
+      summary: Update flow (name, graph, trigger, active state)
+      operationId: updateFlow
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantId'
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          example: '019a0000-0000-7000-8000-000000000050'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                trigger_type:
+                  type: string
+                  enum:
+                  - inbound_channel
+                  - scheduled
+                  - webhook
+                  - manual
+                trigger_config:
+                  type: object
+                graph:
+                  type: object
+                is_active:
+                  type: boolean
+              additionalProperties: false
+              minProperties: 1
+      responses:
+        '200':
+          description: Flow updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantFlow'
+        '404':
+          description: Flow not found
+        '409':
+          description: Flow name already exists for tenant
+    delete:
+      summary: Soft-delete a flow
+      operationId: deleteFlow
+      security:
+      - adminBearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantId'
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          example: '019a0000-0000-7000-8000-000000000050'
+      - name: confirm
+        in: query
+        required: true
+        schema:
+          type: string
+          enum:
+          - 'true'
+      responses:
+        '200':
+          description: Flow soft-deleted
+        '404':
+          description: Flow not found
   /admin/plugins:
     get:
       summary: List all plugins in the global catalog
@@ -1395,190 +1932,9 @@ paths:
                   $ref: '#/components/schemas/Plugin'
         '401':
           description: Missing or invalid Admin JWT
-  /admin/rules:
-    get:
-      summary: List routing rules (paginated)
-      operationId: getRules
-      security:
-      - adminBearerAuth: []
-      parameters:
-      - name: page
-        in: query
-        schema:
-          type: integer
-          minimum: 1
-          default: 1
-      - name: limit
-        in: query
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100
-          default: 50
-      - name: tenant_id
-        in: query
-        schema:
-          type: string
-          format: uuid
-      responses:
-        '200':
-          description: List of routing rules
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                - data
-                - meta
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/TenantRule'
-                  meta:
-                    $ref: '#/components/schemas/PaginationMeta'
-        '401':
-          description: Missing or invalid Admin JWT
-    post:
-      summary: Create a routing rule
-      operationId: createRule
-      security:
-      - adminBearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-              - tenant_id
-              - name
-              - trigger_type
-              - actions
-              properties:
-                tenant_id:
-                  type: string
-                  format: uuid
-                channel_id:
-                  type: string
-                  format: uuid
-                  nullable: true
-                name:
-                  type: string
-                  minLength: 1
-                  maxLength: 255
-                trigger_type:
-                  type: string
-                  enum: [all, regex, media_type]
-                trigger_value:
-                  type: string
-                  nullable: true
-                actions:
-                  type: array
-                  items:
-                    type: object
-                priority:
-                  type: integer
-                  default: 0
-                active:
-                  type: boolean
-                  default: true
-              additionalProperties: false
-      responses:
-        '201':
-          description: Rule created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TenantRule'
-        '400':
-          description: Invalid payload or empty actions object/not array
-        '401':
-          description: Missing or invalid Admin JWT
-  /admin/rules/{id}:
-    patch:
-      summary: Update a routing rule
-      operationId: updateRule
-      security:
-      - adminBearerAuth: []
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                  minLength: 1
-                  maxLength: 255
-                channel_id:
-                  type: string
-                  format: uuid
-                  nullable: true
-                trigger_type:
-                  type: string
-                  enum: [all, regex, media_type]
-                trigger_value:
-                  type: string
-                  nullable: true
-                actions:
-                  type: array
-                  items:
-                    type: object
-                priority:
-                  type: integer
-                active:
-                  type: boolean
-              additionalProperties: false
-              minProperties: 1
-      responses:
-        '200':
-          description: Rule updated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TenantRule'
-        '400':
-          description: Invalid payload or empty actions object/not array
-        '401':
-          description: Missing or invalid Admin JWT
-        '404':
-          description: Rule not found
-    delete:
-      summary: Delete a routing rule
-      operationId: deleteRule
-      security:
-      - adminBearerAuth: []
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      - name: confirm
-        in: query
-        required: true
-        schema:
-          type: string
-          enum: ['true']
-      responses:
-        '200':
-          description: Rule deleted
-        '400':
-          description: Missing confirm query parameter
-        '401':
-          description: Missing or invalid Admin JWT
-        '404':
-          description: Rule not found
+  # [PURGED] /admin/rules and /admin/rules/{id} endpoints removed.
+  # The tenant_rules system was replaced by tenant_flows (EPIC-004 Motor de Flujos).
+  # See /admin/tenants/{id}/flows for the current routing system.
   /admin/activity:
     get:
       summary: List activity logs (paginated)
@@ -1604,6 +1960,7 @@ paths:
         schema:
           type: string
           format: uuid
+        example: '019a0000-0000-7000-8000-000000000001'
       responses:
         '200':
           description: List of activity logs
@@ -1632,6 +1989,7 @@ components:
       schema:
         type: string
         format: uuid
+      example: '019a0000-0000-7000-8000-000000000001'
   schemas:
     Tenant:
       type: object
@@ -1797,51 +2155,7 @@ components:
         created_at:
           type: string
           format: date-time
-    TenantRule:
-      type: object
-      required:
-      - id
-      - tenant_id
-      - name
-      - trigger_type
-      - actions
-      - priority
-      - active
-      - created_at
-      properties:
-        id:
-          type: string
-          format: uuid
-        tenant_id:
-          type: string
-          format: uuid
-        channel_id:
-          type: string
-          format: uuid
-          nullable: true
-        name:
-          type: string
-        trigger_type:
-          type: string
-          enum: [all, regex, media_type]
-        trigger_value:
-          type: string
-          nullable: true
-        actions:
-          type: array
-          items:
-            type: object
-        priority:
-          type: integer
-        active:
-          type: boolean
-        created_at:
-          type: string
-          format: date-time
-        deleted_at:
-          type: string
-          format: date-time
-          nullable: true
+    # [PURGED] TenantRule schema removed — replaced by TenantFlow
     ActivityLog:
       type: object
       required:
@@ -1862,7 +2176,7 @@ components:
           type: string
           format: uuid
           nullable: true
-        rule_id:
+        flow_id:
           type: string
           format: uuid
           nullable: true
@@ -1875,6 +2189,102 @@ components:
         created_at:
           type: string
           format: date-time
+    Contact:
+      type: object
+      required:
+      - id
+      - tenant_id
+      - display_name
+      - metadata
+      - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        metadata:
+          type: object
+        addresses:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContactAddress'
+        created_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+    ContactAddress:
+      type: object
+      required:
+      - id
+      - contact_id
+      - tenant_id
+      - channel_type
+      - address
+      - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        contact_id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        channel_type:
+          type: string
+        address:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    TenantFlow:
+      type: object
+      required:
+      - id
+      - tenant_id
+      - name
+      - trigger_type
+      - trigger_config
+      - graph
+      - is_active
+      - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        trigger_type:
+          type: string
+          enum:
+          - inbound_channel
+          - scheduled
+          - webhook
+          - manual
+        trigger_config:
+          type: object
+        graph:
+          type: object
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
   securitySchemes:
     adminBearerAuth:
       type: http

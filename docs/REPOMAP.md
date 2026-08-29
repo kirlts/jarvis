@@ -1,6 +1,6 @@
 # REPOMAP: Jarvis
 
-> Generated: 2026-05-30 03:54:00 (Kairós v3.4.1)  
+> Generated: 2026-06-15 14:32:00 (Kairós v3.4.1)  
 > Purpose: Routing matrix. Defines when the AI is authorized to read each directory or file.
 
 ## Authoring Constraints (Read Before Populating)
@@ -20,12 +20,15 @@
 | `docs/` (excluding `MASTER-SPEC.md`) | Secondary Documentation (Signal 1) | To verify task statuses, update changelogs, trace verification checklists, check historical user decisions, or read visual inventory. |
 | `specs/` | API Specifications (Domain Axiom - Signal 2) | Before modifying or adding endpoints to Fastify backend or before updating dataProvider in React frontend. |
 | `supabase/migrations/` | Database Migrations (Domain Axiom - Signal 3) | Before modifying database structure, schemas, tables, triggers, indexes, or Row-Level Security (RLS) policies. |
-| `src/features/admin/` | Administrative Backend (Architectural Module) | Before modifying or adding endpoints related to tenants, jobs, audit logs, WhatsApp sessions, storage, or configurations. |
+| `Idea/` | Product Vision & Use Cases (Domain Axiom - Signal 3) | Before designing new features, onboarding flows, or validating whether a proposed workflow matches the original user personas (Dino, Medico, Contratista, Coach). |
+| `Research/` | Deep Research Reports (Noise Cluster) | When investigating SRE mitigation strategies, industry patterns, or architectural blind spots documented in prior research sessions. |
+| `src/features/admin/` | Administrative Backend (Architectural Module) | Before modifying or adding endpoints related to tenants, jobs, audit logs, WhatsApp sessions, storage, contacts, flows, or configurations. |
 | `src/features/sync-inbox/` | Core Business Logic (Architectural Module) | Before modifying webhook ingestion, validation schema, or queue processing behavior of inbox items. |
 | `src/features/storage/` | Storage Module (Architectural Module) | Before modifying pre-signed S3 URL generation, multipart upload limits, or orphan file detection. |
-| `src/workers/baileys/` | WhatsApp Communication Worker (Architectural Module) | Before modifying dynamic connection life cycle, QR code generation, or socket events parsing. |
-| `src/workers/` (excluding `baileys/`) | Background Queue Worker (Architectural Module) | Before modifying queue handlers, rollback behaviors, transaction context, or job retry logic. |
-| `ops-console/` | Ops Console Frontend (Architectural Module) | Before modifying frontend pages, dashboard metrics, layout components, data providers, or styling. |
+| `src/workers/baileys/` | WhatsApp Communication Worker (Architectural Module) | Before modifying dynamic connection life cycle, QR code generation, CloudEvent emission, or socket events parsing. |
+| `src/workers/` (excluding `baileys/`) | Background Queue Worker (Architectural Module) | Before modifying queue handlers, flow engine logic, rollback behaviors, transaction context, or job retry logic. |
+| `src/lib/` | Shared Modules (Architectural Module) | Before modifying the CloudEvent factory (`cloudevent.js`), CE_TYPES registry, or any shared utility consumed across multiple workers and features. |
+| `ops-console/` | Ops Console Frontend (Architectural Module) | Before modifying frontend pages, dashboard metrics, layout components, data providers, React Flow builder, Directorio, or styling. |
 | `infrastructure/` | Infrastructure Provisioning (Architectural Module) | Before modifying Loki configs, Grafana provisioning (alerting, dashboards, datasources), or JWT key files. |
 | `scripts/` | Utility Scripts (Noise Cluster) | Before running synthetic checks, provisioning Kuma, running contract/stress tests, or checking files integrity. |
 | `*.*` (Root Configs) | Root Configuration Cluster (Noise Cluster) | Before upgrading npm packages, modifying service networks, altering proxy routing, or customizing mutation test thresholds. |

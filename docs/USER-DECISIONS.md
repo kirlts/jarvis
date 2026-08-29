@@ -646,6 +646,56 @@ Reducir el intervalo de latidos (`heartbeatInterval`) del endpoint Server-Sent E
 - La Ops Console provee un administrador interactivo completo de reglas con soporte a priorización y regex.
 **Reversion conditions:** Si el overhead de consultas SQL complejas de expresiones regulares degrada significativamente la latencia del worker en condiciones de tráfico masivo (1000+ mensajes por segundo), se evaluará migrar a un motor de caché en memoria Redis.
 
+## [UD-037] Directorio Agnóstico de Contactos Desacoplado de Canales
 
+**Date:** 2026-06-15
+**Context:** Los contactos estaban implícitamente definidos por su número de WhatsApp dentro del canal. Esto impedía gestionar contactos multi-canal (un mismo contacto con WhatsApp y email), definir parámetros dinámicos por contacto (tier_cliente, dirección, fecha_contratación), y usar esos parámetros como condiciones de bifurcación en flujos. El usuario requirió explícitamente que los parámetros sean "completamente agnósticos" e independientes del canal.
+**Decision:** Crear dos tablas: `tenant_contacts` (entidad central con `display_name` y `metadata JSONB` libre) y `contact_addresses` (tabla bridge con `channel_type` + `address`, unique constraint por tenant). Los contactos pertenecen al tenant, no al canal. La metadata JSONB permite campos dinámicos de cualquier tipo sin migraciones SQL.
+**Discarded alternatives:**
+- Embeber contactos dentro de la configuración del canal (rechazado por acoplar identidad a protocolo de comunicación)
+- Usar una tabla relacional rígida con columnas predefinidas (rechazado por imposibilitar campos dinámicos por tenant)
+**Consequences:**
+- Cada canal puede ser configurado como público (acepta cualquier remitente) o privado (solo contactos registrados)
+- Los flujos pueden bifurcar por `contact.metadata` (ej. tier_cliente = "premium" → ruta diferente)
+- Se habilita direccionalidad granular por canal (bidireccional, solo entrada, solo salida)
+**Reversion conditions:** Ninguna. La separación identidad/dirección es un principio fundamental de diseño.
 
+## [UD-038] Flujos Visuales con React Flow como Constructor de Pipelines
 
+**Date:** 2026-06-15
+**Context:** El sistema de reglas existente (`tenant_rules` con regex) era funcional pero limitado a un modelo de matching plano (mensaje → acción). El usuario requirió pipelines multi-paso (ej. Trigger → STT → LLM → Responder) con control granular sobre cada prompt, parámetros LLM, y routing por contacto. Además, requirió flujos que NO dependan de un canal de origen (ej. flujos programados, webhooks, manuales).
+**Decision:** Implementar un constructor visual de pipelines con React Flow embebido en la Ops Console. Los grafos se serializan como JSONB en `tenant_flows.graph`. 4 tipos de trigger agnósticos (Canal Entrante, Cron, Webhook, Manual). 6 tipos de nodo (Trigger, Switch, LLM, STT, Enviar Mensaje, Script SQL). Cada nodo LLM tiene rama `on_ai_failure` obligatoria con contingencia determinista. El graph se ejecuta secuencialmente por un worker universal (`flow-engine`).
+**Discarded alternatives:**
+- Mantener el sistema de reglas regex plano (rechazado por no soportar pipelines multi-paso ni triggers no-canal)
+- Usar un motor de workflows externo como Temporal o n8n (rechazado por violar la constraint de Fat Platform / Thin Agent y añadir dependencias SaaS)
+**Consequences:**
+- Los flujos coexisten con las reglas existentes durante la transición
+- El superadmin puede crear workflows complejos sin escribir código
+- Cada prompt y parámetro LLM es configurable granularmente desde un Drawer lateral
+**Reversion conditions:** Si React Flow introduce problemas de rendimiento con grafos de >50 nodos, se evaluará un renderizador custom con Canvas/SVG.
+
+## [UD-039] CloudEvents como Contrato de Intercambio entre Canales y Motor de Flujos
+
+**Date:** 2026-06-15
+**Context:** Los payloads entre adaptadores de canal (Baileys worker) y el Core Worker eran ad-hoc y acoplados a WhatsApp. Para soportar múltiples canales y el Motor de Flujos universal, se necesitaba un contrato de intercambio estandarizado.
+**Decision:** Adoptar CloudEvents como formato de intercambio entre adaptadores de canal y el Motor de Flujos. Cada CloudEvent incluye `contact_id`, `channel_id`, `tenant_id`, y la `metadata` del contacto resuelta desde el Directorio. Los nodos del flujo pasan output entre sí via `CloudEvent.data` (ej. `transcription`, `llm_response`, `sql_result`).
+**Discarded alternatives:**
+- Mantener payloads ad-hoc por canal (rechazado por imposibilitar el motor universal de flujos)
+- Crear un formato propietario (rechazado por existir un estándar CNCF maduro y documentado)
+**Consequences:**
+- Cualquier nuevo canal (Email, Telegram, Slack) solo necesita emitir un CloudEvent para integrarse al Motor de Flujos
+- El Motor de Flujos es completamente agnóstico al protocolo de origen
+**Reversion conditions:** Ninguna. CloudEvents es el estándar CNCF para event-driven architectures.
+
+## [UD-040] Generalización del Lenguaje y Abstracción de Canales en la Ops Console
+
+**Date:** 2026-06-19
+**Context:** En la Ops Console persistían etiquetas, descripciones y referencias explícitas a "WhatsApp" en componentes transversales (como el Dashboard principal y las pestañas de configuración). Dado que el backend migró a un despachador dinámico basado en flujos y canales agnósticos, mantener términos hardcodeados acoplaba la interfaz a un único protocolo.
+**Decision:** Modificar las etiquetas, placeholders y flujos visuales del frontend para reemplazar "WhatsApp" por el término abstracto de "Canales". Se mantienen intactas las llamadas de API que apuntan al namespace de `/admin/whatsapp/status/*` en el backend para preservar la compatibilidad con el pipeline existente.
+**Discarded alternatives:**
+- Cambiar también los endpoints de la API (descartado por incrementar el riesgo de regresión en el backend y el pipeline de sincronización actual sin aportar beneficio al operador humano).
+- Mantener las etiquetas de WhatsApp y documentar la discrepancia (rechazado por violar los mandatos de calidad y no-deuda del proyecto).
+**Consequences:**
+- La Ops Console ahora refleja de manera transparente un entorno iPaaS multicanal y agnóstico.
+- El operador visualiza un concepto uniforme ("Canales") para cualquier tipo de integración (Baileys, Telegram, Webhook).
+**Reversion conditions:** Ninguna. La abstracción de canales es consistente con la evolución arquitectónica hacia flujos.

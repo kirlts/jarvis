@@ -47,6 +47,11 @@ const config = {
   boss: {
     connectionString: process.env.BOSS_DATABASE_URL ||
       `postgresql://postgres:postgres_sandbox@localhost:5432/${defaultDbName}`,
+    // MOTR.RS.01: Low-latency polling for conversational chatbot pipelines.
+    // Default pg-boss polling is 2s per queue hop.  With a 3-hop pipeline
+    // (sync-inbox → flow-execute → wapp-send), worst-case latency is 6s.
+    // 500ms reduces this to ~1.5s while keeping DB load negligible.
+    newJobCheckIntervalSeconds: parseInt(process.env.BOSS_POLL_INTERVAL_MS || '500', 10) / 1000,
   },
 };
 

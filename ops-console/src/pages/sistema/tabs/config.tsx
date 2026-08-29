@@ -26,7 +26,7 @@ const CONFIG_DESCRIPTIONS: Record<string, string> = {
   maintenance_mode: "Bloquea tráfico no-admin y muestra un mensaje personalizado.",
   rate_limits: "Límites globales y por tenant de requests por minuto.",
   retention: "Políticas de retención para logs de auditoría, huérfanos de storage y historial de jobs (días).",
-  features: "Toggles para integración WhatsApp y pipeline de sincronización.",
+  features: "Toggles para la integración de canales y el pipeline de sincronización.",
 };
 
 export function ConfigTab() {

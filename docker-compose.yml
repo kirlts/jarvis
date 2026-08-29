@@ -246,6 +246,30 @@ services:
     networks:
       - jarvis-net
 
+  # ── Flow Engine Worker (EPIC-004: Universal Flow Orchestration) ─────
+  flow-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jarvis-flow-engine
+    command: ["node", "src/workers/flow-engine/flow-engine.js"]
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: postgres_sandbox
+      DB_NAME: jarvis
+      BOSS_DATABASE_URL: "postgresql://postgres:postgres_sandbox@db:5432/jarvis"
+      STORAGE_ENDPOINT: "http://storage:9000"
+      STORAGE_ACCESS_KEY: "minioadmin"
+      STORAGE_SECRET_KEY: "minioadmin_sandbox"
+      STORAGE_BUCKET: "jarvis-files"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - jarvis-net
 
   # ── Ops Console SPA (Refine v5 + Vite + React) ───────────────────────
   # Stateless SPA served by Nginx. No persistent volumes (CSPA.IN.02).

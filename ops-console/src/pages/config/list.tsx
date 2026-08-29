@@ -80,7 +80,7 @@ export function SystemConfigPage() {
     maintenance_mode: "Enable maintenance mode to block non-admin traffic and display a custom message.",
     rate_limits: "Global and per-tenant request rate limits (requests per minute).",
     retention: "Retention policies for audit logs, storage orphans, and job history (days).",
-    features: "Feature toggle switches for WhatsApp integration and sync pipeline.",
+    features: "Feature toggle switches for channel integration and sync pipeline.",
   };
 
   return (

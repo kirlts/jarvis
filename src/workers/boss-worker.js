@@ -1,6 +1,7 @@
 // pg-boss Worker – Independent Process
 // Constraint: §4.7 pg-boss MUST connect directly to PG :5432
 // Constraint: §4.5 Advisory locks require session continuity (no pooler)
+// Constraint: MASTER-SPEC §2 — All messages use CloudEvent spec 1.0
 //
 // Covers: BOSS.AV.01, BOSS.FN.01-03, BOSS.CR.01-03, BOSS.IN.01-03,
 //         BOSS.RS.01-03, DB.RS.02
@@ -8,6 +9,8 @@
 // This file runs as a standalone Node process, completely decoupled
 // from the Fastify HTTP Core. It consumes jobs from sync_inbox
 // via pg-boss and processes them within tenant-isolated transactions.
+
+import { isCloudEvent, wrapPayload, CE_TYPES } from '../lib/cloudevent.js';
 
 import { PgBoss } from 'pg-boss';
 import pg from 'pg';
@@ -20,8 +23,6 @@ import stream from 'stream';
 import { v7 as uuidv7 } from 'uuid';
 import { s3 } from '../features/storage/s3-client.js';
 import config from '../config.js';
-import { exec } from 'child_process';
-import { join } from 'path';
 
 const log = pino({
   transport: {
@@ -48,7 +49,10 @@ if (isTestEnv) {
 }
 
 // BOSS.IN.02: Direct connection to PG :5432, NOT through pooler
-const boss = new PgBoss(config.boss.connectionString);
+const boss = new PgBoss({
+  connectionString: config.boss.connectionString,
+  newJobCheckIntervalSeconds: config.boss.newJobCheckIntervalSeconds,
+});
 
 // Worker-dedicated pool (BOSS.RS.03: max 10 connections)
 const { Pool } = pg;
@@ -64,15 +68,23 @@ workerPool.on('error', (err) => {
 });
 
 /**
- * Process sync inbox jobs within tenant-isolated transactions.
+ * Process sync inbox jobs: dispatch to flow-engine via tenant_flows.
  * BOSS.FN.02: Extracts tenant_id from payload and injects SET LOCAL.
  * BOSS.IN.01: Full rollback on handler error (0 relational inserts).
+ *
+ * The boss-worker acts as a dispatcher bridge:
+ * 1. Receives sync-inbox-process jobs from Baileys adapter
+ * 2. Queries tenant_flows for active inbound_channel flows
+ * 3. Enqueues flow-execute jobs for each matching flow
+ * 4. The flow-engine worker handles actual node execution
  *
  * @param {PgBoss.Job[]} jobs
  */
 async function handleSyncJob(jobs) {
   for (const job of jobs) {
-    const { inboxId, tenantId, payload } = job.data;
+    // CloudEvent unwrapping: if the job payload is a CE envelope, extract the business data
+    const jobData = isCloudEvent(job.data) ? job.data.data : job.data;
+    const { inboxId, tenantId, payload } = jobData;
 
     log.info({ jobId: job.id, inboxId, tenantId }, 'Processing sync job');
 
@@ -92,225 +104,81 @@ async function handleSyncJob(jobs) {
         [inboxId]
       );
 
-      // Fetch active rules sorted by priority descending (exclusively for this tenant due to RLS/where clause)
-      const rulesRes = await client.query(
-        `SELECT id, channel_id, name, trigger_type, trigger_value, actions, priority
-         FROM tenant_rules
-         WHERE tenant_id = $1 AND active = true AND deleted_at IS NULL
-         ORDER BY priority DESC`,
+      // ── Flow Dispatch: query active inbound_channel flows for this tenant ──
+      const flowsRes = await client.query(
+        `SELECT id, name, trigger_type, trigger_config, graph
+         FROM tenant_flows
+         WHERE tenant_id = $1 AND is_active = true AND deleted_at IS NULL
+           AND trigger_type = 'inbound_channel'
+         ORDER BY created_at ASC`,
         [tenantId]
       );
-      const tenantRules = rulesRes.rows;
 
-      let matchedRule = null;
-      const startTime = performance.now();
-      for (const rule of tenantRules) {
-        // If rule specifies a channel, it must match payload's channelId.
-        // If rule has no channel_id, it is a global rule and matches any channel (or lack thereof).
-        if (rule.channel_id && payload?.channelId && rule.channel_id !== payload.channelId) {
+      const channelId = payload?.channelId || null;
+      const contactId = payload?.contact_id || null;
+      let dispatchedCount = 0;
+
+      for (const flow of flowsRes.rows) {
+        const triggerConfig = flow.trigger_config || {};
+
+        // Channel filter: if trigger_config.channel_id is set, only dispatch if it matches
+        if (triggerConfig.channel_id && channelId && triggerConfig.channel_id !== channelId) {
           continue;
         }
 
-        let isMatch = false;
-        if (rule.trigger_type === 'all') {
-          isMatch = true;
-        } else if (rule.trigger_type === 'regex') {
-          if (rule.trigger_value) {
-            try {
-              const regex = new RegExp(rule.trigger_value, 'i');
-              if (regex.test(payload?.message || '')) {
-                isMatch = true;
-              }
-            } catch (regErr) {
-              log.error({ err: regErr.message, ruleId: rule.id }, 'Invalid regex pattern in tenant rule');
-            }
-          }
-        } else if (rule.trigger_type === 'media_type') {
-          if (payload?.type === rule.trigger_value) {
-            isMatch = true;
+        // Contact filter: if trigger_config.allowed_contacts is set, only dispatch if contact_id is in the list
+        if (Array.isArray(triggerConfig.allowed_contacts) && triggerConfig.allowed_contacts.length > 0) {
+          if (!contactId || !triggerConfig.allowed_contacts.includes(contactId)) {
+            continue;
           }
         }
 
-        if (isMatch) {
-          matchedRule = rule;
-          break;
-        }
-      }
-      const matchDuration = performance.now() - startTime;
-      log.info({ matchedRuleId: matchedRule?.id, durationMs: matchDuration }, 'Rule matching evaluation complete');
+        // Dispatch to flow-engine
+        const triggerData = {
+          sender: payload?.sender || null,
+          message: payload?.message || '',
+          type: payload?.type || 'text',
+          s3_url: payload?.s3_url || null,
+          channelId,
+          contact_id: contactId,
+          contact_metadata: payload?.contact_metadata || {},
+          inboxId,
+        };
 
-      let finalPayload = { ...payload };
+        await boss.send('flow-execute', wrapPayload(
+          CE_TYPES.FLOW_TRIGGER, 'worker/boss-worker',
+          { flowId: flow.id, tenantId, triggerData },
+          { tenantid: tenantId, channelid: channelId, contactid: contactId }
+        ));
 
-      if (matchedRule) {
-        const actions = Array.isArray(matchedRule.actions) ? matchedRule.actions : [];
-
-        for (const action of actions) {
-          const { plugin_id, config: actionConfig = {} } = action;
-
-          // CORE.CR.01: Log narrative trace in activity_logs
-          await client.query(
-            `INSERT INTO activity_logs (tenant_id, channel_id, rule_id, event_type, description, metadata)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
-            [
-              tenantId,
-              payload?.channelId || null,
-              matchedRule.id,
-              'rule_matched',
-              `Regla "${matchedRule.name}" coincidente. Ejecutando plugin "${plugin_id}".`,
-              JSON.stringify({ action, payload })
-            ]
-          );
-
-          if (plugin_id === 'antigravity') {
-            const targetProject = actionConfig.target_project || '/home/kirlts/jarvis';
-            const timeoutSec = Number(actionConfig.timeout_sec) || 120;
-            const handlerPath = join(targetProject, 'antigravity-handler.js');
-
-            log.info({ inboxId, tenantId, targetProject, handlerPath }, 'Executing Antigravity CLI Processor');
-
-            // We run the CLI script using Node.js exec within a Promise
-            const executionResult = await new Promise((resolve) => {
-              const childEnv = {
-                ...process.env,
-                JARVIS_SENDER: payload.sender || '',
-                JARVIS_MESSAGE: payload.message || '',
-                JARVIS_MEDIA_TYPE: payload.type || 'text',
-                JARVIS_S3_URL: payload.s3_url || ''
-              };
-
-              const child = exec(
-                `node "${handlerPath}"`,
-                {
-                  cwd: targetProject,
-                  timeout: timeoutSec * 1000,
-                  maxBuffer: 1024 * 1024, // 1MB buffer
-                  env: childEnv
-                },
-                (error, stdout, stderr) => {
-                  if (error) {
-                    log.error({ err: error.message, stderr }, 'Antigravity CLI execution error');
-                    resolve({
-                      success: false,
-                      output: `[Antigravity CLI Error]: ${error.message}${stderr ? `\nStderr: ${stderr}` : ''}`
-                    });
-                  } else {
-                    resolve({
-                      success: true,
-                      output: stdout.trim()
-                    });
-                  }
-                }
-              );
-
-              // Write payload to stdin
-              child.stdin.write(JSON.stringify({
-                inboxId,
-                tenantId,
-                channelId: payload.channelId,
-                channelConfig: actionConfig,
-                sender: payload.sender,
-                message: payload.message,
-                type: payload.type,
-                s3_url: payload.s3_url
-              }));
-              child.stdin.end();
-            });
-
-            finalPayload.transcription = executionResult.output;
-
-          } else if (plugin_id === 'whisper') {
-            log.info({ inboxId, tenantId }, 'Executing Whisper STT Action');
-            finalPayload.transcription = `[MOCK_AUDIO_TRANSCRIPTION: Procesado por Whisper]`;
-
-          } else if (plugin_id === 'dinowiki') {
-            log.info({ inboxId, tenantId }, 'Executing DinoWiki Action');
-
-            // CORE.IN.02: HTTP call to DinoWiki. If it fails, let it throw to rollback.
-            const dinowikiUrl = process.env.DINOWIKI_URL || 'http://localhost:8080/api/wiki';
-
-            // We set a strict timeout of 5 seconds (CORE.RS.02)
-            const controller = new AbortController();
-            const id = setTimeout(() => controller.abort(), 5000);
-
-            try {
-              const response = await fetch(dinowikiUrl, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  tenantId,
-                  message: payload.message,
-                  config: actionConfig
-                }),
-                signal: controller.signal
-              });
-              clearTimeout(id);
-
-              if (!response.ok) {
-                throw new Error(`DinoWiki HTTP error! status: ${response.status}`);
-              }
-              const result = await response.json();
-              finalPayload.transcription = result.transcription || '[MOCK_DINOWIKI: Respuesta de base de conocimiento]';
-            } catch (fetchErr) {
-              clearTimeout(id);
-              log.error({ err: fetchErr.message }, 'DinoWiki communication failed, throwing to trigger transaction rollback');
-              throw new Error(`DinoWiki failed: ${fetchErr.message}`);
-            }
-
-          } else {
-            log.warn({ plugin_id }, 'Unknown plugin ID, skipping execution');
-          }
-        }
-      } else {
-        // CORE.IN.01: Orphan or no matched rule fallback
-        log.info({ inboxId }, 'No rule matched. Fallback to default completion.');
-
-        await client.query(
-          `INSERT INTO activity_logs (tenant_id, channel_id, rule_id, event_type, description, metadata)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [
-            tenantId,
-            payload?.channelId || null,
-            null,
-            'no_rule_matched',
-            `No se encontró ninguna regla coincidente. Ejecutando procesamiento por defecto.`,
-            JSON.stringify({ payload })
-          ]
-        );
-
-        if (payload?.type === 'audio') {
-          finalPayload.transcription = `[MOCK_AUDIO_TRANSCRIPTION: Audio recibido (Fallback)]`;
-        } else if (payload?.type === 'image') {
-          finalPayload.transcription = `[MOCK_IMAGE_OCR: Imagen analizada (Fallback)]`;
-        } else if (payload?.type === 'video') {
-          finalPayload.transcription = `[MOCK_VIDEO: Video recibido y almacenado (Fallback)]`;
-        } else if (payload?.type === 'document') {
-          finalPayload.transcription = `[MOCK_DOCUMENT: Documento recibido y almacenado (Fallback)]`;
-        } else {
-          finalPayload.transcription = `[LLM_FALLBACK: Mensaje recibido: ${payload?.message || ''}]`;
-        }
+        dispatchedCount++;
+        log.info({ flowId: flow.id, flowName: flow.name, inboxId }, 'Dispatched to flow-engine');
       }
 
-      // Enqueue reply back to WhatsApp if we have a sender
-      if (finalPayload.transcription && finalPayload.sender) {
-        await boss.send('wapp-send-process', {
-          to: finalPayload.sender,
-          text: finalPayload.transcription,
-          tenantId
-        });
-        log.info({ to: finalPayload.sender }, 'Enqueued transcription reply to WhatsApp');
-      }
-
-      // Mark as done
+      // Log dispatch result
       await client.query(
-        `UPDATE sync_inbox SET status = 'done', processed_at = now(), payload = $2 WHERE id = $1`,
-        [inboxId, finalPayload]
+        `INSERT INTO activity_logs (tenant_id, channel_id, event_type, description, metadata)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          tenantId,
+          channelId,
+          dispatchedCount > 0 ? 'flow_dispatched' : 'no_flow_matched',
+          dispatchedCount > 0
+            ? `${dispatchedCount} flujo(s) activado(s) para mensaje entrante.`
+            : `No se encontró ningún flujo activo para este canal/contacto.`,
+          JSON.stringify({ inboxId, channelId, contactId, dispatchedCount, sender: payload?.sender })
+        ]
+      );
+
+      // Mark as done (flow-engine handles the actual processing asynchronously)
+      await client.query(
+        `UPDATE sync_inbox SET status = 'done', processed_at = now() WHERE id = $1`,
+        [inboxId]
       );
 
       await client.query('COMMIT');
 
-      log.info({ jobId: job.id, inboxId }, 'Sync job completed');
+      log.info({ jobId: job.id, inboxId, dispatchedCount }, 'Sync job completed');
     } catch (err) {
       // BOSS.IN.01: Strict transactional rollback
       await client.query('ROLLBACK');
@@ -327,7 +195,8 @@ async function handleSyncJob(jobs) {
  */
 async function handleAdminLifecycleJob(jobs) {
   for (const job of jobs) {
-    const { event, tenantId } = job.data;
+    const jobData = isCloudEvent(job.data) ? job.data.data : job.data;
+    const { event, tenantId } = jobData;
     if (event === 'tenant_deleted') {
       log.info({ tenantId }, 'Processing tenant_deleted lifecycle event: cleaning up physical storage objects');
       
@@ -376,7 +245,8 @@ async function handleAdminLifecycleJob(jobs) {
 
 async function handleStoragePurgeJob(jobs) {
   for (const job of jobs) {
-    const { tenantId, storageKey, requestedBy } = job.data;
+    const jobData = isCloudEvent(job.data) ? job.data.data : job.data;
+    const { tenantId, storageKey, requestedBy } = jobData;
     log.info({ jobId: job.id, tenantId, key: storageKey }, 'Processing storage-purge job');
     try {
       await s3.send(new DeleteObjectCommand({
@@ -393,7 +263,8 @@ async function handleStoragePurgeJob(jobs) {
 
 async function handleStorageZipJob(jobs) {
   for (const job of jobs) {
-    const { ids, requestedBy } = job.data;
+    const jobData = isCloudEvent(job.data) ? job.data.data : job.data;
+    const { ids, requestedBy } = jobData;
     log.info({ jobId: job.id, idsCount: ids.length }, 'Processing storage-zip job');
     
     const client = await workerPool.connect();

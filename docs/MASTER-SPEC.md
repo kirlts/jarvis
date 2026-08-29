@@ -18,7 +18,7 @@
 
 **Indirect beneficiary:** Trabajadores en terreno, especialistas de la salud, personal coordinado.
 
-**What it IS NOT:** No es un sistema atado a una sola industria. Los casos de uso de contratistas o médicos (Plugins) están FUERA DEL SCOPE del sistema core; son expansiones implementables futuras. Microservicios distribuidos, bases vectoriales externas e interfaces PaaS visuales están prohibidas.
+**What it IS NOT:** No es un sistema atado a una sola industria. Los casos de uso de contratistas o médicos (Plugins) están FUERA DEL SCOPE del sistema core; son expansiones implementables futuras. Microservicios distribuidos y bases vectoriales externas están prohibidas.
 
 ### Business Model (Microkernel SaaS)
 
@@ -55,8 +55,64 @@ Cada cliente recibe una instancia que percibe como personalizada. El esfuerzo de
 
 Los canales de comunicación (WhatsApp, Telegram, Email, Slack) operan estrictamente como adaptadores externos. Desde la perspectiva del Core, son agnósticos e intercambiables.
 - **Despliegue:** Workers dockerizados aislados (ej. `baileys-worker`) vía Kamal 2. No comparten el proceso ni el Event Loop del Core HTTP.
-- **Contrato de Interfaz:** Los workers traducen sus protocolos nativos (ej. WhatsApp LID `@lid`) a payloads agnósticos que se inyectan transaccionalmente en la base de datos o en colas genéricas de `pg-boss` (`sync-inbox-process`, `notification-send-process`).
+- **Contrato de Interfaz (CloudEvents spec v1.0):** Todos los mensajes entre componentes del sistema (adaptador→Core, Core→Core, Core→adaptador) están envueltos en sobres CloudEvent compliant con `specversion: 1.0`. El módulo canónico es `src/lib/cloudevent.js`. Los workers traducen sus protocolos nativos (ej. WhatsApp LID `@lid`) a CloudEvents estandarizados que se inyectan transaccionalmente en colas de pg-boss.
+
+**Registro de Tipos (`ce-type`):**
+
+| `ce-type` | Productor | Consumidor | Descripción |
+|---|---|---|---|
+| `jarvis.channel.whatsapp.message.inbound` | `adapter/baileys` | `worker/boss-worker` | Mensaje entrante de WhatsApp |
+| `jarvis.channel.whatsapp.message.outbound` | `worker/boss-worker`, `flow-engine` | `adapter/baileys` | Mensaje saliente hacia WhatsApp |
+| `jarvis.channel.whatsapp.lifecycle` | `adapter/baileys` | Sink (observabilidad) | Evento de ciclo de vida de conexión |
+| `jarvis.channel.whatsapp.control` | `api/admin` | `adapter/baileys` | Comando de control de sesión |
+| `jarvis.api.sync.inbound` | `api/sync-inbox`, `api/admin` | `worker/boss-worker` | Ingesta desde API HTTP |
+| `jarvis.admin.lifecycle` | `api/admin` | `worker/boss-worker` | Evento administrativo (CRUD tenants) |
+| `jarvis.flow.trigger` | `flow-engine` | `flow-engine` | Punto de entrada de un flujo |
+| `jarvis.flow.node.output` | `flow-engine` | `flow-engine` | Salida inter-nodo |
+| `jarvis.flow.cron.scan` | `flow-engine/cron` | `flow-engine` | Trigger programado (Cron) |
+| `jarvis.storage.purge` | `api/admin` | `worker/boss-worker` | Purga física de objeto S3 |
+| `jarvis.storage.zip` | `api/admin` | `worker/boss-worker` | Empaquetado ZIP de objetos |
+
+**Extensiones Jarvis (campos adicionales al sobre CE):**
+
+| Extensión | Tipo | Descripción |
+|---|---|---|
+| `tenantid` | UUID | Identificador del tenant propietario |
+| `channelid` | UUID | Canal de origen/destino |
+| `contactid` | UUID | Contacto resuelto desde el Directorio |
+
+**Convención de `ce-source`:** `<tipo>/<nombre>` — ej. `adapter/baileys`, `api/admin`, `api/sync-inbox`, `worker/boss-worker`, `flow-engine/cron`, `flow/<flowId>/node/<nodeId>`.
+
 - **Persistencia de Sesiones Externas:** Adaptadores como `usePgAuthState` guardan llaves criptográficas en PostgreSQL (`JSONB`). Uso del sistema de archivos local (`fs`) estrictamente prohibido.
+
+### Directorio Agnóstico de Contactos
+
+Los contactos son entidades del tenant, no del canal. La arquitectura separa identidad de dirección:
+- **`tenant_contacts`:** Entidad central con `display_name` y `metadata JSONB` libre (ej. `tier_cliente`, `direccion`, `linkedin_url`).
+- **`contact_addresses`:** Tabla bridge que vincula un contacto a N direcciones en N canales (ej. un contacto puede tener un número WhatsApp y un email). Unique constraint `(tenant_id, channel_type, address)`.
+- **Resolución en Canales Privados:** Al recibir un mensaje en un canal configurado como `private`, el worker consulta `contact_addresses` para resolver el `contact_id`. Si no existe, aplica `fallback_message` del canal.
+
+### Motor de Flujos (Flow Engine)
+
+Los flujos reemplazan el sistema de reglas estáticas. Cada flujo es un grafo dirigido serializado en JSONB (`tenant_flows.graph`) y ejecutado secuencialmente por un worker universal (`flow-engine`).
+
+**Tipos de Trigger (4, agnósticos):**
+1. **Canal Entrante:** Mensaje recibido en cualquier canal (WhatsApp, Email, Webhook).
+2. **Programado (Cron):** Ejecución periódica vía pg-boss schedules.
+3. **Webhook:** Evento HTTP externo.
+4. **Manual:** Disparado desde la Ops Console.
+
+**Tipos de Nodo:**
+| Nodo | Función |
+|---|---|
+| Trigger | Punto de entrada del flujo |
+| Switch | Bifurcación condicional por metadata del contacto o contenido del mensaje |
+| LLM | Invocación de modelo de lenguaje con prompt configurable y rama `on_ai_failure` obligatoria |
+| STT | Transcripción de audio (Whisper) |
+| Enviar Mensaje | Nodo de salida: elige canal + contacto destino |
+| Script SQL | Query personalizado contra la base de datos del tenant |
+
+**Contrato de paso entre nodos:** Cada nodo recibe y emite un `CloudEvent.data` que contiene el output del nodo anterior (ej. `transcription`, `llm_response`, `sql_result`).
 
 ---
 
@@ -102,6 +158,7 @@ Los canales de comunicación (WhatsApp, Telegram, Email, Slack) operan estrictam
 10. **Ops Console: Arquitectura Desacoplada Obligatoria:** El panel de administración es un cliente externo separado (SPA propietaria estática). El core Fastify expone un Admin API dedicado (`/admin/*`). Prohibido integrar lógica de rendering UI dentro del proceso Fastify. El Admin API usa un rol PostgreSQL separado (`jarvis_admin`) que bypasea RLS; jamás comparte el rol de tenant.
 11. **Observabilidad Self-Hosted:** Pino → Loki → Grafana es el stack de observabilidad obligatorio. Prohibido enviar logs a servicios SaaS de terceros (Datadog, Axiom, Better Stack). Grafana con alerting proactivo. Uptime Kuma para synthetic checks HTTP/TCP.
 12. **Prevención SPOF en Monitoreo (Observabilidad Externa):** El sistema de monitoreo de estado (Uptime Kuma) DEBE residir de forma independiente para evitar Puntos Únicos de Falla. En producción, debe alojarse en un VPS externo geográficamente o lógicamente separado del clúster principal de Jarvis. Prohibido integrarlo vía iframes o widgets embebidos dentro de la Ops Console.
+13. **CloudEvents Obligatorio (spec v1.0):** Todos los mensajes entre componentes del sistema (adaptador→Core, Core→Core, Core→adaptador) DEBEN usar sobres CloudEvent con `specversion: 1.0`. El módulo canónico `src/lib/cloudevent.js` es el único punto de creación. Nuevos `ce-type` requieren registro en el módulo (`CE_TYPES`) y en §2. Payloads ad-hoc en colas pg-boss están prohibidos.
 
 > Note: Constraints logged here are defensively duplicated in `.agents/rules/05-constraints.md` to survive context degradation in long sessions.
 
@@ -248,6 +305,8 @@ En Fase 1 (Sandbox), la consola incluye un mecanismo de `Dev Login` (1-Click) au
 ### Hoja de ruta del Admin UI
 
 1. **MVP:** SPA Propietaria (Refine v5 + Vite + React) que consume el Admin API expandido y provee una interfaz a medida, ágil y de alto rendimiento.
+2. **Directorio:** Pestaña dedicada en el detalle de tenant para gestión de contactos con metadata dinámica y direcciones multi-canal.
+3. **Flujos (React Flow):** Constructor visual de pipelines embebido en la Ops Console. Los nodos se configuran granularmente (prompts, parámetros LLM, contactos destino) vía Drawer lateral. Auto-save del graph JSONB.
 
 ---
 

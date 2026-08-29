@@ -104,6 +104,46 @@ async function buildApp() {
 
   // ── Global Error Handler (CORE.IN.03) ─────────────────────────────
   app.setErrorHandler((error, _request, reply) => {
+    // PostgreSQL FK constraint violation — referenced entity doesn't exist
+    if (error.code === '23503') {
+      app.log.warn({ constraint: error.constraint, detail: error.detail }, 'FK constraint violation');
+      return reply.status(422).send({
+        error: 'Unprocessable Entity',
+        message: `Referenced entity does not exist: ${error.constraint || 'foreign key violation'}`,
+      });
+    }
+    // PostgreSQL invalid enum value — invalid input for enum type
+    if (error.code === '22P02') {
+      app.log.warn({ message: error.message }, 'Invalid enum value');
+      return reply.status(400).send({
+        error: 'Bad Request',
+        message: error.message,
+      });
+    }
+    // PostgreSQL numeric overflow — value out of range for type
+    if (error.code === '22003') {
+      app.log.warn({ message: error.message }, 'Numeric value out of range');
+      return reply.status(400).send({
+        error: 'Bad Request',
+        message: error.message,
+      });
+    }
+    // PostgreSQL unique violation — duplicate key
+    if (error.code === '23505') {
+      app.log.warn({ constraint: error.constraint, detail: error.detail }, 'Unique constraint violation');
+      return reply.status(409).send({
+        error: 'Conflict',
+        message: `Duplicate value: ${error.constraint || 'unique violation'}`,
+      });
+    }
+    // PostgreSQL not-null violation — missing required field
+    if (error.code === '23502') {
+      app.log.warn({ column: error.column, table: error.table }, 'Not-null constraint violation');
+      return reply.status(400).send({
+        error: 'Bad Request',
+        message: `Missing required field: ${error.column || 'unknown'}`,
+      });
+    }
     app.log.error(error);
     // Never leak stack traces to client
     reply.status(error.statusCode || 500).send({

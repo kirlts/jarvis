@@ -265,7 +265,7 @@ function getGroupLabel(evt: TimelineEvent, count: number): string {
     
     if (types.has('create_tenant') || types.has('provision-tenant')) return 'Inicialización de Inquilino';
     if (types.has('create_channel') || types.has('update_config')) return 'Configuración de Canal';
-    if (types.has('session_started') || types.has('wapp-lifecycle') || types.has('qr_scanned')) return 'Ciclo de Conexión WhatsApp';
+    if (types.has('session_started') || types.has('wapp-lifecycle') || types.has('qr_scanned')) return 'Ciclo de Conexión de Canal';
     
     return `Operación Compuesta (${count} eventos)`;
   }

@@ -5,6 +5,7 @@
 
 import { query } from '../../db.js';
 import { syncInboxSchema } from './schema.js';
+import { wrapPayload, CE_TYPES } from '../../lib/cloudevent.js';
 
 /**
  * @param {import('fastify').FastifyInstance} app
@@ -29,11 +30,11 @@ export async function registerSyncInbox(app) {
 
     // Enqueue pg-boss job only if a new row was inserted (idempotent)
     if (result.rowCount > 0 && app.boss) {
-      await app.boss.send('sync-inbox-process', {
-        inboxId: id,
-        tenantId: tenant_id,
-        payload,
-      }, {
+      await app.boss.send('sync-inbox-process', wrapPayload(
+        CE_TYPES.API_SYNC_INBOUND, 'api/sync-inbox',
+        { inboxId: id, tenantId: tenant_id, payload },
+        { tenantid: tenant_id }
+      ), {
         retryLimit: 3,
         retryDelay: 5,
         retryBackoff: true,

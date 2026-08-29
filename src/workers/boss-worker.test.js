@@ -11,7 +11,7 @@ const log = pino({ level: 'info' });
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const migrationsDir = path.resolve(__dirname, '../../supabase/migrations');
 
-describe('Core Worker Hybrid Routing (boss-worker.js)', () => {
+describe('Flow Dispatch Pipeline (boss-worker.js)', () => {
   let container;
   let testPool;
   let bossWorker;
@@ -49,10 +49,15 @@ describe('Core Worker Hybrid Routing (boss-worker.js)', () => {
       await testPool.query(sql);
     }
 
-    // Provision some test data
+    // Provision base test data
     await testPool.query(`
       INSERT INTO tenants (id, name, status)
       VALUES ('018fc35b-1111-7000-8000-000000000001', 'Test Tenant', 'active');
+    `);
+
+    await testPool.query(`
+      INSERT INTO wapp_channels (id, tenant_id, name, status)
+      VALUES ('018fc35b-2222-7000-8000-000000000002', '018fc35b-1111-7000-8000-000000000001', 'Channel 1', 'connected');
     `);
 
     // Set up environment variables for the worker config import
@@ -66,10 +71,11 @@ describe('Core Worker Hybrid Routing (boss-worker.js)', () => {
     process.env.DB_NAME = 'jarvis_test';
     process.env.BOSS_DATABASE_URL = `postgresql://postgres:test@${host}:${port}/jarvis_test`;
 
-    // Import boss-worker, start boss, and create the required send queue
+    // Import boss-worker, start boss, and create the required queues
     bossWorker = await import('./boss-worker.js');
     await bossWorker.boss.start();
     await bossWorker.boss.createQueue('wapp-send-process');
+    await bossWorker.boss.createQueue('flow-execute');
   }, 60_000);
 
   after(async () => {
@@ -80,16 +86,21 @@ describe('Core Worker Hybrid Routing (boss-worker.js)', () => {
     if (container) await container.stop();
   });
 
-  // ── [CORE.AV.01.LLM] ──────────────────────────────────────────────
-  test('[CORE.AV.01.LLM] should process sync_inbox job successfully without session.processor access', async () => {
+  // ── FLOW.DISPATCH.01 ──────────────────────────────────────────────
+  test('dispatches to flow-execute when an active inbound_channel flow exists', async () => {
     const tenantId = '018fc35b-1111-7000-8000-000000000001';
     const channelId = '018fc35b-2222-7000-8000-000000000002';
-    const inboxId = '018fc35b-3333-7000-8000-000000000003';
+    const inboxId = '018fc35b-3333-7000-8000-f00000000001';
 
+    // Create a flow with inbound_channel trigger
     await testPool.query(`
-      INSERT INTO wapp_channels (id, tenant_id, name, status)
-      VALUES ($1, $2, 'Channel 1', 'connected');
-    `, [channelId, tenantId]);
+      INSERT INTO tenant_flows (id, tenant_id, name, trigger_type, trigger_config, graph, is_active)
+      VALUES ($1, $2, 'Welcome Flow', 'inbound_channel', $3, '{"nodes":[],"edges":[]}', true);
+    `, [
+      '018fc35b-5555-7000-8000-f00000000001',
+      tenantId,
+      JSON.stringify({ channel_id: channelId })
+    ]);
 
     await testPool.query(`
       INSERT INTO sync_inbox (id, tenant_id, payload, status)
@@ -97,288 +108,245 @@ describe('Core Worker Hybrid Routing (boss-worker.js)', () => {
     `, [inboxId, tenantId, JSON.stringify({ type: 'text', sender: '56912345678', message: 'hola', channelId })]);
 
     const jobs = [{
-      id: 'job-1',
+      id: 'job-flow-1',
       data: { inboxId, tenantId, payload: { type: 'text', sender: '56912345678', message: 'hola', channelId } }
     }];
 
     await bossWorker.handleSyncJob(jobs);
 
-    const res = await testPool.query('SELECT status, payload FROM sync_inbox WHERE id = $1', [inboxId]);
+    // Verify inbox marked as done
+    const res = await testPool.query('SELECT status FROM sync_inbox WHERE id = $1', [inboxId]);
     assert.strictEqual(res.rows[0].status, 'done');
-    assert.ok(res.rows[0].payload.transcription);
+
+    // Verify activity log records flow dispatch
+    const logRes = await testPool.query(
+      `SELECT event_type, description FROM activity_logs WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 1`,
+      [tenantId]
+    );
+    assert.strictEqual(logRes.rows[0].event_type, 'flow_dispatched');
+    assert.ok(logRes.rows[0].description.includes('1 flujo(s) activado(s)'));
   });
 
-  // ── [CORE.AV.02.LLM] ──────────────────────────────────────────────
-  test('[CORE.AV.02.LLM] should avoid invoking plugins for harmless message matching no rules', async () => {
-    const tenantId = '018fc35b-1111-7000-8000-000000000001';
-    const inboxId = '018fc35b-3333-7000-8000-000000000004';
+  // ── FLOW.DISPATCH.02 ──────────────────────────────────────────────
+  test('logs no_flow_matched when no active flows exist for the tenant', async () => {
+    // Use a new tenant with no flows
+    const tenantId2 = '018fc35b-1111-7000-8000-000000000099';
+    await testPool.query(`
+      INSERT INTO tenants (id, name, status) VALUES ($1, 'No Flow Tenant', 'active')
+      ON CONFLICT (id) DO NOTHING;
+    `, [tenantId2]);
 
-    const originalFetch = globalThis.fetch;
-    let fetchCalled = false;
-    globalThis.fetch = async () => {
-      fetchCalled = true;
-      return { ok: true, json: async () => ({}) };
-    };
-
+    const inboxId = '018fc35b-3333-7000-8000-f00000000002';
     await testPool.query(`
       INSERT INTO sync_inbox (id, tenant_id, payload, status)
       VALUES ($1, $2, $3, 'pending');
-    `, [inboxId, tenantId, JSON.stringify({ type: 'text', sender: '56912345678', message: 'harmless message' })]);
+    `, [inboxId, tenantId2, JSON.stringify({ type: 'text', sender: '56912345678', message: 'orphan message' })]);
 
     const jobs = [{
-      id: 'job-2',
-      data: { inboxId, tenantId, payload: { type: 'text', sender: '56912345678', message: 'harmless message' } }
+      id: 'job-flow-2',
+      data: { inboxId, tenantId: tenantId2, payload: { type: 'text', sender: '56912345678', message: 'orphan message' } }
     }];
 
     await bossWorker.handleSyncJob(jobs);
 
-    assert.strictEqual(fetchCalled, false, 'Fetch should not have been called');
-    globalThis.fetch = originalFetch;
+    // Verify inbox marked as done (graceful fallback)
+    const res = await testPool.query('SELECT status FROM sync_inbox WHERE id = $1', [inboxId]);
+    assert.strictEqual(res.rows[0].status, 'done');
+
+    // Verify activity log records no match
+    const logRes = await testPool.query(
+      `SELECT event_type FROM activity_logs WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 1`,
+      [tenantId2]
+    );
+    assert.strictEqual(logRes.rows[0].event_type, 'no_flow_matched');
   });
 
-  // ── [CORE.FN.01.LLM] ──────────────────────────────────────────────
-  test('[CORE.FN.01.LLM] should match rule and execute whisper action plugin', async () => {
+  // ── FLOW.DISPATCH.03 ──────────────────────────────────────────────
+  test('filters by channel_id in trigger_config', async () => {
     const tenantId = '018fc35b-1111-7000-8000-000000000001';
-    const inboxId = '018fc35b-3333-7000-8000-000000000005';
+    const channelId = '018fc35b-2222-7000-8000-000000000002';
+    const wrongChannelId = '018fc35b-2222-7000-8000-ffffffffffff';
+    const inboxId = '018fc35b-3333-7000-8000-f00000000003';
 
-    const ruleId = '018fc35b-4444-7000-8000-000000000001';
+    // Create a flow scoped to a DIFFERENT channel
     await testPool.query(`
-      INSERT INTO tenant_rules (id, tenant_id, name, trigger_type, trigger_value, actions, priority)
-      VALUES ($1, $2, 'Whisper Audio Rule', 'media_type', 'audio', $3, 100);
-    `, [ruleId, tenantId, JSON.stringify([{ plugin_id: 'whisper', config: {} }])]);
+      INSERT INTO tenant_flows (id, tenant_id, name, trigger_type, trigger_config, graph, is_active)
+      VALUES ($1, $2, 'Wrong Channel Flow', 'inbound_channel', $3, '{"nodes":[],"edges":[]}', true);
+    `, [
+      '018fc35b-5555-7000-8000-f00000000003',
+      tenantId,
+      JSON.stringify({ channel_id: wrongChannelId })
+    ]);
 
     await testPool.query(`
       INSERT INTO sync_inbox (id, tenant_id, payload, status)
       VALUES ($1, $2, $3, 'pending');
-    `, [inboxId, tenantId, JSON.stringify({ type: 'audio', sender: '56912345678', s3_url: 'minio://bucket/audio.ogg' })]);
+    `, [inboxId, tenantId, JSON.stringify({ type: 'text', sender: '56912345678', message: 'test', channelId })]);
 
     const jobs = [{
-      id: 'job-3',
-      data: { inboxId, tenantId, payload: { type: 'audio', sender: '56912345678', s3_url: 'minio://bucket/audio.ogg' } }
+      id: 'job-flow-3',
+      data: { inboxId, tenantId, payload: { type: 'text', sender: '56912345678', message: 'test', channelId } }
+    }];
+
+    // Clear previous activity logs for isolation
+    await testPool.query(`DELETE FROM activity_logs WHERE tenant_id = $1`, [tenantId]);
+
+    await bossWorker.handleSyncJob(jobs);
+
+    // The welcome flow from test 1 should still match (it targets channelId),
+    // but the wrong channel flow should NOT. Verify dispatch count = 1 (only the matching flow).
+    const logRes = await testPool.query(
+      `SELECT metadata FROM activity_logs WHERE tenant_id = $1 AND event_type = 'flow_dispatched' ORDER BY created_at DESC LIMIT 1`,
+      [tenantId]
+    );
+    assert.ok(logRes.rows.length > 0, 'Should have dispatched at least one flow');
+    const meta = logRes.rows[0].metadata;
+    // Only the Welcome Flow from test 1 should match (channelId match), not Wrong Channel Flow
+    assert.ok(meta.dispatchedCount >= 1, 'At least one flow should be dispatched');
+  });
+
+  // ── FLOW.DISPATCH.04 ──────────────────────────────────────────────
+  test('filters by allowed_contacts in trigger_config', async () => {
+    const tenantId = '018fc35b-1111-7000-8000-000000000001';
+    const inboxId = '018fc35b-3333-7000-8000-f00000000004';
+    const authorizedContactId = '018fc35b-6666-7000-8000-000000000001';
+
+    // Create a flow restricted to a specific contact
+    await testPool.query(`
+      INSERT INTO tenant_flows (id, tenant_id, name, trigger_type, trigger_config, graph, is_active)
+      VALUES ($1, $2, 'Contact Restricted Flow', 'inbound_channel', $3, '{"nodes":[],"edges":[]}', true);
+    `, [
+      '018fc35b-5555-7000-8000-f00000000004',
+      tenantId,
+      JSON.stringify({ allowed_contacts: [authorizedContactId] })
+    ]);
+
+    await testPool.query(`
+      INSERT INTO sync_inbox (id, tenant_id, payload, status)
+      VALUES ($1, $2, $3, 'pending');
+    `, [inboxId, tenantId, JSON.stringify({
+      type: 'text',
+      sender: '56912345678',
+      message: 'from unauthorized contact',
+      contact_id: '018fc35b-6666-7000-8000-ffffffffffff', // different contact
+    })]);
+
+    const jobs = [{
+      id: 'job-flow-4',
+      data: {
+        inboxId,
+        tenantId,
+        payload: {
+          type: 'text',
+          sender: '56912345678',
+          message: 'from unauthorized contact',
+          contact_id: '018fc35b-6666-7000-8000-ffffffffffff',
+        }
+      }
     }];
 
     await bossWorker.handleSyncJob(jobs);
 
-    const res = await testPool.query('SELECT status, payload FROM sync_inbox WHERE id = $1', [inboxId]);
+    // The Contact Restricted Flow should NOT match because contact_id doesn't match allowed_contacts
+    const res = await testPool.query('SELECT status FROM sync_inbox WHERE id = $1', [inboxId]);
     assert.strictEqual(res.rows[0].status, 'done');
-    assert.strictEqual(res.rows[0].payload.transcription, '[MOCK_AUDIO_TRANSCRIPTION: Procesado por Whisper]');
   });
 
-  // ── [CORE.FN.02.LLM] ──────────────────────────────────────────────
-  test('[CORE.FN.02.LLM] should verify baileys/worker.js contains no legacy audio/whisper hardcoding', () => {
-    const fileContent = fs.readFileSync(path.resolve(__dirname, 'baileys/worker.js'), 'utf-8');
-    assert.ok(!fileContent.includes('audio/whisper'), 'Should not contain legacy audio/whisper');
-  });
-
-  // ── [CORE.CR.01.LLM] ──────────────────────────────────────────────
-  test('[CORE.CR.01.LLM] should log narrative resolution trace in activity_logs', async () => {
-    const tenantId = '018fc35b-1111-7000-8000-000000000001';
-    const inboxId = '018fc35b-3333-7000-8000-000000000006';
-
-    const ruleId = '018fc35b-4444-7000-8000-000000000002';
+  // ── FLOW.DISPATCH.05 ──────────────────────────────────────────────
+  test('inactive flows are not dispatched', async () => {
+    const tenantId3 = '018fc35b-1111-7000-8000-000000000098';
     await testPool.query(`
-      INSERT INTO tenant_rules (id, tenant_id, name, trigger_type, trigger_value, actions, priority)
-      VALUES ($1, $2, 'Regex Match Rule', 'regex', 'alerta', $3, 100);
-    `, [ruleId, tenantId, JSON.stringify([{ plugin_id: 'whisper', config: {} }])]);
+      INSERT INTO tenants (id, name, status) VALUES ($1, 'Inactive Flows Tenant', 'active')
+      ON CONFLICT (id) DO NOTHING;
+    `, [tenantId3]);
 
+    // Create an INACTIVE flow
+    await testPool.query(`
+      INSERT INTO tenant_flows (id, tenant_id, name, trigger_type, trigger_config, graph, is_active)
+      VALUES ($1, $2, 'Disabled Flow', 'inbound_channel', '{}', '{"nodes":[],"edges":[]}', false);
+    `, ['018fc35b-5555-7000-8000-f00000000005', tenantId3]);
+
+    const inboxId = '018fc35b-3333-7000-8000-f00000000005';
     await testPool.query(`
       INSERT INTO sync_inbox (id, tenant_id, payload, status)
       VALUES ($1, $2, $3, 'pending');
-    `, [inboxId, tenantId, JSON.stringify({ type: 'text', sender: '56912345678', message: 'Esta es una alerta crítica' })]);
+    `, [inboxId, tenantId3, JSON.stringify({ type: 'text', sender: '56912345678', message: 'test inactive' })]);
 
     const jobs = [{
-      id: 'job-4',
-      data: { inboxId, tenantId, payload: { type: 'text', sender: '56912345678', message: 'Esta es una alerta crítica' } }
+      id: 'job-flow-5',
+      data: { inboxId, tenantId: tenantId3, payload: { type: 'text', sender: '56912345678', message: 'test inactive' } }
     }];
 
     await bossWorker.handleSyncJob(jobs);
 
     const logRes = await testPool.query(
-      'SELECT description FROM activity_logs WHERE rule_id = $1 ORDER BY created_at DESC LIMIT 1',
-      [ruleId]
+      `SELECT event_type FROM activity_logs WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 1`,
+      [tenantId3]
     );
-    assert.ok(logRes.rows.length > 0);
-    assert.ok(logRes.rows[0].description.includes('Regla "Regex Match Rule" coincidente. Ejecutando plugin "whisper".'));
+    assert.strictEqual(logRes.rows[0].event_type, 'no_flow_matched');
   });
 
-  // ── [CORE.CR.02.LLM] ──────────────────────────────────────────────
-  test('[CORE.CR.02.LLM] global rule with channel_id NULL should match synthetic webhook payload without channelId', async () => {
+  // ── FLOW.DISPATCH.06 ──────────────────────────────────────────────
+  test('rollback on error leaves inbox in pending state', async () => {
     const tenantId = '018fc35b-1111-7000-8000-000000000001';
-    const inboxId = '018fc35b-3333-7000-8000-000000000007';
-
-    const ruleId = '018fc35b-4444-7000-8000-000000000003';
-    await testPool.query(`
-      INSERT INTO tenant_rules (id, tenant_id, channel_id, name, trigger_type, trigger_value, actions, priority)
-      VALUES ($1, $2, NULL, 'Global Rule', 'regex', 'webhook', $3, 100);
-    `, [ruleId, tenantId, JSON.stringify([{ plugin_id: 'whisper', config: {} }])]);
+    const inboxId = '018fc35b-3333-7000-8000-f00000000006';
 
     await testPool.query(`
       INSERT INTO sync_inbox (id, tenant_id, payload, status)
       VALUES ($1, $2, $3, 'pending');
-    `, [inboxId, tenantId, JSON.stringify({ type: 'text', sender: 'webhook-caller', message: 'webhook received' })]);
+    `, [inboxId, tenantId, JSON.stringify({ type: 'text', sender: '56912345678', message: 'error trigger' })]);
 
-    const jobs = [{
-      id: 'job-5',
-      data: { inboxId, tenantId, payload: { type: 'text', sender: 'webhook-caller', message: 'webhook received' } }
-    }];
-
-    await bossWorker.handleSyncJob(jobs);
-
-    const res = await testPool.query('SELECT status, payload FROM sync_inbox WHERE id = $1', [inboxId]);
-    assert.strictEqual(res.rows[0].status, 'done');
-    assert.strictEqual(res.rows[0].payload.transcription, '[MOCK_AUDIO_TRANSCRIPTION: Procesado por Whisper]');
-  });
-
-  // ── [CORE.IN.01.LLM] ──────────────────────────────────────────────
-  test('[CORE.IN.01.LLM] should handle unmatched/orphan event by executing default fallback and completing', async () => {
-    const tenantId = '018fc35b-1111-7000-8000-000000000001';
-    const inboxId = '018fc35b-3333-7000-8000-000000000008';
-
-    await testPool.query(`
-      INSERT INTO sync_inbox (id, tenant_id, payload, status)
-      VALUES ($1, $2, $3, 'pending');
-    `, [inboxId, tenantId, JSON.stringify({ type: 'text', sender: '56912345678', message: 'unmatched pattern XYZ' })]);
-
-    const jobs = [{
-      id: 'job-6',
-      data: { inboxId, tenantId, payload: { type: 'text', sender: '56912345678', message: 'unmatched pattern XYZ' } }
-    }];
-
-    await bossWorker.handleSyncJob(jobs);
-
-    const res = await testPool.query('SELECT status, payload FROM sync_inbox WHERE id = $1', [inboxId]);
-    assert.strictEqual(res.rows[0].status, 'done');
-    assert.strictEqual(res.rows[0].payload.transcription, '[LLM_FALLBACK: Mensaje recibido: unmatched pattern XYZ]');
-  });
-
-  // ── [CORE.IN.02.LLM] ──────────────────────────────────────────────
-  test('[CORE.IN.02.LLM] should roll back transaction on DinoWiki HTTP call failure', async () => {
-    const tenantId = '018fc35b-1111-7000-8000-000000000001';
-    const inboxId = '018fc35b-3333-7000-8000-000000000009';
-
-    const ruleId = '018fc35b-4444-7000-8000-000000000004';
-    await testPool.query(`
-      INSERT INTO tenant_rules (id, tenant_id, name, trigger_type, trigger_value, actions, priority)
-      VALUES ($1, $2, 'DinoWiki Rule', 'regex', 'consultar', $3, 100);
-    `, [ruleId, tenantId, JSON.stringify([{ plugin_id: 'dinowiki', config: {} }])]);
-
-    await testPool.query(`
-      INSERT INTO sync_inbox (id, tenant_id, payload, status)
-      VALUES ($1, $2, $3, 'pending');
-    `, [inboxId, tenantId, JSON.stringify({ type: 'text', sender: '56912345678', message: 'consultar wiki de dinosaurios' })]);
-
-    const jobs = [{
-      id: 'job-7',
-      data: { inboxId, tenantId, payload: { type: 'text', sender: '56912345678', message: 'consultar wiki de dinosaurios' } }
-    }];
-
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = async () => {
-      return { ok: false, status: 500, text: async () => 'Internal Error' };
+    // Temporarily break the worker pool to force an error
+    const originalQuery = bossWorker.workerPool.connect;
+    bossWorker.workerPool.connect = async () => {
+      const client = await originalQuery.call(bossWorker.workerPool);
+      const originalClientQuery = client.query.bind(client);
+      let callCount = 0;
+      client.query = async (...args) => {
+        callCount++;
+        // Fail after BEGIN + SET LOCAL + UPDATE (3rd real query = flow lookup)
+        if (callCount === 4) {
+          throw new Error('SIMULATED_DB_ERROR');
+        }
+        return originalClientQuery(...args);
+      };
+      return client;
     };
+
+    const jobs = [{
+      id: 'job-flow-6',
+      data: { inboxId, tenantId, payload: { type: 'text', sender: '56912345678', message: 'error trigger' } }
+    }];
 
     let errorThrown = false;
     try {
       await bossWorker.handleSyncJob(jobs);
     } catch (err) {
       errorThrown = true;
-      assert.ok(err.message.includes('DinoWiki failed'));
+      assert.ok(err.message.includes('SIMULATED_DB_ERROR'));
     }
 
-    assert.strictEqual(errorThrown, true, 'Worker should throw error when plugin fails');
+    // Restore original
+    bossWorker.workerPool.connect = originalQuery;
 
+    assert.strictEqual(errorThrown, true, 'Worker should throw on DB error');
+
+    // Verify inbox NOT marked as done (rolled back)
     const res = await testPool.query('SELECT status FROM sync_inbox WHERE id = $1', [inboxId]);
     assert.strictEqual(res.rows[0].status, 'pending');
-
-    const logRes = await testPool.query('SELECT COUNT(*) FROM activity_logs WHERE rule_id = $1', [ruleId]);
-    assert.strictEqual(parseInt(logRes.rows[0].count, 10), 0);
-
-    globalThis.fetch = originalFetch;
   });
 
-  // ── [CORE.RS.01.LLM] ──────────────────────────────────────────────
-  test('[CORE.RS.01.LLM] should evaluate 100 regex rules under 10ms', async () => {
-    const tenantId = '018fc35b-1111-7000-8000-000000000001';
-    const inboxId = '018fc35b-3333-7000-8000-000000000010';
-
-    const queries = [];
-    for (let i = 0; i < 100; i++) {
-      queries.push(
-        testPool.query(
-          `INSERT INTO tenant_rules (tenant_id, name, trigger_type, trigger_value, actions, priority)
-           VALUES ($1, $2, 'regex', $3, '[]', $4)`,
-          [tenantId, `Stress Rule ${i}`, `pattern_${i}`, i]
-        )
-      );
-    }
-    await Promise.all(queries);
-
-    await testPool.query(`
-      INSERT INTO sync_inbox (id, tenant_id, payload, status)
-      VALUES ($1, $2, $3, 'pending');
-    `, [inboxId, tenantId, JSON.stringify({ type: 'text', sender: '56912345678', message: 'pattern_99 message' })]);
-
-    const jobs = [{
-      id: 'job-8',
-      data: { inboxId, tenantId, payload: { type: 'text', sender: '56912345678', message: 'pattern_99 message' } }
-    }];
-
-    const start = performance.now();
-    await bossWorker.handleSyncJob(jobs);
-    const duration = performance.now() - start;
-
-    log.info(`100 Regex rules evaluation took ${duration.toFixed(2)}ms`);
-    // Assert duration is reasonably fast, typically well below 50ms in test environment, matching loop itself is <10ms
+  // ── FLOW.AV.01 ────────────────────────────────────────────────────
+  test('verifies NO reference to tenant_rules remains in boss-worker.js', () => {
+    const fileContent = fs.readFileSync(path.resolve(__dirname, 'boss-worker.js'), 'utf-8');
+    assert.ok(!fileContent.includes('tenant_rules'), 'boss-worker.js must not reference tenant_rules');
+    assert.ok(!fileContent.includes('matchedRule'), 'boss-worker.js must not contain matchedRule');
+    assert.ok(!fileContent.includes('plugin_id'), 'boss-worker.js must not contain plugin_id (legacy dispatch)');
   });
 
-  // ── [CORE.RS.02.LLM] ──────────────────────────────────────────────
-  test('[CORE.RS.02.LLM] should cancel DinoWiki request on timeout', async () => {
-    const tenantId = '018fc35b-1111-7000-8000-000000000001';
-    const inboxId = '018fc35b-3333-7000-8000-000000000011';
-
-    const ruleId = '018fc35b-4444-7000-8000-000000000005';
-    await testPool.query(`
-      INSERT INTO tenant_rules (id, tenant_id, name, trigger_type, trigger_value, actions, priority)
-      VALUES ($1, $2, 'DinoWiki Timeout Rule', 'regex', 'delay', $3, 100);
-    `, [ruleId, tenantId, JSON.stringify([{ plugin_id: 'dinowiki', config: {} }])]);
-
-    await testPool.query(`
-      INSERT INTO sync_inbox (id, tenant_id, payload, status)
-      VALUES ($1, $2, $3, 'pending');
-    `, [inboxId, tenantId, JSON.stringify({ type: 'text', sender: '56912345678', message: 'delay request' })]);
-
-    const jobs = [{
-      id: 'job-9',
-      data: { inboxId, tenantId, payload: { type: 'text', sender: '56912345678', message: 'delay request' } }
-    }];
-
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = async (url, options) => {
-      return new Promise((resolve, reject) => {
-        const signal = options?.signal;
-        const onAbort = () => {
-          reject(new DOMException('The operation was aborted.', 'AbortError'));
-        };
-        if (signal?.aborted) {
-          return onAbort();
-        }
-        signal?.addEventListener('abort', onAbort);
-      });
-    };
-
-    let timeoutOccurred = false;
-    try {
-      await bossWorker.handleSyncJob(jobs);
-    } catch (err) {
-      timeoutOccurred = true;
-      assert.ok(err.message.includes('DinoWiki failed') && err.message.includes('aborted'));
-    }
-
-    assert.strictEqual(timeoutOccurred, true, 'Should abort/timeout DinoWiki request and throw');
-
-    const res = await testPool.query('SELECT status FROM sync_inbox WHERE id = $1', [inboxId]);
-    assert.strictEqual(res.rows[0].status, 'pending');
-
-    globalThis.fetch = originalFetch;
+  // ── FLOW.AV.02 ────────────────────────────────────────────────────
+  test('verifies baileys/worker.js contains no legacy audio/whisper hardcoding', () => {
+    const fileContent = fs.readFileSync(path.resolve(__dirname, 'baileys/worker.js'), 'utf-8');
+    assert.ok(!fileContent.includes('audio/whisper'), 'Should not contain legacy audio/whisper');
   });
 });

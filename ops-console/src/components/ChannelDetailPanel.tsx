@@ -10,6 +10,7 @@ import { useCustomMutation } from "@refinedev/core";
 import { API_URL } from "../providers/constants";
 import { useToast } from "./toast";
 import { PluginConfigForm } from "./PluginConfigForm";
+import { formatPhoneForDisplay } from "./PhoneInput";
 
 interface Channel {
   id: string;
@@ -134,9 +135,9 @@ export function ChannelDetailPanel({ channel, onRefresh }: Props) {
               alt="QR Code" style={{ width: "200px", height: "200px" }}
             />
           </div>
-          <h3 style={{ margin: "var(--sp-3) 0 var(--sp-1) 0" }}>Escanea con WhatsApp</h3>
+          <h3 style={{ margin: "var(--sp-3) 0 var(--sp-1) 0" }}>Vincular Canal</h3>
           <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
-            Abre WhatsApp → Dispositivos Vinculados → Escanea este código.
+            Abre la aplicación correspondiente y escanea este código QR para conectar.
           </p>
         </div>
       )}
@@ -195,7 +196,7 @@ export function ChannelDetailPanel({ channel, onRefresh }: Props) {
             <div>
               <span style={{ display: "block", color: "var(--text-tertiary)", fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Teléfono Vinculado</span>
               <strong style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
-                {channel.phone_number ? `+${channel.phone_number.substring(0,2)} ${channel.phone_number.substring(2,3)} ${channel.phone_number.substring(3,7)} ${channel.phone_number.substring(7)}` : "No escaneado"}
+                {channel.phone_number ? formatPhoneForDisplay(channel.phone_number) : "No escaneado"}
               </strong>
             </div>
           )}

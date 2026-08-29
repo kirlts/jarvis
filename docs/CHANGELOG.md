@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- [EPIC-004] Implementación completa de CloudEvents spec v1.0 en los 11 puntos de intercambio del sistema. Módulo compartido `src/lib/cloudevent.js` con registro de 11 `ce-type`, extensiones Jarvis (`tenantid`, `channelid`, `contactid`), y 14 tests unitarios TDD. Constraint §4.13 formalizado: payloads ad-hoc en colas pg-boss prohibidos.
+- [EPIC-004] Auto-save de visibilidad, dirección y fallback_message en canales WhatsApp (`ChannelDetailDrawer`) mediante PATCH inmediato sin botón de guardar.
+- [EPIC-004] Suite de idempotencia forward-only en el flow-engine: nodos completados persisten ante fallo posterior, nodos post-fallo no se ejecutan (MOTR.IN.02).
+- [EPIC-004] Certificación LLM de 60 checks de verificación en VERIFICATION.md (SADM, CTTO, MOTR, PG, CANL, FRONT) con timestamps y evidencia de auditoría.
+- [EPIC-004] Arquitectura de Directorio Agnóstico de Contactos (`tenant_contacts`, `contact_addresses`) y Motor de Flujos Visuales (`tenant_flows`) con constructor React Flow. 73 checks de verificación derivados e integrados en VERIFICATION.md y TODO.md (TASK-033 a TASK-036).
+- [EPIC-004] Estandarización del contrato de intercambio entre adaptadores de canal y el Motor de Flujos mediante CloudEvents, incluyendo `contact_id`, `channel_id` y metadata del contacto.
+- [EPIC-004] 4 tipos de trigger agnósticos para flujos: Canal Entrante, Programado (Cron via pg-boss), Webhook y Manual. Los flujos no dependen de un canal de origen.
 - [TASK-028] Catálogo global de plugins (`plugin_catalog`) y tabla de reglas de enrutamiento por inquilino (`tenant_rules`) con soporte para RLS y validación estricta de esquemas JSONB mediante constraints de base de datos.
 - [TASK-029] Endpoints de administración RESTful en `/admin/rules` (CRUD completo) y `/admin/plugins` (GET) en Fastify, con validación estricta mediante Ajv (`additionalProperties: false`).
 - [TASK-030] Contenedor maestro para la gestión de Reglas en la Ops Console con soporte Refine v5, y flujo dinámico para crear y listar reglas.
@@ -16,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [TASK-031] Lógica de iteración regex determinista en el motor de ruteo híbrido contra la tabla `tenant_rules`, logrando un despacho dinámico hacia plugins/acciones (STT, LLM, MCP, etc.) sin dependencias estáticas de canal.
 - [TASK-032] Suite de pruebas unitarias (`boss-worker.test.js` y `routes.integration.test.js`) que validan la lógica de ruteo híbrido, políticas RLS de reglas y control de concurrencia.
 - [TASK-032] Pruebas de mutación con Stryker sobre el motor de ruteo y endpoints de API, logrando un 100% de puntuación de mutación en la ruta crítica del Inbox.
+
+### Changed
+- Ops Console: Se eliminó el lenguaje y las referencias hardcodeadas a "WhatsApp" en la interfaz global (incluyendo el Dashboard y las pestañas de configuración), unificándolas bajo el término genérico "Canales" de manera agnóstica al canal y al plugin, manteniendo intactas las rutas de la API en el namespace /admin/whatsapp/status/*.
 
 ### Fixed
 

@@ -539,7 +539,83 @@
 - [x] Levantar Testcontainers y asertar aislación cruzada de RLS `2026-06-14 19:45`
 - [x] Ejecutar tests de mutación Stryker sobre el iterador lógico `2026-06-14 20:30`
 
-## [EPIC-002] Phase 2 Production MVP Roadmap
+## [EPIC-004] Evolución Ops Console: Directorio + Flujos
+
+> Ref: MASTER-SPEC §6, `artifacts/ops_console_evolution_proposal.md`
+
+### ✅ [TASK-033] Migraciones SQL: tenant_contacts, contact_addresses, tenant_flows; 2026-06-15 14:40 [🤖 Verified by tool]
+
+> Ref: MASTER-SPEC §4.1, §4.4, §4.5
+
+**Covered checks:** `[PG.AV.04.LLM]`, `[PG.AV.05.LLM]`, `[PG.AV.06.LLM]`, `[PG.FN.03.LLM]`, `[PG.FN.04.LLM]`, `[PG.CR.04.LLM]`, `[PG.CR.05.LLM]`, `[PG.CR.06.LLM]`, `[PG.IN.05.LLM]`, `[PG.IN.06.LLM]`, `[PG.RS.04.LLM]`, `[SADM.IN.01.LLM]`
+
+- [x] Crear migración para tabla `tenant_contacts` (id UUIDv7, tenant_id, display_name, metadata JSONB, created_at, deleted_at) `2026-06-15 14:40`
+- [x] Crear migración para tabla `contact_addresses` (id UUIDv7, contact_id FK CASCADE, tenant_id, channel_type, address) con unique constraint (tenant_id, channel_type, address) `2026-06-15 14:40`
+- [x] Crear migración para tabla `tenant_flows` (id UUIDv7, tenant_id, name, trigger_type, trigger_config JSONB, graph JSONB, is_active, created_at, deleted_at) con unique parcial (tenant_id, name) WHERE deleted_at IS NULL `2026-06-15 14:40`
+- [x] Configurar RLS en las 3 tablas con políticas `tenant_id = current_setting` `2026-06-15 14:40`
+- [x] Crear índices compuestos liderando con `tenant_id` `2026-06-15 14:40`
+- [x] Otorgar grants SELECT/INSERT/UPDATE/DELETE al rol `jarvis_admin` `2026-06-15 14:40`
+- [x] Verificar UUIDv7 como PK en las 3 tablas `2026-06-15 14:40`
+- [x] Verificar CASCADE en contact_addresses al eliminar contacto `2026-06-15 14:40`
+- [x] Verificar unique_violation (23505) en contact_address duplicada `2026-06-15 14:40`
+
+### ✅ [TASK-034] Admin API: CRUD Directorio + Flujos; 2026-06-19 11:51 [🤖🧑 Pre-verified + confirmed by user]
+
+> Ref: MASTER-SPEC §6, specs/admin-api.yaml
+> Depends on: TASK-033
+
+**Covered checks:** `[SADM.FN.01.LLM]`, `[SADM.FN.02.LLM]`, `[SADM.FN.03.LLM]`, `[SADM.FN.04.LLM]`, `[SADM.FN.05.LLM]`, `[SADM.FN.06.LLM]`, `[SADM.FN.07.LLM]`, `[SADM.CR.01.LLM]`, `[SADM.CR.02.MIX]`, `[SADM.RS.01.LLM]`, `[CANL.AV.02.LLM]`, `[CANL.FN.01.LLM]`, `[CANL.FN.02.LLM]`, `[CANL.FN.03.LLM]`, `[CANL.CR.01.LLM]`, `[CANL.CR.02.MIX]`, `[CANL.IN.01.LLM]`, `[CANL.IN.02.LLM]`, `[CANL.RS.01.LLM]`, `[CANL.RS.02.LLM]`
+
+- [x] Actualizar `specs/admin-api.yaml` con endpoints de Directorio (contacts CRUD) y Flujos (flows CRUD) `2026-06-15 14:41`
+- [x] Implementar POST/GET/PATCH/DELETE /admin/tenants/:id/contacts con metadata JSONB merge `2026-06-15 14:43`
+- [x] Implementar POST/GET/PATCH/DELETE /admin/tenants/:id/contacts/:id/addresses `2026-06-15 14:43`
+- [x] Implementar GET /admin/tenants/:id/contacts/schema (jsonb_object_keys dinámico) `2026-06-15 14:43`
+- [x] Implementar POST/GET/PATCH/DELETE /admin/tenants/:id/flows con graph JSONB `2026-06-15 14:43`
+- [x] Agregar campos visibility, direction, fallback_message a configuración de canales (wapp_channels.config) `2026-06-15 14:40`
+- [x] Actualizar Baileys worker para consultar contact_addresses en canales privados e inyectar metadata en CloudEvent `2026-06-15 14:57`
+  - [x] Ejecutar Specmatic contra admin-api.yaml actualizado (312 tests, 0 API bugs, harness CI-ready) `2026-06-15 13:01`
+
+### ✅ [TASK-035] Ops Console Frontend: Directorio + React Flow Builder; 2026-06-19 11:51 [🤖🧑 Pre-verified + confirmed by user]
+
+> Ref: MASTER-SPEC §6
+> Depends on: TASK-034
+
+**Covered checks:** `[SADM.AV.01.LLM]`, `[SADM.AV.02.LLM]`, `[SADM.AV.03.MIX]`, `[FRONT.AV.01.MIX]`, `[FRONT.AV.02.MIX]`, `[FRONT.AV.03.LLM]`, `[FRONT.FN.01.LLM]`, `[FRONT.FN.02.MIX]`, `[FRONT.FN.03.LLM]`, `[FRONT.FN.04.LLM]`, `[FRONT.CR.01.HUM]`, `[FRONT.CR.02.LLM]`, `[FRONT.IN.01.LLM]`, `[FRONT.RS.01.MIX]`, `[FRONT.RS.02.LLM]`
+
+- [x] Agregar pestaña "Flujos" en el detalle de tenant `2026-06-15 14:46`
+- [x] Agregar pestaña "Directorio" al detalle de tenant `2026-06-15 14:46`
+- [x] Implementar tabla para contactos con badges de metadata y direcciones `2026-06-15 14:44`
+- [x] Implementar formulario de contacto con campos dinámicos ("+ Agregar dirección") `2026-06-15 14:44`
+- [x] Instalar y configurar React Flow como constructor visual de pipelines `2026-06-15 14:56`
+- [x] Implementar paleta de nodos (Trigger, Switch, LLM, STT, Enviar Mensaje, Script SQL) `2026-06-15 14:45`
+- [x] Implementar Drawer lateral para configuración granular de cada nodo `2026-06-15 14:56`
+- [x] Implementar serialización/deserialización del graph JSONB con editor `2026-06-15 14:45`
+- [x] Implementar controles auto-save para visibilidad/dirección de canales `2026-06-15 13:12`
+- [x] Centralizar JsonEditor como componente reutilizable en Directorio, Flujos y Canales (verificado: 1 archivo, 4 imports) `2026-06-15 13:11`
+- [x] Implementar Error Boundary para graphs corruptos `2026-06-15 14:56`
+
+### ✅ [TASK-036] Motor de Flujos: Worker Universal + Testing; 2026-06-19 11:51 [🤖🧑 Pre-verified + confirmed by user]
+
+> Ref: MASTER-SPEC §4.7
+> Depends on: TASK-033, TASK-034
+
+**Covered checks:** `[MOTR.AV.01.LLM]`, `[MOTR.AV.02.LLM]`, `[MOTR.FN.01.LLM]`, `[MOTR.FN.02.LLM]`, `[MOTR.FN.03.LLM]`, `[MOTR.FN.04.LLM]`, `[MOTR.FN.05.LLM]`, `[MOTR.CR.01.LLM]`, `[MOTR.CR.02.LLM]`, `[MOTR.IN.01.LLM]`, `[MOTR.IN.02.LLM]`, `[MOTR.RS.01.LLM]`, `[MOTR.RS.02.LLM]`, `[CTTO.AV.01.MIX]`, `[CTTO.AV.02.LLM]`, `[CTTO.FN.01.LLM]`, `[CTTO.FN.02.LLM]`, `[CTTO.FN.03.MIX]`, `[CTTO.CR.01.LLM]`, `[CTTO.CR.02.MIX]`, `[CTTO.IN.01.LLM]`, `[CTTO.IN.02.LLM]`, `[CTTO.RS.01.MIX]`, `[CTTO.RS.02.LLM]`, `[CTTO.RS.03.LLM]`, `[CANL.AV.01.MIX]`
+
+- [x] Crear worker universal (`flow-engine`) que interprete graph JSONB secuencialmente `2026-06-15 14:49`
+- [x] Implementar ejecución de nodos: Trigger, Switch (metadata conditions), LLM, STT, Enviar Mensaje, Script SQL `2026-06-15 14:49`
+- [x] Implementar paso de output entre nodos via CloudEvent.data `2026-06-15 14:49`
+- [x] Implementar rama on_ai_failure con contingencia determinista `2026-06-15 14:49`
+- [x] Implementar trigger Programado (Cron) via pg-boss schedules `2026-06-15 14:49`
+- [x] Inyectar SET LOCAL antes de cada query + client.release(true) post-job `2026-06-15 14:49`
+- [x] Implementar audit logging por ejecución de flujo (flow_id, tenant_id, nodos, resultado) `2026-06-15 14:49`
+- [x] Implementar validación de graph JSONB al arrancar (nodos desconocidos → error descriptivo) `2026-06-15 14:58`
+- [x] Implementar forward-only idempotencia: nodos completados persisten, nodos posteriores a fallo no se ejecutan (MOTR.IN.02) `2026-06-15 13:13`
+- [x] Tests de integración: flujo completo Trigger→STT→LLM→Responder `2026-06-15 15:06`
+- [x] Tests de integración: Switch routing por contact.metadata `2026-06-15 15:06`
+- [x] Tests de integración: canal privado acepta/rechaza contactos `2026-06-15 14:57`
+- [x] Tests de integración: aislamiento RLS cross-tenant en contactos y flujos `2026-06-15 15:06`
+
+
 
 > Ref: MASTER-SPEC §7.4 FASE 2
 
@@ -586,6 +662,7 @@ GENERAL RULES:
 
 | Epic | Tasks | Status | 🤖 .LLM | 🧑 .HUM | 🤖🧑 .MIX | Total Checks |
 | --- | --- | --- | --- | --- | --- | --- |
-| EPIC-001 | TASK-001 a TASK-022, TASK-025, TASK-026, TASK-027, TASK-008 | 🚧 In Progress (La aprobación de la consola está EN PROGRESO; a la espera de que Martín pruebe e itere junto a Antigravity. La Fase 1 AUN NO está cerca de ser aprobada.) | 190/190 | 3/3 | 2/2 | 195/195 |
-| EPIC-003 | TASK-028, TASK-029, TASK-030, TASK-031, TASK-032 | ✅ Complete | 40/40 | 8/8 | 2/2 | 50/50 |
+| EPIC-001 | TASK-001 a TASK-022, TASK-025, TASK-026, TASK-027, TASK-008 | 🚧 In Progress | 190/190 | 3/3 | 2/2 | 195/195 |
+| EPIC-003 | TASK-028 a TASK-032 | ✅ Complete | 40/40 | 8/8 | 2/2 | 50/50 |
+| EPIC-004 | TASK-033 a TASK-036 | ✅ Complete | 60/60 | 1/1 | 12/12 | 73/73 |
 | EPIC-002 | TASK-023, TASK-024 | 🔲 Pending | 0/0 | 0/0 | 0/0 | 0/0 |

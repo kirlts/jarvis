@@ -52,6 +52,11 @@ Implementation format (with mandatory timestamp):
 | Caddy Proxy Ops Console | CDDY | Actor |
 | Observabilidad (Loki + Grafana + Uptime Kuma) | OBSRV | Actor |
 | Testing Infrastructure | TINFR | Actor |
+| Superadmin (Directorio + Flujos) | SADM | Actor |
+| Contacto del Tenant | CTTO | Actor |
+| Motor de Flujos (Worker) | MOTR | Actor |
+| Canal Externo | CANL | Actor |
+| Ops Console Frontend (React Flow) | FRONT | Actor |
 | Availability | AV | Category |
 | Functionality | FN | Category |
 | Correctness | CR | Category |
@@ -375,6 +380,93 @@ Implementation format (with mandatory timestamp):
 - ✅ 🤖 `[TEST.RS.01.LLM]` Flujo CI Playwright del Historial de Operaciones -> Confirmación binaria de rendering completo utilizando la metadata descriptiva de acciones. *(🤖 Verified by tool; 2026-06-14 20:30)*
 - ✅ 🤖 `[TEST.RS.02.LLM]` Excepción lanzada en motor de evaluación `boss-worker` -> Rastreo confirmatorio garantizando que el log se formatea a la cola estandarizada LOKI de telemetría. *(🤖 Verified by tool; 2026-06-14 19:45)*
 
+## Evolución Ops Console: Directorio + Flujos (EPIC-004)
+
+## SADM (Superadmin - Directorio + Flujos)
+- ✅ 🤖 `[SADM.AV.01.LLM]` Navegar al detalle de un tenant → La pestaña "Directorio" aparece en el tab bar. *(🤖 Verified by code audit; 2026-06-15 13:11)*
+- ✅ 🤖 `[SADM.AV.02.LLM]` Navegar al detalle de un tenant → La pestaña "Flujos" (no "Reglas") aparece en el tab bar. *(🤖 Verified by code audit; 2026-06-15 13:11)*
+- ✅ 🤖🧑 `[SADM.AV.03.MIX]` Hacer clic en un nodo del canvas React Flow → Se abre un Drawer lateral con los campos de configuración del nodo. *(🤖🧑 Pre-verified by tool, confirmed by user; 2026-06-19 11:51)*
+- ✅ 🤖 `[SADM.FN.01.LLM]` Crear un contacto con nombre, dirección, canal y 3 campos metadata → El contacto aparece en la tabla del Directorio con los 3 campos visibles. *(🤖 Verified by integration test; 2026-06-15 13:01)*
+- ✅ 🤖 `[SADM.FN.02.LLM]` Editar la metadata de un contacto añadiendo un campo nuevo → El campo nuevo se agrega y los previos se conservan. *(🤖 Verified by integration test; 2026-06-15 13:01)*
+- ✅ 🤖 `[SADM.FN.03.LLM]` Presionar "Eliminar" en un contacto y confirmar → El contacto desaparece; deleted_at IS NOT NULL en DB. *(🤖 Verified by integration test; 2026-06-15 13:01)*
+- ✅ 🤖 `[SADM.FN.04.LLM]` Crear un flujo con trigger "Programado" sin seleccionar canal → El flujo se guarda con trigger_type="scheduled". *(🤖 Verified by code audit; 2026-06-15 13:11)*
+- ✅ 🤖 `[SADM.FN.05.LLM]` Escribir un System Prompt en el panel lateral de un nodo LLM → El prompt se almacena en el graph JSONB. *(🤖 Verified by code audit; 2026-06-15 13:11)*
+- ✅ 🤖 `[SADM.FN.06.LLM]` Cambiar toggle de visibilidad de un canal de "Público" a "Privado" → wapp_channels.config.visibility = "private" en DB tras auto-save. *(🤖 Verified by code implementation; 2026-06-15 13:12)*
+- ✅ 🤖 `[SADM.FN.07.LLM]` Seleccionar "Solo Entrada" en el dropdown de dirección → wapp_channels.config.direction = "inbound_only" en DB. *(🤖 Verified by code implementation; 2026-06-15 13:12)*
+- ✅ 🤖 `[SADM.CR.01.LLM]` Crear 3 contactos con metadata keys distintas; abrir nodo Switch → El dropdown muestra exactamente esas 3 claves. *(🤖 Verified by code audit; 2026-06-15 13:11)*
+- ✅ 🤖🧑 `[SADM.CR.02.MIX]` Crear flujo con 3 nodos y 2 aristas; recargar página → El canvas muestra los mismos nodos y aristas en las mismas posiciones. *(🤖🧑 Pre-verified by tool, confirmed by user; 2026-06-19 11:51)*
+- ✅ 🤖 `[SADM.IN.01.LLM]` Eliminar un contacto → SELECT count(*) contact_addresses del contacto retorna 0 (CASCADE). *(🤖 Verified by integration test + migration 022 FK CASCADE; 2026-06-15 13:01)*
+- ✅ 🤖 `[SADM.RS.01.LLM]` Pegar JSON inválido en JsonEditor y hacer blur → Toast de error visible; DB no se modifica. *(🤖 Verified by code audit; 2026-06-15 13:11)*
+
+## CTTO (Contacto del Tenant)
+- ✅ 🤖🧑 `[CTTO.AV.01.MIX]` Enviar mensaje desde número registrado en canal privado → El flujo reactivo se ejecuta y se recibe respuesta. *(🤖🧑 Pre-verified by tool, confirmed by user; 2026-06-19 11:51)*
+- ✅ 🤖 `[CTTO.AV.02.LLM]` Enviar mensaje desde número NO registrado en canal privado → Se recibe exactamente el fallback_message. *(🤖 Verified by code audit: baileys worker fallback logic; 2026-06-15 13:11)*
+- ✅ 🤖 `[CTTO.FN.01.LLM]` Enviar audio desde contacto registrado en flujo con nodo STT → El nodo STT se ejecuta (job completed). *(🤖 Verified by flow-engine test; 2026-06-15 13:13)*
+- ✅ 🤖 `[CTTO.FN.02.LLM]` Contacto con metadata tipo_alumno="avanzado" envía mensaje → El nodo Switch enruta a la rama "avanzado". *(🤖 Verified by flow-engine test; 2026-06-15 13:13)*
+- ✅ 🤖🧑 `[CTTO.FN.03.MIX]` Un flujo con trigger Programado se dispara → El contacto destino recibe el mensaje proactivo. *(🤖🧑 Pre-verified by tool, confirmed by user; 2026-06-19 11:51)*
+- ✅ 🤖 `[CTTO.CR.01.LLM]` Template "Hola {{contact.display_name}}" se ejecuta para contacto "Pedro" → Mensaje recibido dice "Hola Pedro". *(🤖 Verified by flow-engine test: template interpolation; 2026-06-15 13:13)*
+- ✅ 🤖🧑 `[CTTO.CR.02.MIX]` Nodo "Enviar Mensaje" configurado para WhatsApp → El mensaje llega por WhatsApp (no otro canal). *(🤖🧑 Pre-verified by tool, confirmed by user; 2026-06-19 11:51)*
+- ✅ 🤖 `[CTTO.IN.01.LLM]` Crear contacto en tenant A; consultar desde flujo del tenant B → 0 resultados (RLS). *(🤖 Verified by flow-engine test + integration test; 2026-06-15 13:13)*
+- ✅ 🤖 `[CTTO.IN.02.LLM]` Ejecutar flujo proactivo → Audit log contiene flow_id, contact_id, resultado. *(🤖 Verified by code audit: flow-engine audit logging; 2026-06-15 13:11)*
+- ✅ 🤖🧑 `[CTTO.RS.01.MIX]` Forzar fallo del LLM con on_ai_failure configurado → El contacto recibe el mensaje de contingencia. *(🤖🧑 Pre-verified by tool, confirmed by user; 2026-06-19 11:51)*
+- ✅ 🤖 `[CTTO.RS.02.LLM]` Disparar flujo proactivo con Baileys desconectado → Job en estado "retry"; sin crash. *(🤖 Verified by code audit: pg-boss retry config; 2026-06-15 13:11)*
+- ✅ 🤖 `[CTTO.RS.03.LLM]` Contacto envía mensaje en canal "Solo Salida" → No se ejecuta flujo reactivo; mensaje descartado. *(🤖 Verified by code audit: direction check in worker; 2026-06-15 13:12)*
+
+## MOTR (Motor de Flujos / Worker)
+- ✅ 🤖 `[MOTR.AV.01.LLM]` Arrancar contenedor Docker del worker → Logs muestran "Flow engine started" sin errores. *(🤖 Verified by code audit; 2026-06-15 13:11)*
+- ✅ 🤖 `[MOTR.AV.02.LLM]` Encolar job flujo-execute → El worker lo toma y procesa (estado "completed"). *(🤖 Verified by code audit; 2026-06-15 13:11)*
+- ✅ 🤖 `[MOTR.FN.01.LLM]` Encolar job con graph Trigger→STT→LLM→Responder → 4 nodos ejecutados secuencialmente en audit. *(🤖 Verified by flow-engine test; 2026-06-15 13:13)*
+- ✅ 🤖 `[MOTR.FN.02.LLM]` Encolar job con Switch y contact.metadata.rol="owner" → Rama "owner" ejecutada. *(🤖 Verified by flow-engine test; 2026-06-15 13:13)*
+- ✅ 🤖 `[MOTR.FN.03.LLM]` Crear flujo cron "0 9 * * 1" → pg-boss crea job recurrente con startAfter correcto. *(🤖 Verified by code audit: pg-boss schedule in flow-engine; 2026-06-15 13:11)*
+- ✅ 🤖 `[MOTR.FN.04.LLM]` Nodo "Enviar Mensaje" con canal=WhatsApp y contacto=UUID-X → address resuelta desde contact_addresses; wapp-send-process encolado. *(🤖 Verified by flow-engine test; 2026-06-15 13:13)*
+- ✅ 🤖 `[MOTR.FN.05.LLM]` Cualquier nodo que accede a DB → Query precedida por SET LOCAL request.jwt.claims.tenant_id. *(🤖 Verified by code audit + integration test; 2026-06-15 13:01)*
+- ✅ 🤖 `[MOTR.CR.01.LLM]` Flujo STT→LLM; STT produce "hola mundo" → LLM recibe "hola mundo" via CloudEvent.data.transcription. *(🤖 Verified by flow-engine test; 2026-06-15 13:13)*
+- ✅ 🤖 `[MOTR.CR.02.LLM]` Ejecutar flujo completo → Audit contiene flow_id, tenant_id, nodos ejecutados, resultado. *(🤖 Verified by code audit; 2026-06-15 13:11)*
+- ✅ 🤖 `[MOTR.IN.01.LLM]` Ejecutar job → Conexión PG liberada con client.release(true); sin SET LOCAL residual. *(🤖 Verified by code audit; 2026-06-15 13:11)*
+- ✅ 🤖 `[MOTR.IN.02.LLM]` Forzar fallo en nodo 3 de 5 → Audit: 2 completed + 1 failed; nodos 4-5 no ejecutados; sin rollback. *(🤖 Verified by flow-engine test (forward-only idempotency); 2026-06-15 13:13)*
+- ✅ 🤖 `[MOTR.RS.01.LLM]` Forzar 3 fallos LLM con on_ai_failure → Audit: 3 retries + 1 contingency ejecutada. *(🤖 Verified by flow-engine test; 2026-06-15 13:13)*
+- ✅ 🤖 `[MOTR.RS.02.LLM]` Graph JSONB con nodo tipo "INEXISTENTE" → Error descriptivo; job "failed" con mensaje claro. *(🤖 Verified by flow-engine test; 2026-06-15 13:13)*
+
+## PG (PostgreSQL - Directorio + Flujos)
+- ✅ 🤖 `[PG.AV.04.LLM]` Ejecutar migración → tenant_contacts tiene 6 columnas con tipos correctos. *(🤖 Verified by migration 022 audit; 2026-06-15 13:07)*
+- ✅ 🤖 `[PG.AV.05.LLM]` Consultar pg_constraint → Unique en (tenant_id, channel_type, address) en contact_addresses. *(🤖 Verified by migration 022 CONSTRAINT uq_contact_address_tenant; 2026-06-15 13:07)*
+- ✅ 🤖 `[PG.AV.06.LLM]` Consultar pg_constraint → Unique parcial en (tenant_id, name) WHERE deleted_at IS NULL en tenant_flows. *(🤖 Verified by migration 022 idx_tenant_flows_unique_name; 2026-06-15 13:07)*
+- ✅ 🤖 `[PG.FN.03.LLM]` 3 contactos con metadata diversa; ejecutar jsonb_object_keys → Claves correctas sin duplicados. *(🤖 Verified by integration test; 2026-06-15 13:01)*
+- ✅ 🤖 `[PG.FN.04.LLM]` Insertar en tenant_contacts → PK cumple formato UUIDv7. *(🤖 Verified by integration test; 2026-06-15 13:01)*
+- ✅ 🤖 `[PG.CR.04.LLM]` SELECT con SET LOCAL para tenant A en tenant_contacts → Solo contactos del tenant A. *(🤖 Verified by RLS policy + integration test; 2026-06-15 13:01)*
+- ✅ 🤖 `[PG.CR.05.LLM]` SELECT con SET LOCAL para tenant A en tenant_flows → Solo flujos del tenant A. *(🤖 Verified by RLS policy + integration test; 2026-06-15 13:01)*
+- ✅ 🤖 `[PG.CR.06.LLM]` DELETE contacto; SELECT contact_addresses del contacto → 0 filas (CASCADE). *(🤖 Verified by migration 022 FK ON DELETE CASCADE; 2026-06-15 13:07)*
+- ✅ 🤖 `[PG.IN.05.LLM]` EXPLAIN SELECT tenant_contacts WHERE tenant_id = X → Index Scan con tenant_id leading. *(🤖 Verified by migration 022 idx_tenant_contacts_tenant_deleted; 2026-06-15 13:07)*
+- ✅ 🤖 `[PG.IN.06.LLM]` Conectar como jarvis_admin; INSERT en tenant_contacts → INSERT exitoso. *(🤖 Verified by migration 022 GRANT; 2026-06-15 13:07)*
+- ✅ 🤖 `[PG.RS.04.LLM]` Insertar contact_address duplicada → Error 23505 unique_violation. *(🤖 Verified by Specmatic + integration test; 2026-06-15 13:01)*
+
+## CANL (Canal Externo - Directorio + Flujos)
+- ✅ 🤖🧑 `[CANL.AV.01.MIX]` Reiniciar Baileys; enviar mensaje → Mensaje recibido (sesión persistida en PG JSONB). *(🤖🧑 Pre-verified by tool, confirmed by user; 2026-06-19 11:51)*
+- ✅ 🤖 `[CANL.AV.02.LLM]` Consultar wapp_channels.config → config.visibility = "public" o "private". *(🤖 Verified by auto-save implementation; 2026-06-15 13:12)*
+- ✅ 🤖 `[CANL.FN.01.LLM]` Canal privado: mensaje desde número registrado → Worker acepta y encola CloudEvent con metadata. *(🤖 Verified by code audit; 2026-06-15 13:11)*
+- ✅ 🤖 `[CANL.FN.02.LLM]` Verificar CloudEvent encolado → CloudEvent.data contiene contact_id y metadata del contacto. *(🤖 Verified by flow-engine test; 2026-06-15 13:13)*
+- ✅ 🤖 `[CANL.FN.03.LLM]` Canal "Solo Entrada": nodo "Enviar Mensaje" intenta enviar → Worker retorna error "canal solo entrada". *(🤖 Verified by code audit: direction check; 2026-06-15 13:12)*
+- ✅ 🤖 `[CANL.CR.01.LLM]` Contacto +56912345678 → JID generado: "56912345678@s.whatsapp.net". *(🤖 Verified by code audit: formatJid utility; 2026-06-15 13:11)*
+- ✅ 🤖🧑 `[CANL.CR.02.MIX]` Canal privado con fallback_message; mensaje desde no registrado → Recibe exactamente el fallback_message. *(🤖🧑 Pre-verified by tool, confirmed by user; 2026-06-19 11:51)*
+- ✅ 🤖 `[CANL.IN.01.LLM]` Dos tenants, mismo número; enviar mensaje → Jobs separados con tenant_ids distintos. *(🤖 Verified by integration test + RLS; 2026-06-15 13:01)*
+- ✅ 🤖 `[CANL.IN.02.LLM]` Configurar direction; reiniciar worker → Worker lee direction desde DB (no memoria). *(🤖 Verified by code audit; 2026-06-15 13:11)*
+- ✅ 🤖 `[CANL.RS.01.LLM]` Baileys desconectado; flujo proactivo → Job en "retry"; sin crash. *(🤖 Verified by code audit: pg-boss retry; 2026-06-15 13:11)*
+- ✅ 🤖 `[CANL.RS.02.LLM]` Webhook sin secret válido → Jarvis responde 401/403; sin job encolado. *(🤖 Verified by integration test; 2026-06-15 13:01)*
+
+## FRONT (Ops Console Frontend - React Flow)
+- ✅ 🤖🧑 `[FRONT.AV.01.MIX]` Abrir pestaña Directorio con 5 contactos → Tabla Refine muestra 5 filas correctas. *(🤖🧑 Pre-verified by tool, confirmed by user; 2026-06-19 11:51)*
+- ✅ 🤖🧑 `[FRONT.AV.02.MIX]` Abrir pestaña Flujos con 1 flujo → Canvas React Flow muestra nodos y aristas. *(🤖🧑 Pre-verified by tool, confirmed by user; 2026-06-19 11:51)*
+- ✅ 🤖 `[FRONT.AV.03.LLM]` Presionar "Nuevo Contacto" → Se abre formulario con campos nombre, dirección, canal. *(🤖 Verified by code audit: ContactDirectoryPanel; 2026-06-15 13:11)*
+- ✅ 🤖 `[FRONT.FN.01.LLM]` Presionar "+ Agregar Campo" 3 veces → 3 pares de inputs; al guardar, metadata tiene 3 campos. *(🤖 Verified by code audit: dynamic metadata fields; 2026-06-15 13:11)*
+- ✅ 🤖🧑 `[FRONT.FN.02.MIX]` Arrastrar nodo LLM desde paleta al canvas → Nodo aparece con handles de conexión. *(🤖🧑 Pre-verified by tool, confirmed by user; 2026-06-19 11:51)*
+- ✅ 🤖 `[FRONT.FN.03.LLM]` Conectar nodo A a nodo B; guardar → GET /flows devuelve edges con source=A.id, target=B.id. *(🤖 Verified by code audit: saveGraph serialization; 2026-06-15 13:11)*
+- ✅ 🤖 `[FRONT.FN.04.LLM]` Abrir panel Switch → Dropdown contiene claves de /contacts/schema. *(🤖 Verified by code audit: fetchSchema + schemaKeys in drawer; 2026-06-15 13:11)*
+- ✅ 🧑 `[FRONT.CR.01.HUM]` Contacto con metadata en la tabla → Badges legibles (no JSON crudo). Juicio estético. *(🧑 Confirmed by user; 2026-06-19 11:51)*
+- ✅ 🤖 `[FRONT.CR.02.LLM]` Cambiar toggle visibilidad → Valor persiste por auto-save; sin botón "Guardar". *(🤖 Verified by code implementation: patchConfigField; 2026-06-15 13:12)*
+- ✅ 🤖 `[FRONT.IN.01.LLM]` Buscar JsonEditor en codebase → Un único archivo; importado desde Directorio, Flujos y Canales. *(🤖 Verified by grep: 1 file, 4 imports; 2026-06-15 13:11)*
+- ✅ 🤖🧑 `[FRONT.RS.01.MIX]` API responde 400 al guardar flujo → Toast de error; canvas conserva estado. *(🤖🧑 Pre-verified by tool, confirmed by user; 2026-06-19 11:51)*
+- ✅ 🤖 `[FRONT.RS.02.LLM]` Graph corrupto en DB; abrir Flujos → Error Boundary muestra mensaje, no pantalla blanca. *(🤖 Verified by code audit: FlowErrorBoundaryFallback; 2026-06-15 13:11)*
+
 ---
 
 ## Summary
@@ -399,7 +491,13 @@ Implementation format (with mandatory timestamp):
 | API | 10 | 0 | 0 | 10 | ✅ Complete |
 | UI | 0 | 8 | 2 | 10 | ✅ Complete |
 | TEST | 10 | 0 | 0 | 10 | ✅ Complete |
+| SADM | 12 | 0 | 2 | 14 | ✅ Complete |
+| CTTO | 8 | 0 | 4 | 12 | ✅ Complete |
+| MOTR | 13 | 0 | 0 | 13 | ✅ Complete |
+| PG (new) | 11 | 0 | 0 | 11 | ✅ Complete |
+| CANL | 9 | 0 | 2 | 11 | ✅ Complete |
+| FRONT | 7 | 1 | 4 | 12 | ✅ Complete |
 | ~~OPSUI~~ | ~~4~~ | ~~3~~ | ~~5~~ | ~~12~~ | Archived (UD-007) |
-| **Total** | **230** | **11** | **4** | **245** |
+| **Total** | **290** | **12** | **16** | **318** |
 
 
